@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #e8f4f2;
+  --bg-deep: #cfe8e3;
+  --ink: #14353a;
+  --ink-soft: #3d5c62;
+  --brand: #0f6b63;
+  --brand-deep: #0a4f4a;
+  --accent: #e8913a;
+  --school: #1a6b8a;
+  --extra: #b85c38;
+  --card: #fffaf4;
+  --stroke: rgba(20, 53, 58, 0.12);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-deep: var(--bg-deep);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-accent: var(--accent);
+  --color-school: var(--school);
+  --color-extra: var(--extra);
+  --color-card: var(--card);
+  --color-stroke: var(--stroke);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+body {
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, #b8e0d8 0%, transparent 55%),
+    radial-gradient(ellipse 70% 45% at 100% 0%, #f3d5a8 0%, transparent 50%),
+    var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+  min-height: 100%;
+}
+
+/* Canvas skins: meadow (7–9), field journal (10–13), studio (14–17) */
+html[data-skin="journal"] {
+  --bg: #eef2ea;
+  --bg-deep: #d9e2d4;
+  --brand: #2f5d4a;
+  --school: #3a5f7a;
+  --extra: #9a5b3c;
+  --card: #f7f4ee;
+}
+
+html[data-skin="studio"] {
+  --bg: #e6eef5;
+  --bg-deep: #cfdceb;
+  --brand: #1f4d6d;
+  --school: #1a5f8a;
+  --extra: #8b4a3a;
+  --card: #f5f8fb;
+  --ink: #122832;
+}
+
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+}
