@@ -2,7 +2,7 @@
 
 **Your friend on the learning path.**
 
-Wondrix is an AI education agent for the Dubai Create AI Agents Championship (**Best Societal AI Agent**). It helps families support school learning **without school letters**, and grows a child’s curiosity in a safe, follow-up chat.
+Wondrix is an AI education agent for the Dubai Create AI Agents Championship (**Best Societal AI Agent**). It helps families support school learning at home, and grows a child’s curiosity in a safe, follow-up chat.
 
 > Prototype plan: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md)  
 > What shipped vs the plan: [CHANGELOG.md](./CHANGELOG.md)
@@ -31,7 +31,7 @@ Wondrix is an AI education agent for the Dubai Create AI Agents Championship (**
 
 1. **Read state** — grade, subjects, mastery, teacher note, calm mode  
 2. **School** — pick 1–2 focus skills → practice / gap radar → update mastery  
-3. **Extra** — answer a curiosity question → gentle follow-up + diagram  
+3. **Extra** — answer a curiosity question → gentle follow-up  
 4. **Safety** — redirect unsafe topics  
 5. **Parent summary** — what was practiced, Extra topic, calm tip  
 
@@ -39,7 +39,7 @@ This release runs the loop with **local skill banks and keyword replies**. Live 
 
 ## Features
 
-### School (no letters)
+### School
 
 - Grade-aware **focus skills** (Year 1–2 through Year 7+, including advanced algebra / cells / percentages)
 - **Gap radar** — short checks that catch silent delays (“I don’t know” is always ok)
@@ -52,6 +52,7 @@ This release runs the loop with **local skill banks and keyword replies**. Live 
 - Local content-first answers (e.g. why wheels are round) + follow-up questions  
 - Optional **voice answers** (TTS) and **mic** input (Chrome/Edge)  
 - Soft safety redirect for unsafe topics  
+- Text replies for now; on-the-spot visuals come with the live agent later  
 
 ### Parent
 
@@ -104,7 +105,7 @@ Tune prompts and model behaviour against the canvas goals in [docs/PROJECT_CANVA
 ## Championship context
 
 - **Category:** Best Societal AI Agent  
-- **Story:** Quiet gap found by radar → Extra grown → parent summary — without letters  
+- **Story:** Quiet gap found by radar → Extra grown → parent summary  
 - **Submit window:** ~January 2027 prototype · May 2027 final  
 
 ## License

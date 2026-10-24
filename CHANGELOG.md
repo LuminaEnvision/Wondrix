@@ -12,7 +12,6 @@ Ships a clickable championship demo. School and Extra run on **local banks + key
 | Canvas item | Status in this release |
 |-------------|------------------------|
 | Rename Offscreen → **Wondrix**; two doors School / Extra | Done — home + path hero |
-| **No school letters** anywhere | Done — never asked for upload |
 | Parent setup: nickname, grade/year, subjects, teacher recommendations, calm mode | Done — `/parent` |
 | Optional **4-digit parent PIN** + first-run setup gate | Done |
 | School **This week** (1–2 focus skills by grade) | Done — `/school` + School agent plan |
@@ -20,7 +19,7 @@ Ships a clickable championship demo. School and Extra run on **local banks + key
 | School **Gap radar** | Done — `/school/radar`, grade-filtered bank |
 | Skill graph + mastery (localStorage) | Done — expanded beyond Year 3; Y5–Y7+ advanced skills |
 | Grade-matched questions (Year 3 ≠ Year 7) | Done — `src/lib/radar.ts` |
-| Extra curiosity chat + topic ideas + diagrams | Done — `/extra` (physics, robots, astronomy, living things, chemistry) |
+| Extra curiosity chat + topic ideas (text replies) | Done — `/extra` (physics, robots, astronomy, living things, chemistry). On-the-spot visuals TBD with AI. |
 | Extra voice (TTS + mic where browser allows) | Done — Web Speech API |
 | Soft **safety redirect** | Done — keyword gate (`src/lib/safety.ts`) |
 | Parent **daily phone summary** preview | Done — built from focus + Extra topic + calm |

@@ -19,7 +19,6 @@ function PracticeInner() {
   const [result, setResult] = useState<SchoolGradeResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [grading, setGrading] = useState(false);
-  const [agentSource, setAgentSource] = useState<"local" | "openai">("local");
   const [gradeLabel, setGradeLabel] = useState("");
 
   const fetchQuestion = useCallback(
@@ -43,7 +42,6 @@ function PracticeInner() {
         if (!res.ok) throw new Error("fail");
         const data = (await res.json()) as SchoolQuestionPayload;
         setQuestion(data);
-        setAgentSource(data.source);
       } catch {
         setQuestion(null);
       } finally {
@@ -77,7 +75,6 @@ function PracticeInner() {
       if (!res.ok) throw new Error("fail");
       const data = (await res.json()) as SchoolGradeResult;
       setResult(data);
-      setAgentSource(data.source);
       setSkillMastery(skillId, data.mastery);
       setAvoidIds((prev) => [...prev, question.questionId]);
     } catch {
@@ -100,7 +97,6 @@ function PracticeInner() {
       setQuestion(result.nextQuestion);
       setPicked(null);
       setResult(null);
-      setAgentSource(result.nextQuestion.source);
       return;
     }
     void fetchQuestion([...avoidIds, question?.questionId ?? ""]);
@@ -117,11 +113,8 @@ function PracticeInner() {
             {question?.skillTitle ?? "Practice"}
           </h1>
           <p className="mt-2 text-ink-soft">
-            {gradeLabel
-              ? `Questions match ${gradeLabel}. `
-              : ""}
-            No scores that punish mistakes. &quot;I don&apos;t know&quot; is always ok.
-            {agentSource === "openai" ? " Agent online." : " Demo agent (add OPENAI_API_KEY for live coach)."}
+            {gradeLabel ? `${gradeLabel}. ` : ""}
+            &quot;I don&apos;t know&quot; is ok.
           </p>
         </div>
 
@@ -133,8 +126,12 @@ function PracticeInner() {
           </p>
         ) : (
           <div className="rounded-3xl border border-stroke bg-card p-6">
-            <p className="text-sm text-ink-soft">{question.coachLead}</p>
-            <p className="mt-3 text-lg font-semibold text-ink">{question.prompt}</p>
+            {question.coachLead ? (
+              <p className="text-sm text-ink-soft">{question.coachLead}</p>
+            ) : null}
+            <p className={`text-lg font-semibold text-ink ${question.coachLead ? "mt-3" : ""}`}>
+              {question.prompt}
+            </p>
             <div className="mt-5 space-y-3">
               {question.choices.map((choice) => {
                 const selected = picked === choice.id;

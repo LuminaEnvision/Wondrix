@@ -75,18 +75,13 @@ export function localSchoolPlan(
     };
   });
 
-  const advanced =
-    grade.id === "y6" || grade.id === "y7+"
-      ? " We'll stretch into harder ideas when you're ready."
-      : "";
+  const titles = focus.map((f) => f.title).join(" · ") || "a short check-in";
 
   return {
     gradeLabel: grade.label,
     gradeId: grade.id,
     focus,
-    coachNote: `I'm your School agent for ${grade.label}. Today we practice: ${
-      focus.map((f) => f.title).join(" and ") || "a gentle check-in"
-    }.${advanced} No scary scores. "I don't know" is always ok.`,
+    coachNote: `Today: ${titles}.`,
     source: "local",
   };
 }
@@ -114,11 +109,7 @@ export function localNextQuestion(
 ): SchoolQuestionPayload | null {
   const item = pickQuestion(profile.gradeLabel, skillId, avoidIds);
   if (!item) return null;
-  const skill = getSkill(skillId);
-  return toQuestionPayload(
-    item,
-    `Let's try ${skill.title} for ${profile.gradeLabel}. Take your time.`,
-  );
+  return toQuestionPayload(item, "");
 }
 
 export function localGradeAnswer(
@@ -136,7 +127,7 @@ export function localGradeAnswer(
       correct: false,
       explanation: item.explainWrong,
       mastery: "shaky",
-      nextCoach: "Thanks for saying you don't know yet. That helps me teach better. Want another try?",
+      nextCoach: "Want another try?",
       nextQuestion: next,
       source: "local",
     };
@@ -150,9 +141,7 @@ export function localGradeAnswer(
     correct,
     explanation: correct ? item.explainCorrect : item.explainWrong,
     mastery: correct ? "growing" : "shaky",
-    nextCoach: correct
-      ? "Nice. That skill is growing. Ready for one more?"
-      : "Close. Read the tip, then we can try again gently.",
+    nextCoach: correct ? "Nice. One more?" : "Try another?",
     nextQuestion: next,
     source: "local",
   };

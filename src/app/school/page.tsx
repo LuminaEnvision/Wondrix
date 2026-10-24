@@ -17,8 +17,6 @@ export default function SchoolHomePage() {
   const [gradeLabel, setGradeLabel] = useState("Year 3");
   const [gradeBlurb, setGradeBlurb] = useState("");
   const [coachNote, setCoachNote] = useState("");
-  const [agentSource, setAgentSource] = useState<"local" | "openai">("local");
-
   const refresh = useCallback(() => {
     const profile = loadProfile();
     const mastery = loadMastery();
@@ -39,14 +37,13 @@ export default function SchoolHomePage() {
         if (!res.ok) return;
         const plan = (await res.json()) as SchoolPlan;
         setCoachNote(plan.coachNote);
-        setAgentSource(plan.source);
         if (plan.focus?.length) {
           setFocus(plan.focus.map((f) => f.id));
         }
       })
       .catch(() => {
         setCoachNote(
-          `Practice for ${grade.label}: ${focusIds.map((id) => getSkill(id).title).join(", ")}.`,
+          `Today: ${focusIds.map((id) => getSkill(id).title).join(" · ") || "practice"}.`,
         );
       });
   }, []);
@@ -81,15 +78,7 @@ export default function SchoolHomePage() {
               {gradeBlurb ? ` · ${gradeBlurb}` : ""}
             </p>
             <p className="mt-2 text-ink-soft">
-              {coachNote ||
-                (calm
-                  ? "Soft day today. Small steps still count. You've got this."
-                  : "Every skill grows with one brave try. I'm right here with you.")}
-            </p>
-            <p className="mt-2 text-xs text-ink-soft">
-              {agentSource === "openai"
-                ? "Live AI coach"
-                : "Demo coach · set OPENAI_API_KEY for live agent"}
+              {coachNote || (calm ? "Soft day. One focus skill." : "Pick a skill to start.")}
             </p>
           </div>
           <div className="relative h-28 w-24 shrink-0 sm:h-40 sm:w-36">

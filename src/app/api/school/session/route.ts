@@ -126,11 +126,11 @@ async function openaiCoachNote(
     {
       role: "system",
       content:
-        "You are Wondrix School agent. Write 2 short sentences for a child. Mention their grade and today's focus skills. Warm, no em dashes, no scary scores.",
+        "You are Wondrix School agent. Reply in ONE short sentence only. Format: Today: skill · skill. No em dashes. No pep talk.",
     },
     {
       role: "user",
-      content: `Child: ${profile.childNickname}. Grade: ${profile.gradeLabel}. Focus: ${titles}. Calm: ${profile.calmMode}. Teacher note: ${profile.oneLiner || "none"}.`,
+      content: `Grade: ${profile.gradeLabel}. Focus: ${titles}.`,
     },
   ]);
 }

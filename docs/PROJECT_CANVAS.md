@@ -9,34 +9,34 @@ Source plan: Cursor canvas **`wondrix-education-agent-plan`**
 
 ## One-line product
 
-Wondrix is an AI learning home with two doors: **School** (find silent gaps without school letters) and **Extra** (grow curiosity with follow-ups and diagrams). Parents get a **daily phone summary**. Soft off-screen missions are optional and later.
+Wondrix is an AI learning home with two doors: **School** (find silent gaps) and **Extra** (grow curiosity with follow-ups). Parents get a **daily phone summary**. Soft off-screen missions are optional and later.
 
 ## What the child opens
 
 | Door | Job |
 |------|-----|
 | **School** | Homework-style practice on a skill graph for age/grade. Agent finds shaky skills (especially when the child never raises a hand), then quizzes + visuals. |
-| **Extra** | Chat on interests (physics, robotics, biology, chemistry, astronomy). Answers once, then gently follows up. Diagrams grow the topic. |
+| **Extra** | Chat on interests (physics, robotics, biology, chemistry, astronomy). Answers once, then gently follows up. Visuals are built by the agent on the spot when AI is wired. |
 
-## School inputs (no letters)
+## School inputs
 
 1. **Setup profile** (parent, once) — age band, grade/year, subjects (math, science first); optional calm mode  
 2. **Gap radar** (child) — short quiz that maps silent delays without needing the child to confess  
-3. **Teacher recommendations / parent one-liner** (optional) — after a teacher call; not a curriculum PDF  
+3. **Teacher recommendations / parent one-liner** (optional) — after a teacher call  
 
 ## School screens
 
 - **This week** — 1–2 focus skills from grade + radar + teacher note · Start  
 - **Practice** — quiz/visual · soft feedback · “I don’t know” allowed  
 - **Radar** — multi-item check across the grade band  
-- **Parent** — teacher recommendations field + calm mode · never asks for a letter upload  
+- **Parent** — teacher recommendations field + calm mode  
 
 ## Agent loop (one day)
 
 1. Read state (skills, radar, Extra threads, calm mode)  
 2. Offer today (School focus and/or Extra)  
 3. School practice → update mastery quietly  
-4. Extra path → answer, follow-up, diagram  
+4. Extra path → answer, follow-up  
 5. Safety gate → redirect unsafe turns  
 6. Day summary → parent phone preview  
 
@@ -49,7 +49,7 @@ Wondrix is an AI learning home with two doors: **School** (find silent gaps with
 | Skill graph | Grade-banded math/science nodes | Years 2–6 richer |
 | Gap radar | Short multi-skill bank | Richer |
 | Parent signals | Teacher note + calm mode | Weekly digest |
-| Extra + safety | Topic trees, diagrams, keyword safety | Full classifier + push |
+| Extra + safety | Topic trees, keyword safety | Full classifier + push + on-the-spot visuals |
 | Records | **localStorage** demo | Postgres / Supabase, auth |
 
 ## Age skins (canvas)
@@ -60,7 +60,7 @@ Wondrix is an AI learning home with two doors: **School** (find silent gaps with
 
 ## January proof (championship narrative)
 
-Quiet gap found by radar → Extra topic grown → parent got summary — **without school letters**.
+Quiet gap found by radar → Extra topic grown → parent got summary.
 
 ## Explicitly out of January prototype
 

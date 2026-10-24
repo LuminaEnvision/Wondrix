@@ -3,7 +3,7 @@
 | File | Role |
 | --- | --- |
 | `logo-mark.jpg` | Brand mark (book + spark) |
-| `mascot-hero.jpg` | Owl guide with satchel (home) |
+| `mascot-hero.jpg` / `mascot-hero.png` | Owl guide (UI / speech bubble) |
 | `mascot-icon.jpg` | Circular face icon (header) |
 | `mascot-turnaround.jpg` | Front / 3/4 / side / wave |
 | `mascot-poses.jpg` | Pose pack for UI states |
@@ -13,13 +13,10 @@
 | `radar-lighthouse.jpg` | Gap radar |
 | `state-growth.jpg` | Practice success |
 | `state-idontknow.jpg` | Soft “I don’t know” |
-| `topic-physics.jpg` | Extra → Physics card + diagram |
-| `topic-robots.jpg` | Extra → Robots scene card |
-| `topic-astronomy.jpg` | Extra → Astronomy |
-| `topic-living.jpg` | Extra → Living things |
-| `diagram-earth.jpg` | Older Earth diagram (backup) |
-| `diagram-robot-path.jpg` | Robots in-chat path diagram |
-| `diagram-robot-path-alt.jpg` | Alternate path |
+| `topic-physics.jpg` | Extra → Physics topic card |
+| `topic-robots.jpg` | Extra → Robots topic card |
+| `topic-astronomy.jpg` | Extra → Astronomy topic card |
+| `topic-living.jpg` | Extra → Living things topic card |
 | `parent-phone.jpg` | Parent daily summary |
 | `safety-trust.jpg` | Safety / pitch |
 | `bg-meadow.jpg` | Ages 7–9 atmosphere |

@@ -11,7 +11,6 @@ import { canListen, canSpeak, listenOnce, speak, stopSpeaking } from "@/lib/voic
 type Msg = {
   role: "child" | "agent";
   text: string;
-  imageSrc?: string;
 };
 
 const INTERESTS = [
@@ -123,15 +122,9 @@ function ExtraInner() {
         }),
       });
       if (res.ok) {
-        const data = (await res.json()) as {
-          text?: string;
-          imageSrc?: string;
-        };
+        const data = (await res.json()) as { text?: string };
         if (data.text) {
-          reply = {
-            text: data.text,
-            imageSrc: data.imageSrc ?? reply.imageSrc,
-          };
+          reply = { text: data.text };
         }
       }
     } catch {
@@ -141,7 +134,6 @@ function ExtraInner() {
     const agentMsg: Msg = {
       role: "agent",
       text: reply.text,
-      imageSrc: reply.imageSrc,
     };
     setMessages((m) => [...m, agentMsg]);
     saveExtraTopic(topic?.label ?? trimmed.slice(0, 40));
@@ -253,17 +245,6 @@ function ExtraInner() {
                   >
                     Hear again
                   </button>
-                ) : null}
-                {msg.imageSrc ? (
-                  <div className="relative mt-2 h-36 w-full overflow-hidden rounded-xl">
-                    <Image
-                      src={msg.imageSrc}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="280px"
-                    />
-                  </div>
                 ) : null}
               </div>
             ))

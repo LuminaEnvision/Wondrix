@@ -25,7 +25,6 @@ export async function POST(request: Request) {
   if (!gate.ok) {
     return NextResponse.json({
       text: gate.redirect,
-      imageSrc: "/art/safety-trust.jpg",
       source: "safety",
     });
   }
@@ -37,7 +36,7 @@ export async function POST(request: Request) {
       const messages = [
         {
           role: "system",
-          content: `You are Wondrix, a warm kids learning guide (ages 7-12). Always answer the child's question clearly in 2-4 short sentences, then ask one gentle follow-up. No em dashes. No scolding. Stay educational and safe. No relationships, self-harm, or adult topics; redirect to curiosity if needed.`,
+          content: `You are Wondrix, a warm kids learning guide (ages 7-12). Always answer the child's question clearly in 2-4 short sentences, then ask one gentle follow-up. No em dashes. No scolding. Text only — do not promise images. Stay educational and safe. No relationships, self-harm, or adult topics; redirect to curiosity if needed.`,
         },
         ...history.map((m) => ({
           role: m.role === "child" ? "user" : "assistant",
@@ -66,12 +65,7 @@ export async function POST(request: Request) {
         };
         const text = data.choices?.[0]?.message?.content?.trim();
         if (text) {
-          const fallback = localExtraReply(message, body.topicId);
-          return NextResponse.json({
-            text,
-            imageSrc: fallback.imageSrc,
-            source: "openai",
-          });
+          return NextResponse.json({ text, source: "openai" });
         }
       }
     } catch {
