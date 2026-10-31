@@ -10,6 +10,7 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 - `src/lib/extra-agent.ts`: Extra agent tuned to the canvas loop. Prompt adapts to age band (meadow / journal / studio), grade, picked interest and calm mode. Structured reply `{ answer, followUp, topic }`.
 - Extra safety layer 2: OpenAI moderation on the child's turn and on the agent's reply (keyword gate stays as layer 1).
 - `OPENAI_BASE_URL` (optional) for proxies or local mocks.
+- `docs/DEV_CHANGELOG.md`: detailed per-commit log (what, how, why, tests) and stage status.
 
 ### Changed
 - Extra page sends the parent profile and saves the agent's topic label for the parent day summary.
