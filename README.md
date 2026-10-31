@@ -72,7 +72,7 @@ This release runs the loop with **local skill banks and keyword replies**. Live 
 
 ```bash
 npm install
-cp .env.example .env.local   # optional — leave OPENAI_API_KEY empty for local demo
+cp .env.example .env.local   # optional — leave ZAI_API_KEY empty for local demo
 npm run dev
 ```
 
@@ -89,7 +89,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Adding the live AI API (for developers)
 
-1. Put `OPENAI_API_KEY` (and optional `OPENAI_MODEL`) in `.env.local`  
+1. Put `ZAI_API_KEY` in `.env.local` (free GLM Flash models from https://z.ai; default model `glm-4.5-flash`). `OPENAI_API_KEY` also works as an alternative provider  
 2. Restart `npm run dev`  
 3. Extra uses `/api/extra/chat`; School uses `/api/school/session`  
 4. Without a key, both fall back to local banks — the UI still works for demos  

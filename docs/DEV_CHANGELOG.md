@@ -16,8 +16,9 @@ Updated after every commit. The short summary for the release stays in [`CHANGEL
 | 0 | Sync the fork, run the app, walk School → Extra → Parent | ✅ Done (fork in sync, build OK) |
 | 1 | Shared AI layer (`src/lib/ai.ts`) with timeout, logging, local fallback | ✅ Done, `8cda327` |
 | 2 | Extra agent tuned to the canvas loop + moderation | ✅ Done, `8cda327` (needs a live-key test) |
-| 3 | School agent: real question context, AI explains but never grades, logged focus decisions | ⏳ Next |
-| 4 | Less robotic voice: better browser voice pick + `/api/tts` (OpenAI TTS) with fallback | ⏳ Planned |
+| 2b | Switch LLM provider to Z.ai (free GLM Flash), keep OpenAI optional | ✅ Done (see log) |
+| 3 | School agent: move to the shared client (so it also uses Z.ai), real question context, AI explains but never grades, logged focus decisions | ⏳ Next |
+| 4 | Less robotic voice: better browser voice pick + a server TTS route with fallback (provider to choose: Z.ai has no TTS in our setup) | ⏳ Planned |
 | 5 | On-the-spot visuals in Extra (agent-drawn SVG, no stock art) | ⏳ Later |
 | 6 | QA: prompt eval script, fix the 8 existing lint errors, PR to upstream | ⏳ Planned |
 
@@ -25,15 +26,55 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 ### Blockers
 
-- **Live AI test:** the cloud dev environment needs `OPENAI_API_KEY` set in its environment settings and `api.openai.com` allowed in Network access. Until then, AI paths are tested against a local mock server.
+- **Live AI test:** the cloud dev environment needs `ZAI_API_KEY` set in its environment settings and `api.z.ai` allowed in Network access. Until then, AI paths are tested against local mock servers.
+- **School still calls OpenAI directly** (old code in `/api/school/session`). With only `ZAI_API_KEY`, School uses local content until stage 3 moves it to the shared client.
 
 ---
 
 ## Log
 
-Newest entries first.
+Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Add this development log (`docs/DEV_CHANGELOG.md`)
+### Switch the LLM provider to Z.ai (GLM Flash, free)
+
+**Files:** `src/lib/ai.ts`, `src/lib/extra-agent.ts`, `src/app/api/extra/chat/route.ts`, `.env.example`, `README.md`, `CHANGELOG.md`
+
+**What**
+- The AI client is now provider-agnostic. **Z.ai is the default**: `ZAI_API_KEY`, base URL `https://api.z.ai/api/paas/v4`, model `glm-4.5-flash`. OpenAI still works as an alternative.
+- New env vars: `ZAI_API_KEY`, `ZAI_MODEL`, `ZAI_BASE_URL`, `ZAI_THINKING`, `AI_PROVIDER` (force `zai` or `openai`), `AI_TIMEOUT_MS`.
+- Safety layer 2 now works on providers that have no moderation endpoint.
+- The `source` field in the API response names the provider (`"zai"` or `"openai"`).
+
+**How**
+- `aiProvider()` reads env and returns one config: key, base URL, model, extra body fields, and whether the provider has `/moderations`.
+  - Rule: `AI_PROVIDER` wins if set; otherwise Z.ai if `ZAI_API_KEY` is set, else OpenAI, else no AI (local banks).
+  - Z.ai and OpenAI both speak the OpenAI Chat Completions format, so the request code is shared. Only the URL, the model and extra fields change.
+- On Z.ai, each request sends `thinking: { type: "disabled" }`. GLM Flash models can reason before answering, which adds seconds; a kids chat needs fast short answers. `ZAI_THINKING=enabled` turns it back on.
+- Default timeout went up from 8s to **12s**, since free models can be slower. It can be changed with `AI_TIMEOUT_MS`.
+- `chatJSON` now pulls the outer `{...}` out of the reply, because some models wrap JSON in a code fence or add a sentence around it.
+- Logs now name the provider and model: `[ai] extra.chat ok 900ms (zai:glm-4.5-flash)`.
+- Safety on Z.ai:
+  - **Child's input:** the Extra agent's JSON gained an `"unsafe": boolean` field. If the agent marks the message unsafe, the route returns the safe redirect. No extra request.
+  - **Agent's output:** `isFlagged()` uses a small LLM classifier (temperature 0, `{"unsafe": bool}`). The prompt says normal science like "white blood cells kill germs" is safe.
+  - **OpenAI:** unchanged (moderation endpoint on input in parallel, and on output).
+
+**Why**
+- The team chose Z.ai because the GLM Flash models are free with no card, which fits a hackathon budget. The API is OpenAI-compatible, so the switch needed no new SDK or dependency.
+- The free tier allows few requests at the same time. On Z.ai the route never fires two requests in parallel: the input check rides inside the agent call, and the output check runs after it. That makes 429 (rate limit) errors less likely; if one happens, the reply falls back to local content and the error is logged.
+- Keeping OpenAI as an option costs little and gives a plan B if the free tier is too slow during the demo.
+
+**Tested**
+- `tsc --noEmit` and ESLint pass on `src/lib` and `src/app/api`. `next build` passes.
+- Mock Z.ai server (`ZAI_API_KEY=test ZAI_BASE_URL=http://localhost:4998/`):
+  - every request carries `model=glm-4.5-flash`, `thinking={"type":"disabled"}` and JSON mode
+  - a fenced JSON reply is parsed and the em dash is cleaned (`source: "zai"`)
+  - agent flags unsafe input → safe redirect, with only **one** request (no classifier call)
+  - classifier flags unsafe output → safe redirect
+- **Pending:** a test against the real `api.z.ai` (the key and domain are not set in the cloud environment yet).
+
+---
+
+### `7af21fd`: Add this development log (`docs/DEV_CHANGELOG.md`)
 
 **What:** Created this file with the plan/status table and a detailed entry for every change so far.
 

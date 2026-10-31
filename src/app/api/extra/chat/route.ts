@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { aiEnabled, isFlagged } from "@/lib/ai";
+import { aiProvider, isFlagged } from "@/lib/ai";
 import { aiExtraReply, type ExtraChatMessage } from "@/lib/extra-agent";
 import { localExtraReply } from "@/lib/extra-reply";
 import { SAFE_REDIRECT, safetyCheck } from "@/lib/safety";
@@ -32,25 +32,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ text: gate.redirect, source: "safety" });
   }
 
-  // 2. Live agent: moderation on the child's turn runs in parallel with the reply.
-  if (aiEnabled()) {
+  // 2. Live agent.
+  //    OpenAI: moderation endpoint on the child's turn, in parallel with the reply.
+  //    Z.ai (no moderation endpoint): the agent flags unsafe input in its own JSON,
+  //    so we never fire two requests at once on the free tier's low concurrency.
+  const provider = aiProvider();
+  if (provider) {
     const history = Array.isArray(body.history) ? body.history : [];
-    const [inputFlagged, reply] = await Promise.all([
-      isFlagged(message),
-      aiExtraReply({ message, topicId, history, profile: body.profile }),
-    ]);
+    const agentCall = aiExtraReply({ message, topicId, history, profile: body.profile });
+    const [inputFlagged, reply] = provider.hasModerationEndpoint
+      ? await Promise.all([isFlagged(message), agentCall])
+      : [null, await agentCall];
 
-    if (inputFlagged) {
+    if (inputFlagged || reply?.unsafeInput) {
       return NextResponse.json({ text: SAFE_REDIRECT, source: "safety" });
     }
 
     if (reply) {
       // 3. Check the agent's own output before a child sees it.
-      // (Moderation only: the keyword list would block innocent science like "germs kill".)
+      // (Moderation/classifier only: the keyword list would block innocent science like "germs kill".)
       if (await isFlagged(reply.text)) {
         return NextResponse.json({ text: SAFE_REDIRECT, source: "safety" });
       }
-      return NextResponse.json({ ...reply, source: "openai" });
+      const { unsafeInput: _unsafe, ...publicReply } = reply;
+      void _unsafe;
+      return NextResponse.json({ ...publicReply, source: provider.id });
     }
   }
 

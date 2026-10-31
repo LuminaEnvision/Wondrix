@@ -16,6 +16,8 @@ export type ExtraAgentReply = {
   followUp: string;
   /** Short topic label for the parent day summary, e.g. "Why wheels are round". */
   topic: string;
+  /** The agent judged the child's message unsafe (used when the provider has no moderation endpoint). */
+  unsafeInput: boolean;
 };
 
 const TOPIC_LABELS: Record<string, string> = {
@@ -52,7 +54,7 @@ function systemPrompt(profile: ParentProfile | undefined, topicId: string | null
     "If the child answers your previous follow-up, react to their idea kindly (even if partly wrong, gently correct) before continuing.",
     "Rules: no em dashes, no markdown, no lists, no emojis. Never scold. Never promise images or links. Do not ask for personal details (name, school, address, photos).",
     "Safety: only educational, age-appropriate content. If the topic is unsafe (violence, self-harm, sexual, drugs, hate, relationships), do not engage: kindly steer to a safe science question instead.",
-    'Reply ONLY as JSON: {"answer": string, "followUp": string, "topic": string}. "topic" is a 2 to 5 word label of what was explored, for the parent summary.',
+    'Reply ONLY as JSON: {"unsafe": boolean, "answer": string, "followUp": string, "topic": string}. "unsafe" is true only if the child\'s latest message asks about an unsafe topic (then answer with the kind redirect). "topic" is a 2 to 5 word label of what was explored, for the parent summary.',
   ]
     .filter(Boolean)
     .join("\n");
@@ -73,7 +75,7 @@ export async function aiExtraReply(input: {
     { role: "user", content: input.message },
   ];
 
-  const raw = await chatJSON<Partial<Record<keyof ExtraAgentReply, unknown>>>(messages, {
+  const raw = await chatJSON<Partial<Record<keyof ExtraAgentReply | "unsafe", unknown>>>(messages, {
     tag: "extra.chat",
     temperature: 0.6,
     maxTokens: 260,
@@ -94,5 +96,6 @@ export async function aiExtraReply(input: {
     answer,
     followUp,
     topic,
+    unsafeInput: raw.unsafe === true,
   };
 }
