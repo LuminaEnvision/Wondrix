@@ -17,9 +17,10 @@ Updated after every commit. The short summary for the release stays in [`CHANGEL
 | 1 | Shared AI layer (`src/lib/ai.ts`) with timeout, logging, local fallback | ✅ Done, `8cda327` |
 | 2 | Extra agent tuned to the canvas loop + moderation | ✅ Done, `8cda327`; verified live on Z.ai |
 | 2b | Switch LLM provider to Z.ai (free GLM Flash), keep OpenAI optional | ✅ Done, `786b37a` |
-| 3 | School agent: move to the shared client (so it also uses Z.ai), real question context, AI explains but never grades, logged focus decisions | ✅ Done (see log); verified live on Z.ai |
-| 4 | Less robotic voice: better browser voice pick + a server TTS route with fallback (provider to choose: Z.ai has no TTS in our setup) | ⏳ Next |
-| 5 | On-the-spot visuals in Extra (agent-drawn SVG, no stock art) | ⏳ Later |
+| 3 | School agent: move to the shared client (so it also uses Z.ai), real question context, AI explains but never grades, logged focus decisions | ✅ Done, `df570da`; verified live on Z.ai |
+| 4 | Less robotic voice: Kokoro in-browser TTS (default) + better browser voice + Azure `/api/tts` prepared | ✅ Done (see log); Kokoro audio to be checked on a laptop |
+| 4b | Turn on Azure Speech for the demo (optional): create the F0 resource, set keys, `NEXT_PUBLIC_TTS_ENGINE=azure` | ⏳ When needed |
+| 5 | On-the-spot visuals in Extra (agent-drawn SVG, no stock art) | ⏳ Next |
 | 6 | QA: prompt eval script, fix the 8 existing lint errors, PR to upstream | ⏳ Planned |
 
 Out of Jorge's track (owned by the project lead): Supabase persistence, parent push/email summary.
@@ -27,6 +28,7 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 ### Blockers
 
 - None right now. `ZAI_API_KEY` is set in the cloud environment and `api.z.ai` is reachable.
+- Cloud-environment note: `huggingface.co` is blocked in the cloud container, so the Kokoro model cannot download there. Kokoro must be checked in a real browser on a laptop (or allow `huggingface.co` in the environment's Network access).
 - Cloud-environment note: Node's built-in `fetch` ignores `HTTPS_PROXY`, so in the cloud container the server must run with `NODE_USE_ENV_PROXY=1` (Node 22.21+). On a normal laptop this is not needed.
 
 ---
@@ -35,7 +37,80 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Stage 3: School agent on the shared client + live Z.ai verification + safer keyword gate
+### Stage 4: Natural voice with Kokoro (in-browser), Azure prepared, better browser voice
+
+**Files**
+
+| File | Change |
+|------|--------|
+| `src/lib/tts/kokoro.worker.ts` | **New.** Web Worker that loads Kokoro 82M and turns sentences into audio |
+| `src/lib/voice.ts` | Rewritten: engine chain (Kokoro → Azure → browser), status events, stop/cancel, better browser voice |
+| `src/app/api/tts/route.ts` | **New.** Azure Speech route, prepared and off by default (501 without keys) |
+| `src/app/extra/page.tsx` | Warms up the voice on open; shows "Natural voice loading N%" / "ready" |
+| `package.json` | `kokoro-js@1.2.1` (pinned) |
+| `.env.example`, `CHANGELOG.md` | Voice settings and summary |
+
+**Decision: which voice service**
+
+| Option | Cost | Quality | Privacy | Notes |
+|--------|------|---------|---------|-------|
+| **Kokoro 82M in the browser (chosen, default)** | Free, no key, no quota | Natural, far above browser voices | Audio never leaves the device | ~80 MB model download on first use (then cached); slower on weak phones |
+| **Azure Speech F0 (prepared, option 2)** | Free tier with a monthly character quota (check current limits) | Excellent neural voices, incl. a child voice (`en-US-AnaNeural`) | Text goes to Azure | Azure account usually asks for a card at sign-up |
+| ElevenLabs free | Small monthly quota | Top | Cloud | Attribution required on free plan; quota too small |
+| edge-tts (unofficial) | Free | Very good | Cloud | Unofficial endpoint can break during the demo |
+| Browser Web Speech (before) | Free | Often robotic | Depends on browser | Kept as the last fallback |
+
+Kokoro won on cost (zero), privacy (a kids app should not send speech data out) and quality. Azure is ready for a demo-day upgrade without code changes.
+
+**What and how**
+
+1. **Kokoro worker (`kokoro.worker.ts`)**
+   - Loads `onnx-community/Kokoro-82M-v1.0-ONNX` with `kokoro-js`: **WebGPU + fp32** when the browser has WebGPU, else **WASM + q8**, which keeps the download small.
+   - It runs in a Web Worker, so generating audio never freezes the UI.
+   - Sends download progress (`status: loading N%`), then `ready`, or `failed`.
+   - Generates **one sentence at a time** and sends each chunk back as soon as it is ready (a transferable `Float32Array`). The first sentence plays while the rest are still being generated.
+   - A newer request cancels older ones between sentences. An empty request is a pure "stop" and does not start a download.
+2. **Voice chain (`voice.ts`)**
+   - `NEXT_PUBLIC_TTS_ENGINE` picks the order: `kokoro` → `kokoro, browser` (default); `azure` → `azure, kokoro, browser`; `browser` → browser only.
+   - Each engine returns "spoke or not". If not, the next engine speaks, so the child always hears something.
+   - **Kokoro not ready yet** (first visit, model downloading): the browser voice answers right away, and Kokoro takes over once it is ready. The child never waits for the download.
+   - Kokoro audio plays through one `AudioContext`; sentence chunks are queued with a small 80 ms pause between them.
+   - `stopSpeaking()` stops everything: Web Speech, queued Kokoro buffers, the Azure `<audio>`, and pending worker work. A play token stops late chunks from an old answer.
+   - **Browser voice, improved:**
+     - voices are ranked: "Natural"/"Neural" (Edge) > Google (Chrome) > Apple (Samantha, Ava...) > other English; "compact"/"espeak" robotic voices get a penalty
+     - waits briefly for `voiceschanged`, because Chrome loads voices asynchronously
+     - speaks **one utterance per sentence**, which avoids Chrome cutting long text and sounds less flat
+   - `warmUpVoice()` starts the model download when `/extra` opens. `subscribeVoiceStatus()` feeds the status label.
+   - Mic input (`listenOnce`) is unchanged.
+3. **Azure route (`/api/tts`)**, prepared for option 2
+   - Azure Speech REST: SSML with voice + prosody rate, MP3 24 kHz output, 10s timeout.
+   - Defaults: `en-US-AnaNeural` (child voice), rate `-5%`.
+   - Text is capped at 800 chars, XML-escaped (including the env voice/rate) and passed through the keyword safety gate, so the route cannot be used to voice harmful text.
+   - Without `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION` it returns **501**; the client then remembers Azure is unavailable and skips it.
+   - Logs: `[tts] azure ok 420ms (en-US-AnaNeural, 180 chars)`.
+
+**How to turn on option 2 (Azure) later**
+1. Azure portal → create a **Speech** resource on the **Free F0** tier. Pick a region; `uaenorth` is close to Dubai.
+2. In `.env.local`: `AZURE_SPEECH_KEY=...`, `AZURE_SPEECH_REGION=uaenorth`, `NEXT_PUBLIC_TTS_ENGINE=azure`.
+3. Restart `npm run dev`. If Azure fails or the quota runs out, Kokoro and then the browser voice take over automatically.
+
+**Why**
+- The old voice used only the browser's Web Speech API with a simple voice match. On most laptops and phones that voice is robotic, which was the complaint in the task.
+- A kids product should keep voice local when it can. Kokoro gives a natural voice with zero cost and no data leaving the device.
+- The fallback chain keeps the demo safe: no network, no WebGPU, or a slow phone still gives a voice.
+
+**Tested**
+- `tsc --noEmit` passes. ESLint shows the same 8 errors as before (2 of them in `extra/page.tsx`, both already there). `next build` passes; Turbopack bundles the worker as its own `turbopack-worker` chunk with `kokoro-js` inside.
+- `/api/tts` with no Azure keys → `501`.
+- Headless Chromium on `/extra`:
+  - the Kokoro worker starts and requests the model from `huggingface.co`
+  - that host is blocked in the cloud container, so Kokoro reports `failed` and the **browser voice** speaks instead
+  - the greeting and the answer were spoken **sentence by sentence**, with no page errors
+- **Not tested here:** real Kokoro audio (the model download is blocked in the cloud container) and real Azure audio (no Azure key). To check on a laptop: open `/extra` in Chrome or Edge, wait for "Natural voice ready", ask a question.
+
+---
+
+### `df570da`: Stage 3: School agent on the shared client + live Z.ai verification + safer keyword gate
 
 **Files**
 

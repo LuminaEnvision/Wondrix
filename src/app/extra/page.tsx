@@ -6,7 +6,16 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { loadProfile, saveExtraTopic } from "@/lib/demo-store";
 import { localExtraReply } from "@/lib/extra-reply";
-import { canListen, canSpeak, listenOnce, speak, stopSpeaking } from "@/lib/voice";
+import {
+  canListen,
+  canSpeak,
+  listenOnce,
+  speak,
+  stopSpeaking,
+  subscribeVoiceStatus,
+  warmUpVoice,
+  type VoiceStatus,
+} from "@/lib/voice";
 
 type Msg = {
   role: "child" | "agent";
@@ -66,6 +75,7 @@ function ExtraInner() {
   const [voiceOn, setVoiceOn] = useState(true);
   const [listening, setListening] = useState(false);
   const [voiceHint, setVoiceHint] = useState("");
+  const [voiceStatus, setVoiceStatus] = useState<VoiceStatus | null>(null);
   const listenRef = useRef<ReturnType<typeof listenOnce> | null>(null);
   const didGreet = useRef(false);
   const messagesRef = useRef<Msg[]>([]);
@@ -78,7 +88,11 @@ function ExtraInner() {
   }, [messages]);
 
   useEffect(() => {
+    // Start downloading the natural (Kokoro) voice in the background.
+    warmUpVoice();
+    const unsubscribe = subscribeVoiceStatus(setVoiceStatus);
     return () => {
+      unsubscribe();
       stopSpeaking();
       listenRef.current?.stop();
     };
@@ -221,6 +235,14 @@ function ExtraInner() {
           >
             {voiceOn ? "Voice answers on" : "Voice answers off"}
           </button>
+          {voiceOn && voiceStatus?.state === "loading" ? (
+            <span className="text-xs text-ink-soft">
+              Natural voice loading{voiceStatus.progress ? ` ${voiceStatus.progress}%` : "…"}
+            </span>
+          ) : null}
+          {voiceOn && voiceStatus?.engine === "kokoro" && voiceStatus.state === "ready" ? (
+            <span className="text-xs text-ink-soft">Natural voice ready</span>
+          ) : null}
         </div>
 
         <div className="flex min-h-[260px] flex-1 flex-col gap-3 rounded-3xl border border-stroke bg-card p-4">
