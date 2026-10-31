@@ -3,6 +3,17 @@
 All notable work on the Wondrix January prototype.  
 Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from Cursor canvas **`wondrix-education-agent-plan`**).
 
+## [Unreleased]
+
+### Added
+- `src/lib/ai.ts`: single server-side AI client (timeout, JSON mode, `[ai]` logs, moderation helper, house-style cleanup). Any failure returns `null` so routes keep the local fallback.
+- `src/lib/extra-agent.ts`: Extra agent tuned to the canvas loop. Prompt adapts to age band (meadow / journal / studio), grade, picked interest and calm mode. Structured reply `{ answer, followUp, topic }`.
+- Extra safety layer 2: OpenAI moderation on the child's turn and on the agent's reply (keyword gate stays as layer 1).
+- `OPENAI_BASE_URL` (optional) for proxies or local mocks.
+
+### Changed
+- Extra page sends the parent profile and saves the agent's topic label for the parent day summary.
+
 ## [0.1.0] — 2026-10-24 — January prototype scaffold (no live AI key required)
 
 Ships a clickable championship demo. School and Extra run on **local banks + keyword coach**. OpenAI routes exist but are optional until a developer adds `OPENAI_API_KEY`.

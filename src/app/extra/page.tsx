@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { saveExtraTopic } from "@/lib/demo-store";
+import { loadProfile, saveExtraTopic } from "@/lib/demo-store";
 import { localExtraReply } from "@/lib/extra-reply";
 import { canListen, canSpeak, listenOnce, speak, stopSpeaking } from "@/lib/voice";
 
@@ -110,6 +110,7 @@ function ExtraInner() {
     setMessages((m) => [...m, childMsg]);
 
     let reply = localExtraReply(trimmed, topic?.id ?? null);
+    let topicLabel = topic?.label ?? trimmed.slice(0, 40);
 
     try {
       const res = await fetch("/api/extra/chat", {
@@ -119,13 +120,15 @@ function ExtraInner() {
           message: trimmed,
           topicId: topic?.id ?? null,
           history,
+          profile: loadProfile(),
         }),
       });
       if (res.ok) {
-        const data = (await res.json()) as { text?: string };
+        const data = (await res.json()) as { text?: string; topic?: string };
         if (data.text) {
           reply = { text: data.text };
         }
+        if (data.topic) topicLabel = data.topic;
       }
     } catch {
       // keep local reply
@@ -136,7 +139,7 @@ function ExtraInner() {
       text: reply.text,
     };
     setMessages((m) => [...m, agentMsg]);
-    saveExtraTopic(topic?.label ?? trimmed.slice(0, 40));
+    saveExtraTopic(topicLabel);
     say(reply.text);
     setBusy(false);
   }
