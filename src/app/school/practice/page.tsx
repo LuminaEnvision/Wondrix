@@ -12,7 +12,29 @@ import type { SkillId } from "@/lib/types";
 function PracticeInner() {
   const params = useSearchParams();
   const skillId = (params.get("skill") as SkillId) || "measure-length";
+  // A new skill remounts the session, so its state starts fresh.
+  return <PracticeSession key={skillId} skillId={skillId} />;
+}
 
+type QuestionResult = { question: SchoolQuestionPayload | null; gradeLabel: string };
+
+/** Ask the School agent for a question (pure: no React state). */
+async function requestQuestion(skillId: SkillId, avoid: string[]): Promise<QuestionResult> {
+  const profile = loadProfile();
+  try {
+    const res = await fetch("/api/school/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "question", profile, skillId, avoidIds: avoid }),
+    });
+    if (!res.ok) throw new Error("fail");
+    return { question: (await res.json()) as SchoolQuestionPayload, gradeLabel: profile.gradeLabel };
+  } catch {
+    return { question: null, gradeLabel: profile.gradeLabel };
+  }
+}
+
+function PracticeSession({ skillId }: { skillId: SkillId }) {
   const [question, setQuestion] = useState<SchoolQuestionPayload | null>(null);
   const [avoidIds, setAvoidIds] = useState<string[]>([]);
   const [picked, setPicked] = useState<string | null>(null);
@@ -21,39 +43,26 @@ function PracticeInner() {
   const [grading, setGrading] = useState(false);
   const [gradeLabel, setGradeLabel] = useState("");
 
-  const fetchQuestion = useCallback(
-    async (avoid: string[]) => {
-      setLoading(true);
-      setPicked(null);
-      setResult(null);
-      const profile = loadProfile();
-      setGradeLabel(profile.gradeLabel);
-      try {
-        const res = await fetch("/api/school/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "question",
-            profile,
-            skillId,
-            avoidIds: avoid,
-          }),
-        });
-        if (!res.ok) throw new Error("fail");
-        const data = (await res.json()) as SchoolQuestionPayload;
-        setQuestion(data);
-      } catch {
-        setQuestion(null);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [skillId],
-  );
+  const showQuestion = useCallback((r: QuestionResult) => {
+    setGradeLabel(r.gradeLabel);
+    setQuestion(r.question);
+    setLoading(false);
+  }, []);
 
+  // First question for this skill. setState only runs in the promise callback.
   useEffect(() => {
-    void fetchQuestion([]);
-  }, [fetchQuestion]);
+    let cancelled = false;
+    void requestQuestion(skillId, []).then((r) => {
+      if (!cancelled) showQuestion(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [skillId, showQuestion]);
+
+  function fetchQuestion(avoid: string[]) {
+    void requestQuestion(skillId, avoid).then(showQuestion);
+  }
 
   async function choose(choiceId: string | "idk") {
     if (!question || grading || result) return;
@@ -100,7 +109,10 @@ function PracticeInner() {
       setResult(null);
       return;
     }
-    void fetchQuestion([...avoidIds, question?.questionId ?? ""]);
+    setLoading(true);
+    setPicked(null);
+    setResult(null);
+    fetchQuestion([...avoidIds, question?.questionId ?? ""]);
   }
 
   return (

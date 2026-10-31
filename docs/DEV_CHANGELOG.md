@@ -21,7 +21,7 @@ Updated after every commit. The short summary for the release stays in [`CHANGEL
 | 4 | Less robotic voice: Kokoro in-browser TTS (default) + better browser voice + Azure `/api/tts` prepared + loading bubble | ✅ Done, `ad30426` + bubble (see log); Kokoro audio to be checked on a laptop |
 | 4b | Turn on Azure Speech for the demo (optional): create the F0 resource, set keys, `NEXT_PUBLIC_TTS_ENGINE=azure` | ⏳ When needed |
 | 5 | On-the-spot visuals in Extra (agent-drawn SVG, no stock art) | ⏳ Next |
-| 6 | QA: prompt eval script, fix the 8 existing lint errors, PR to upstream | ⏳ Planned |
+| 6 | QA: prompt eval script, ~~fix the 8 existing lint errors~~ (done early, see log), PR to upstream | ⏳ Planned |
 
 Out of Jorge's track (owned by the project lead): Supabase persistence, parent push/email summary.
 
@@ -37,7 +37,57 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Voice loading bubble (so the first voice download never looks like a frozen app)
+### Fix all 8 ESLint errors (React 19 hooks rules), no behaviour change
+
+**Files:** `src/lib/use-client-state.ts` (**new**), `src/lib/demo-store.ts`, `src/components/SetupGate.tsx`, `src/components/ParentLock.tsx`, `src/app/parent/page.tsx`, `src/app/school/page.tsx`, `src/app/school/practice/page.tsx`, `src/app/school/radar/page.tsx`, `src/app/extra/page.tsx`
+
+**What:** `npm run lint` went from **8 errors to 0**. The errors were already in the code before our work:
+
+| Rule | Where | Problem |
+|------|-------|---------|
+| `react-hooks/set-state-in-effect` (×7) | SetupGate, ParentLock, Parent, School, Practice, Radar, Extra | Reading localStorage in `useEffect` and calling `setState` right away: an extra render on every mount |
+| `react-hooks/rules-of-hooks` (×1) | Extra | A normal click handler was named `useSuggestion`; the `use` prefix makes React treat it as a hook |
+
+**How:** one React-recommended pattern per case, no `eslint-disable`.
+
+1. **New hooks (`use-client-state.ts`), built on `useSyncExternalStore`**
+   - `useHydrated()`: `false` on the server and in the hydration render, `true` after. The page still renders the same HTML on the server and the client, so there is no hydration mismatch.
+   - `useProfileKey()`: a string made of the saved profile + mastery. It updates on `PROFILE_CHANGED_EVENT` (same tab) and `storage` (other tabs), the same events the old code listened to.
+   - `useProfileGradeLabel()`: just the saved grade label, live.
+   - `PROFILE_KEY` and `MASTERY_KEY` are now exported from `demo-store.ts`, so the keys are defined once.
+2. **SetupGate / ParentLock:** `ready` comes from `useHydrated()`. "Show the gate" and "locked" are **computed during render** from localStorage. A local `closed`/`unlockedNow` state handles the button clicks.
+3. **Parent page:** a small wrapper waits for hydration, then mounts `ParentHome`. `ParentHome` reads profile, PIN state and day summary with **lazy `useState` initializers**, which run once on the client. The summary text moved into a pure `daySummaryFor()` helper.
+4. **School page**
+   - Profile, mastery, grade and local focus are **derived with `useMemo` from `useProfileKey()`**.
+   - The agent plan is set **only inside the fetch callbacks**, tagged with the profile key, so an old plan never shows after a profile change.
+   - It now also cancels the request with `AbortController` when the profile changes or the page closes (the old code could set state after unmount).
+5. **Practice page**
+   - `requestQuestion()` is a pure async function with no React state. The effect calls it and sets state in `.then`, with a cancel flag.
+   - "Next question" resets the view in the click handler.
+   - The session is keyed by `skillId`, so a new skill starts fresh, which the old effect used to do by hand.
+6. **Radar page:** `RadarPage` reads the live grade and renders `<RadarRun key={gradeLabel}>`. Changing grade in Parent remounts a fresh radar (same as the old `refresh()`). The question bank is a `useMemo`.
+7. **Extra page**
+   - The `?topic=` starter question is set with React's **"adjust state when a prop changes during render"** pattern: it remembers which topic was used to fill the input.
+   - `useSuggestion` was renamed to `pickSuggestion`.
+
+**Why**
+- Every one of these effects caused a second render on mount. The React Compiler rules flag that because it can cause flicker and wasted work.
+- A clean `npm run lint` keeps the repo ready for CI and for the PR to upstream, and new problems will stand out instead of hiding among old ones.
+
+**Tested**
+- `npm run lint` → **0 problems**. `tsc --noEmit` passes. `next build` passes.
+- Full walk-through in headless Chromium (phone size) against the live Z.ai agent:
+  1. First visit → **setup gate** shows → create PIN `1234` → setup `complete`, PIN stored.
+  2. New tab `/parent` → **locked** → unlock with PIN → form loads → set **Year 7+** → Save → saved, and the day summary shows Year 7+ skills.
+  3. `/school` → Year 7+ header. The live agent plan arrives (`algebra-intro`, `cells-micro`) with its coach note.
+  4. `/school/practice?skill=algebra-intro` → question with AI lead-in → wrong answer → correct AI explanation ("3x = 12 … x = 4"), mastery saved as `shaky`.
+  5. `/school/radar` → Year 7+ radar (5 checks).
+  6. `/extra?topic=sky` → input prefilled with "Why does the Moon change shape?" → tap "Living things" → input and URL switch to the new topic.
+  7. **No page errors and no console errors** (other than the blocked Kokoro model download, which is expected here).
+
+---
+
+### `f42c5f1`: Voice loading bubble (so the first voice download never looks like a frozen app)
 
 **Files:** `src/components/VoiceLoadingBubble.tsx` (**new**), `src/app/extra/page.tsx`, `src/lib/tts/kokoro.worker.ts`
 

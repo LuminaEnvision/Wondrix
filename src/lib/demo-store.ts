@@ -3,8 +3,8 @@ import { skillsFromParentNote, SKILL_GRAPH } from "./skills";
 import type { MasteryLevel, ParentProfile, SkillId } from "./types";
 import { notifyProfileChanged } from "./types";
 
-const PROFILE_KEY = "wondrix-profile";
-const MASTERY_KEY = "wondrix-mastery";
+export const PROFILE_KEY = "wondrix-profile";
+export const MASTERY_KEY = "wondrix-mastery";
 const EXTRA_TOPIC_KEY = "wondrix-extra-topic";
 
 export const DEFAULT_PROFILE: ParentProfile = {

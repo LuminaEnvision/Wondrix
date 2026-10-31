@@ -100,9 +100,13 @@ function ExtraInner() {
     if (voiceOn && speakOk) speak(OPENING);
   }, [voiceOn, speakOk]);
 
-  useEffect(() => {
-    if (topic) setInput(topic.seed);
-  }, [topic]);
+  // When the ?topic= changes, prefill its starter question (React's
+  // "adjust state when a prop changes" pattern, instead of an effect).
+  const [seededTopicId, setSeededTopicId] = useState<string | null>(null);
+  if (topic && topic.id !== seededTopicId) {
+    setSeededTopicId(topic.id);
+    setInput(topic.seed);
+  }
 
   function say(text: string) {
     if (voiceOn && speakOk) speak(text);
@@ -154,7 +158,7 @@ function ExtraInner() {
     setBusy(false);
   }
 
-  function useSuggestion(item: Interest) {
+  function pickSuggestion(item: Interest) {
     router.replace(`/extra?topic=${item.id}`);
     setInput(item.seed);
     saveExtraTopic(item.label);
@@ -312,7 +316,7 @@ function ExtraInner() {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => useSuggestion(item)}
+                  onClick={() => pickSuggestion(item)}
                   className={`overflow-hidden rounded-3xl border bg-card text-left transition ${
                     active
                       ? "border-extra ring-2 ring-extra/30"

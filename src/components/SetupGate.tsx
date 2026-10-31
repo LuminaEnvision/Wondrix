@@ -1,27 +1,22 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   getSetupStatus,
   hasParentPin,
   markSetupSkipped,
   setParentPin,
 } from "@/lib/parent-auth";
+import { useHydrated } from "@/lib/use-client-state";
 
 export function SetupGate({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(false);
-  const [show, setShow] = useState(false);
+  const ready = useHydrated();
+  const [closed, setClosed] = useState(false);
   const [pin, setPin] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const status = getSetupStatus();
-    // First open only: no setup decision yet, and no PIN
-    setShow(status === "needed" && !hasParentPin());
-    setReady(true);
-  }, []);
 
   if (!ready) {
     return (
@@ -31,6 +26,8 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // First open only: no setup decision yet, and no PIN (read after hydration).
+  const show = !closed && getSetupStatus() === "needed" && !hasParentPin();
   if (!show) return <>{children}</>;
 
   function createPin() {
@@ -43,12 +40,12 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
       return;
     }
     setParentPin(pin);
-    setShow(false);
+    setClosed(true);
   }
 
   function skip() {
     markSetupSkipped();
-    setShow(false);
+    setClosed(true);
   }
 
   return (

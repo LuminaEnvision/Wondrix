@@ -2,35 +2,26 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { loadProfile, saveMastery, loadMastery } from "@/lib/demo-store";
+import { saveMastery, loadMastery } from "@/lib/demo-store";
 import { radarForGrade } from "@/lib/radar";
 import { nextMastery } from "@/lib/school-agent";
 import { getSkill } from "@/lib/skills";
-import { PROFILE_CHANGED_EVENT, type MasteryLevel, type RadarItem, type SkillId } from "@/lib/types";
+import type { MasteryLevel, SkillId } from "@/lib/types";
+import { useProfileGradeLabel } from "@/lib/use-client-state";
 
 export default function RadarPage() {
-  const [bank, setBank] = useState<RadarItem[]>([]);
-  const [gradeLabel, setGradeLabel] = useState("");
+  // Live grade from the saved profile; a grade change remounts the run (fresh radar).
+  const gradeLabel = useProfileGradeLabel();
+  return <RadarRun key={gradeLabel} gradeLabel={gradeLabel} />;
+}
+
+function RadarRun({ gradeLabel }: { gradeLabel: string }) {
+  const bank = useMemo(() => (gradeLabel ? radarForGrade(gradeLabel, 5) : []), [gradeLabel]);
   const [index, setIndex] = useState(0);
   const [finished, setFinished] = useState(false);
   const [shaky, setShaky] = useState<SkillId[]>([]);
-
-  const refresh = useCallback(() => {
-    const profile = loadProfile();
-    setGradeLabel(profile.gradeLabel);
-    setBank(radarForGrade(profile.gradeLabel, 5));
-    setIndex(0);
-    setFinished(false);
-    setShaky([]);
-  }, []);
-
-  useEffect(() => {
-    refresh();
-    window.addEventListener(PROFILE_CHANGED_EVENT, refresh);
-    return () => window.removeEventListener(PROFILE_CHANGED_EVENT, refresh);
-  }, [refresh]);
 
   const item = bank[index];
 

@@ -19,6 +19,7 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 - `docs/DEV_CHANGELOG.md`: detailed per-commit log (what, how, why, tests) and stage status.
 
 ### Changed
+- ESLint is clean (0 errors): localStorage reads moved to `useSyncExternalStore` hooks (`src/lib/use-client-state.ts`), lazy state, render-time derivation and keyed remounts instead of setState in effects.
 - Keyword safety gate matches harmful intent phrases (normal science like "white blood cells kill germs" passes).
 - `/school` shows the agent's reason under each focus skill.
 - Extra page sends the parent profile and saves the agent's topic label for the parent day summary.

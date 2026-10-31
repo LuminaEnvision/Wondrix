@@ -1,29 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   hasParentPin,
   isParentUnlocked,
   unlockParentSession,
   verifyParentPin,
 } from "@/lib/parent-auth";
+import { useHydrated } from "@/lib/use-client-state";
 
 export function ParentLock({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(false);
-  const [locked, setLocked] = useState(false);
+  const ready = useHydrated();
+  const [unlockedNow, setUnlockedNow] = useState(false);
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const needsPin = hasParentPin() && !isParentUnlocked();
-    setLocked(needsPin);
-    setReady(true);
-  }, []);
 
   if (!ready) {
     return <p className="text-ink-soft">Loading…</p>;
   }
 
+  const locked = !unlockedNow && hasParentPin() && !isParentUnlocked();
   if (!locked) return <>{children}</>;
 
   return (
@@ -52,7 +49,7 @@ export function ParentLock({ children }: { children: React.ReactNode }) {
             return;
           }
           unlockParentSession();
-          setLocked(false);
+          setUnlockedNow(true);
         }}
         className="rounded-full bg-brand py-3 font-bold text-white"
       >
