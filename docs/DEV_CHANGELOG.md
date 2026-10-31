@@ -18,7 +18,7 @@ Updated after every commit. The short summary for the release stays in [`CHANGEL
 | 2 | Extra agent tuned to the canvas loop + moderation | ✅ Done, `8cda327`; verified live on Z.ai |
 | 2b | Switch LLM provider to Z.ai (free GLM Flash), keep OpenAI optional | ✅ Done, `786b37a` |
 | 3 | School agent: move to the shared client (so it also uses Z.ai), real question context, AI explains but never grades, logged focus decisions | ✅ Done, `df570da`; verified live on Z.ai |
-| 4 | Less robotic voice: Kokoro in-browser TTS (default) + better browser voice + Azure `/api/tts` prepared | ✅ Done (see log); Kokoro audio to be checked on a laptop |
+| 4 | Less robotic voice: Kokoro in-browser TTS (default) + better browser voice + Azure `/api/tts` prepared + loading bubble | ✅ Done, `ad30426` + bubble (see log); Kokoro audio to be checked on a laptop |
 | 4b | Turn on Azure Speech for the demo (optional): create the F0 resource, set keys, `NEXT_PUBLIC_TTS_ENGINE=azure` | ⏳ When needed |
 | 5 | On-the-spot visuals in Extra (agent-drawn SVG, no stock art) | ⏳ Next |
 | 6 | QA: prompt eval script, fix the 8 existing lint errors, PR to upstream | ⏳ Planned |
@@ -37,7 +37,41 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Stage 4: Natural voice with Kokoro (in-browser), Azure prepared, better browser voice
+### Voice loading bubble (so the first voice download never looks like a frozen app)
+
+**Files:** `src/components/VoiceLoadingBubble.tsx` (**new**), `src/app/extra/page.tsx`, `src/lib/tts/kokoro.worker.ts`
+
+**What**
+- A small floating bubble (bottom of the screen on phones, bottom-right on larger screens) appears while the natural voice is being prepared. It has a title, a short explanation, a progress bar with %, and a close button.
+  - **First time:** "Getting Wondrix's voice ready… First time only: downloading the natural voice (about 80 MB). Keep chatting! A simple voice reads answers until it is ready."
+  - **Later visits** (model already cached): "Waking up Wondrix's voice… Just a moment."
+  - **When done:** "Natural voice ready!" for 2.5s, then it hides.
+  - **If it cannot load** (no WebGPU/WASM support, blocked network): "Natural voice not available here … Wondrix uses the simple voice" for 4.5s, then it hides.
+- The two small text labels next to the voice toggle were removed; the bubble replaces them.
+
+**How**
+- The bubble subscribes to `subscribeVoiceStatus()` (Kokoro engine only).
+- **700 ms show delay:** when the model is already cached and loads almost instantly, the bubble never flashes. "Ready" and "failed" messages only show if the loading bubble was visible first. A fast silent failure just falls back to the browser voice without bothering the child.
+- "First time or not" comes from `localStorage` (`wondrix-voice-ready-once`, set on the first `ready`), wrapped in try/catch for private mode.
+- Accessibility: `role="status"` + `aria-live="polite"`, so screen readers announce it without interrupting; the close button has a label.
+- It is only active while "Voice answers on" is enabled.
+- **Worker progress fix:** transformers.js reports progress **per file**, and several files download in parallel, so the old % jumped back and forth. The worker now adds up `loaded/total` across all files and only sends a value when it goes **up** (capped at 99% until `ready`).
+
+**Why**
+- On first use the browser downloads ~80 MB. Without feedback a child (or a judge in the demo) could think the app froze. The bubble says what is happening, that it only happens once, and that they can keep chatting.
+
+**Tested**
+- `tsc --noEmit` passes. ESLint shows the same 8 errors as before (none new). `next build` passes.
+- Headless Chromium at phone size (420×860), with Hugging Face requests held for 3s and then failed:
+  - at 1.8s the bubble shows the first-time text with the progress bar
+  - after the failure it switches to "Natural voice not available here"
+  - it is gone 5s later
+  - no page errors
+- The visual check of the bubble layout on a phone-size screenshot looks right: it sits above the content, readable, and does not cover the input.
+
+---
+
+### `ad30426`: Stage 4: Natural voice with Kokoro (in-browser), Azure prepared, better browser voice
 
 **Files**
 

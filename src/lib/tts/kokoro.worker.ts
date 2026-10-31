@@ -22,6 +22,8 @@ type InMsg =
 const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
 
 let ttsPromise: Promise<KokoroTTS> | null = null;
+const files = new Map<string, { loaded: number; total: number }>();
+let lastPct = 0;
 let currentId = 0;
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
@@ -34,9 +36,20 @@ function load(): Promise<KokoroTTS> {
     // fp32 is recommended on WebGPU; q8 keeps the WASM download small.
     dtype: hasWebGPU ? "fp32" : "q8",
     device: hasWebGPU ? "webgpu" : "wasm",
-    progress_callback: (p: { status?: string; progress?: number }) => {
-      if (p.status === "progress" && typeof p.progress === "number") {
-        ctx.postMessage({ type: "status", status: "loading", progress: Math.round(p.progress) });
+    // Several files download in parallel; report one overall % that never goes backwards.
+    progress_callback: (p: { status?: string; file?: string; loaded?: number; total?: number }) => {
+      if (p.status !== "progress" || !p.file || !p.total) return;
+      files.set(p.file, { loaded: p.loaded ?? 0, total: p.total });
+      let loaded = 0;
+      let total = 0;
+      files.forEach((f) => {
+        loaded += f.loaded;
+        total += f.total;
+      });
+      const pct = Math.min(99, Math.round((loaded / total) * 100));
+      if (pct > lastPct) {
+        lastPct = pct;
+        ctx.postMessage({ type: "status", status: "loading", progress: pct });
       }
     },
   })

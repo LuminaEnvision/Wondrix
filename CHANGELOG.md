@@ -14,6 +14,7 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 - School agent on the shared client (`src/lib/school-agent-ai.ts`): picks today's focus from allowed skills using mastery, teacher note and Extra topic, with logged reasons; lead-ins and explanations use the real question. Correctness stays local.
 - Step-by-step mastery (`nextMastery`) for practice and radar.
 - **Natural voice:** Kokoro 82M TTS runs in the browser (Web Worker, WebGPU or WASM), free and private; browser voice speaks while it loads and as fallback. Browser voice now picks the best installed voice and speaks sentence by sentence.
+- Voice loading bubble in Extra: tells the child the natural voice is downloading (first time only, with progress), then "ready" or a gentle fallback note.
 - `/api/tts` prepared for Azure Speech neural voices (`NEXT_PUBLIC_TTS_ENGINE=azure` + `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION`); returns 501 when not configured.
 - `docs/DEV_CHANGELOG.md`: detailed per-commit log (what, how, why, tests) and stage status.
 
