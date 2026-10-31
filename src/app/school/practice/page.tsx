@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { loadProfile, setSkillMastery } from "@/lib/demo-store";
+import { loadMastery, loadProfile, setSkillMastery } from "@/lib/demo-store";
 import type { SchoolGradeResult, SchoolQuestionPayload } from "@/lib/school-agent";
 import type { SkillId } from "@/lib/types";
 
@@ -67,6 +67,7 @@ function PracticeInner() {
         body: JSON.stringify({
           action: "grade",
           profile,
+          mastery: loadMastery(),
           questionId: question.questionId,
           choiceId,
           avoidIds: [...avoidIds, question.questionId],

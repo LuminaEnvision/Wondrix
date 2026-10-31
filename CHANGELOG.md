@@ -11,9 +11,13 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 - `src/lib/extra-agent.ts`: Extra agent tuned to the canvas loop. Prompt adapts to age band (meadow / journal / studio), grade, picked interest and calm mode. Structured reply `{ answer, followUp, topic }`.
 - Extra safety layer 2 on the child's turn and the agent's reply: OpenAI moderation endpoint, or on Z.ai the agent's own `unsafe` flag + a small LLM classifier (keyword gate stays as layer 1).
 - `OPENAI_BASE_URL` (optional) for proxies or local mocks.
+- School agent on the shared client (`src/lib/school-agent-ai.ts`): picks today's focus from allowed skills using mastery, teacher note and Extra topic, with logged reasons; lead-ins and explanations use the real question. Correctness stays local.
+- Step-by-step mastery (`nextMastery`) for practice and radar.
 - `docs/DEV_CHANGELOG.md`: detailed per-commit log (what, how, why, tests) and stage status.
 
 ### Changed
+- Keyword safety gate matches harmful intent phrases (normal science like "white blood cells kill germs" passes).
+- `/school` shows the agent's reason under each focus skill.
 - Extra page sends the parent profile and saves the agent's topic label for the parent day summary.
 
 ## [0.1.0] — 2026-10-24 — January prototype scaffold (no live AI key required)

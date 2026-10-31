@@ -15,10 +15,10 @@ Updated after every commit. The short summary for the release stays in [`CHANGEL
 |-------|------|--------|
 | 0 | Sync the fork, run the app, walk School → Extra → Parent | ✅ Done (fork in sync, build OK) |
 | 1 | Shared AI layer (`src/lib/ai.ts`) with timeout, logging, local fallback | ✅ Done, `8cda327` |
-| 2 | Extra agent tuned to the canvas loop + moderation | ✅ Done, `8cda327` (needs a live-key test) |
-| 2b | Switch LLM provider to Z.ai (free GLM Flash), keep OpenAI optional | ✅ Done (see log) |
-| 3 | School agent: move to the shared client (so it also uses Z.ai), real question context, AI explains but never grades, logged focus decisions | ⏳ Next |
-| 4 | Less robotic voice: better browser voice pick + a server TTS route with fallback (provider to choose: Z.ai has no TTS in our setup) | ⏳ Planned |
+| 2 | Extra agent tuned to the canvas loop + moderation | ✅ Done, `8cda327`; verified live on Z.ai |
+| 2b | Switch LLM provider to Z.ai (free GLM Flash), keep OpenAI optional | ✅ Done, `786b37a` |
+| 3 | School agent: move to the shared client (so it also uses Z.ai), real question context, AI explains but never grades, logged focus decisions | ✅ Done (see log); verified live on Z.ai |
+| 4 | Less robotic voice: better browser voice pick + a server TTS route with fallback (provider to choose: Z.ai has no TTS in our setup) | ⏳ Next |
 | 5 | On-the-spot visuals in Extra (agent-drawn SVG, no stock art) | ⏳ Later |
 | 6 | QA: prompt eval script, fix the 8 existing lint errors, PR to upstream | ⏳ Planned |
 
@@ -26,8 +26,8 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 ### Blockers
 
-- **Live AI test:** the cloud dev environment needs `ZAI_API_KEY` set in its environment settings and `api.z.ai` allowed in Network access. Until then, AI paths are tested against local mock servers.
-- **School still calls OpenAI directly** (old code in `/api/school/session`). With only `ZAI_API_KEY`, School uses local content until stage 3 moves it to the shared client.
+- None right now. `ZAI_API_KEY` is set in the cloud environment and `api.z.ai` is reachable.
+- Cloud-environment note: Node's built-in `fetch` ignores `HTTPS_PROXY`, so in the cloud container the server must run with `NODE_USE_ENV_PROXY=1` (Node 22.21+). On a normal laptop this is not needed.
 
 ---
 
@@ -35,7 +35,74 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Switch the LLM provider to Z.ai (GLM Flash, free)
+### Stage 3: School agent on the shared client + live Z.ai verification + safer keyword gate
+
+**Files**
+
+| File | Change |
+|------|--------|
+| `src/lib/school-agent-ai.ts` | **New.** AI layer for School: focus planner, question lead-in, explanation |
+| `src/app/api/school/session/route.ts` | Rewritten on the shared client; reads mastery + Extra topic; logs decisions |
+| `src/lib/school-agent.ts` | `AgentSource` type (`local`/`zai`/`openai`), `nextMastery()`, `decision` field on the plan |
+| `src/app/school/page.tsx` | Sends mastery + Extra topic; shows the agent's reason under each focus skill |
+| `src/app/school/practice/page.tsx` | Sends the current mastery when grading |
+| `src/app/school/radar/page.tsx` | Uses `nextMastery()` (same rule as practice) |
+| `src/lib/safety.ts` | Keyword gate rewritten to match harmful intent, not single words |
+| `src/lib/extra-agent.ts` | Follow-up must be one question; accuracy rule added |
+
+**What and how**
+
+1. **Focus planner (`aiPlanFocus`)**, canvas loop steps 1–2 ("read state, offer today")
+   - The page sends the profile, the **mastery map** from localStorage and today's **Extra topic**.
+   - The server builds the candidate list: every skill allowed for the grade + subjects, tagged with mastery, "teacher note" (from the parent one-liner) and "core for grade".
+   - The model must pick 1 skill (calm mode) or 2 **from that list only**. Priority: teacher note → shaky (silent gaps) → unknown core skills → growing; secure skills are avoided.
+   - It returns a short reason per skill for the parent, and a "Today: ..." line for the child that may link to the Extra interest.
+   - The server checks the reply: unknown ids, duplicates and anything over the limit are dropped. If nothing valid is left, the local plan is used.
+   - **Logged decision:** the response carries `decision { candidates, picked }`, and the server prints e.g. `[agent] school.plan Year 4 → halves-quarters (Teacher noted struggle; core for grade), materials (Radar showed shaky skill; core for grade)`.
+   - `/school` shows the reason under each focus skill, only when it came from the live agent.
+2. **Question lead-in (`aiLeadIn`)**
+   - The model now gets the real question text (before: only a preview with no age info).
+   - One sentence, max 15 words, a real-life hook, never a hint at the right choice, written for the child's age band.
+   - Timeout is 6s and output max 60 tokens, so the practice screen does not wait long.
+3. **Explanation (`aiExplain`)**
+   - The model now gets the **question text, all choices, the correct answer, the child's answer and the teacher fact** from the bank. Before, it only got the ids (`r-halves-1`, `a`), so it could not explain anything real.
+   - There are three situations: correct (confirm + one reason), wrong (why their choice does not fit, then the right idea), "I don't know yet" (welcome it, teach with an everyday example).
+   - **The AI never grades.** `correct` and `mastery` come from the local bank before the AI is called. Empty or runaway (>400 chars) output → local explanation.
+4. **Quiet mastery (`nextMastery`)**, canvas loop step 3
+   - Before: correct → growing, wrong → shaky, every time. One slip erased a secure skill, and a skill could never become secure.
+   - Now one answer moves one step: correct = unknown/shaky → growing → secure; wrong or "I don't know" = secure → growing, otherwise → shaky.
+   - Used by both practice and radar.
+   - Every grade is logged: `[agent] school.grade halves-quarters correct=true → secure`.
+5. **School output safety:** no classifier call here. School content comes from the curated bank and the child types no free text, so an extra call per answer would only add delay and use up the free-tier limit.
+6. **Keyword gate (`safety.ts`)**
+   - Before, single words were blocked, so "how do white blood cells kill germs?" got the safety redirect.
+   - Worse, "how do i make my classmate get hurt" passed the gate and, with no AI, the local fallback replied "I can explore that with you".
+   - Now the gate matches **intent phrases**: harm verb + person target, making or getting weapons, self-harm, sexual words, drug dealing, hate phrases. This layer also protects the local fallback.
+7. **Extra prompt:** `followUp` must be one sentence ending with "?". There is also an accuracy rule, because the live test produced a mixed-up magnet explanation (it talked about poles for a steel fridge door).
+
+**Why**
+- Before this change School still called OpenAI directly, so with only `ZAI_API_KEY` it never used AI.
+- The canvas asks the agent to find **silent gaps** and to log its decisions. Feeding it mastery + teacher note + Extra topic, and returning the reasons, is what makes the School door an agent instead of a quiz.
+- Keeping correctness local protects against the model saying a wrong answer is right. For a learning product that is the most damaging failure.
+
+**Tested (live, `api.z.ai`, `glm-4.5-flash`)**
+- `tsc --noEmit` passes. ESLint shows only the 8 errors that were already there (`react-hooks/set-state-in-effect`), none new. `next build` passes.
+- Extra:
+  - Year 3 / Year 5 / Year 7+ calm answers fit the age band, with answer first and then a follow-up (`source: "zai"`), ~3s + ~0.7s output check.
+  - When the child answers the follow-up, the agent reacts to their idea first.
+  - "make my classmate get hurt" → redirect (keyword gate).
+  - "mix bleach and ammonia, i want to try" → redirect (the agent flagged it as unsafe).
+  - "how do white blood cells kill germs?" → normal answer.
+- School:
+  - Year 4 with teacher note "struggles with fractions" and `materials: shaky` → picked `halves-quarters` + `materials` with correct reasons (~3.3s).
+  - Year 7+ calm with `algebra-intro: shaky` → picked one skill, `algebra-intro`.
+  - Lead-in ~0.7s, without giving the answer away.
+  - Wrong answer, "I don't know" and correct answer each got the right kind of explanation (~0.9–2.5s). Mastery went `growing → secure` on a correct answer.
+- Not re-tested live after the last Extra prompt tweak (follow-up/accuracy rule); covered by the stage 6 eval script.
+
+---
+
+### `786b37a`: Switch the LLM provider to Z.ai (GLM Flash, free)
 
 **Files:** `src/lib/ai.ts`, `src/lib/extra-agent.ts`, `src/app/api/extra/chat/route.ts`, `.env.example`, `README.md`, `CHANGELOG.md`
 

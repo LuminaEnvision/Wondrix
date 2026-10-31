@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { aiProvider } from "@/lib/ai";
+import { RADAR_BANK } from "@/lib/radar";
 import {
   defaultFocusFromProfile,
   localGradeAnswer,
   localNextQuestion,
   localSchoolPlan,
 } from "@/lib/school-agent";
+import { aiExplain, aiLeadIn, aiPlanFocus, type MasteryMap } from "@/lib/school-agent-ai";
 import { getSkill } from "@/lib/skills";
 import type { ParentProfile, SkillId } from "@/lib/types";
 
@@ -12,6 +15,10 @@ type Body = {
   action?: "plan" | "question" | "grade";
   profile?: ParentProfile;
   focusIds?: SkillId[];
+  /** Child's mastery map from localStorage (canvas loop step 1: read state). */
+  mastery?: MasteryMap;
+  /** Today's Extra topic, so School can link to the child's curiosity. */
+  extraTopic?: string;
   skillId?: SkillId;
   questionId?: string;
   choiceId?: string | "idk";
@@ -32,24 +39,43 @@ export async function POST(request: Request) {
 
   const profile = body.profile;
   const action = body.action ?? "plan";
-  const apiKey = process.env.OPENAI_API_KEY;
+  const provider = aiProvider();
+  const mastery: MasteryMap =
+    body.mastery && typeof body.mastery === "object" ? body.mastery : {};
 
   if (action === "plan") {
     const focusIds =
       body.focusIds?.length ? body.focusIds : defaultFocusFromProfile(profile);
-    const plan = localSchoolPlan(profile, focusIds);
 
-    if (apiKey) {
-      try {
-        const enriched = await openaiCoachNote(apiKey, profile, focusIds);
-        if (enriched) {
-          return NextResponse.json({ ...plan, coachNote: enriched, source: "openai" });
-        }
-      } catch {
-        // local plan
+    if (provider) {
+      const decision = await aiPlanFocus({ profile, mastery, extraTopic: body.extraTopic });
+      if (decision) {
+        const plan = localSchoolPlan(
+          profile,
+          decision.picked.map((p) => p.id),
+        );
+        // Logged decision (canvas: "tuned model + logged decisions").
+        console.info(
+          `[agent] school.plan ${profile.gradeLabel} → ${decision.picked
+            .map((p) => `${p.id} (${p.why})`)
+            .join(", ")}`,
+        );
+        return NextResponse.json({
+          ...plan,
+          focus: plan.focus.map((f) => ({
+            ...f,
+            why: decision.picked.find((p) => p.id === f.id)?.why || f.why,
+          })),
+          coachNote: decision.coachNote,
+          decision: {
+            candidates: decision.candidates.map(({ id, mastery: m }) => ({ id, mastery: m })),
+            picked: decision.picked,
+          },
+          source: provider.id,
+        });
       }
     }
-    return NextResponse.json(plan);
+    return NextResponse.json(localSchoolPlan(profile, focusIds));
   }
 
   if (action === "question") {
@@ -62,14 +88,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No questions for skill" }, { status: 404 });
     }
 
-    if (apiKey) {
-      try {
-        const lead = await openaiLeadIn(apiKey, profile, skillId, local.prompt);
-        if (lead) {
-          return NextResponse.json({ ...local, coachLead: lead, source: "openai" });
-        }
-      } catch {
-        // local
+    if (provider) {
+      const item = RADAR_BANK.find((r) => r.id === local.questionId);
+      const lead = item ? await aiLeadIn(profile, item) : null;
+      if (lead) {
+        return NextResponse.json({ ...local, coachLead: lead, source: provider.id });
       }
     }
     return NextResponse.json(local);
@@ -79,123 +102,36 @@ export async function POST(request: Request) {
     if (!body.questionId || !body.choiceId) {
       return NextResponse.json({ error: "Missing question or choice" }, { status: 400 });
     }
+    const item = RADAR_BANK.find((r) => r.id === body.questionId);
+    // Correctness + mastery are always decided locally from the bank.
     const result = localGradeAnswer(
       profile,
       body.questionId,
       body.choiceId,
       body.avoidIds ?? [],
+      item ? mastery[item.skillId] : undefined,
     );
     if (!result) {
       return NextResponse.json({ error: "Unknown question" }, { status: 404 });
     }
 
-    if (apiKey) {
-      try {
-        const tip = await openaiExplain(
-          apiKey,
-          profile,
-          body.questionId,
-          body.choiceId,
-          result.correct,
-          result.explanation,
-        );
-        if (tip) {
-          return NextResponse.json({
-            ...result,
-            explanation: tip,
-            source: "openai",
-          });
-        }
-      } catch {
-        // local
+    console.info(
+      `[agent] school.grade ${item ? getSkill(item.skillId).id : body.questionId} correct=${result.correct} → ${result.mastery}`,
+    );
+
+    if (provider) {
+      const tip = await aiExplain({
+        profile,
+        questionId: body.questionId,
+        choiceId: body.choiceId,
+        correct: result.correct,
+      });
+      if (tip) {
+        return NextResponse.json({ ...result, explanation: tip, source: provider.id });
       }
     }
     return NextResponse.json(result);
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-}
-
-async function openaiCoachNote(
-  apiKey: string,
-  profile: ParentProfile,
-  focusIds: SkillId[],
-): Promise<string | null> {
-  const titles = focusIds.map((id) => getSkill(id).title).join(", ");
-  return chat(apiKey, [
-    {
-      role: "system",
-      content:
-        "You are Wondrix School agent. Reply in ONE short sentence only. Format: Today: skill · skill. No em dashes. No pep talk.",
-    },
-    {
-      role: "user",
-      content: `Grade: ${profile.gradeLabel}. Focus: ${titles}.`,
-    },
-  ]);
-}
-
-async function openaiLeadIn(
-  apiKey: string,
-  profile: ParentProfile,
-  skillId: SkillId,
-  prompt: string,
-): Promise<string | null> {
-  const skill = getSkill(skillId);
-  return chat(apiKey, [
-    {
-      role: "system",
-      content:
-        "You are Wondrix School agent. One short sentence introducing a practice question. No spoilers of the answer. No em dashes.",
-    },
-    {
-      role: "user",
-      content: `Grade ${profile.gradeLabel}. Skill: ${skill.title}. Question preview: ${prompt}`,
-    },
-  ]);
-}
-
-async function openaiExplain(
-  apiKey: string,
-  profile: ParentProfile,
-  questionId: string,
-  choiceId: string,
-  correct: boolean,
-  fallback: string,
-): Promise<string | null> {
-  return chat(apiKey, [
-    {
-      role: "system",
-      content:
-        "You are Wondrix School agent. Explain in 2 short sentences for a child. If wrong, teach gently. No em dashes. Stay accurate.",
-    },
-    {
-      role: "user",
-      content: `Grade ${profile.gradeLabel}. Question id ${questionId}. Choice ${choiceId}. Correct=${correct}. Fact tip: ${fallback}`,
-    },
-  ]);
-}
-
-async function chat(
-  apiKey: string,
-  messages: { role: string; content: string }[],
-): Promise<string | null> {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-      temperature: 0.5,
-      max_tokens: 160,
-      messages,
-    }),
-  });
-  if (!res.ok) return null;
-  const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  return data.choices?.[0]?.message?.content?.trim() || null;
 }

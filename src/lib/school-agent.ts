@@ -3,12 +3,20 @@ import { pickQuestion, RADAR_BANK } from "./radar";
 import { getSkill, SKILL_GRAPH } from "./skills";
 import type { MasteryLevel, ParentProfile, RadarItem, SkillId } from "./types";
 
+/** Where a School/Extra reply came from: local banks or a live provider. */
+export type AgentSource = "local" | "zai" | "openai";
+
 export type SchoolPlan = {
   gradeLabel: string;
   gradeId: string;
   focus: { id: SkillId; title: string; subject: string; why: string }[];
   coachNote: string;
-  source: "local" | "openai";
+  /** Present when the live agent chose the focus: what it saw and why it picked. */
+  decision?: {
+    candidates: { id: SkillId; mastery: MasteryLevel }[];
+    picked: { id: SkillId; why: string }[];
+  };
+  source: AgentSource;
 };
 
 export type SchoolQuestionPayload = {
@@ -18,7 +26,7 @@ export type SchoolQuestionPayload = {
   prompt: string;
   choices: { id: string; label: string }[];
   coachLead: string;
-  source: "local" | "openai";
+  source: AgentSource;
 };
 
 export type SchoolGradeResult = {
@@ -27,7 +35,7 @@ export type SchoolGradeResult = {
   mastery: MasteryLevel;
   nextCoach: string;
   nextQuestion: SchoolQuestionPayload | null;
-  source: "local" | "openai";
+  source: AgentSource;
 };
 
 function whyForSkill(id: SkillId, profile: ParentProfile): string {
@@ -89,7 +97,7 @@ export function localSchoolPlan(
 export function toQuestionPayload(
   item: RadarItem,
   coachLead: string,
-  source: "local" | "openai" = "local",
+  source: AgentSource = "local",
 ): SchoolQuestionPayload {
   return {
     questionId: item.id,
@@ -112,11 +120,27 @@ export function localNextQuestion(
   return toQuestionPayload(item, "");
 }
 
+/**
+ * Quiet mastery update (canvas: "update mastery quietly").
+ * One answer moves a skill one step, so a single lucky guess does not mark it secure
+ * and a single slip does not erase a secure skill.
+ */
+export function nextMastery(prev: MasteryLevel | undefined, outcome: "correct" | "wrong" | "idk"): MasteryLevel {
+  const p = prev ?? "unknown";
+  if (outcome === "correct") {
+    if (p === "growing" || p === "secure") return "secure";
+    return "growing";
+  }
+  if (p === "secure") return "growing";
+  return "shaky";
+}
+
 export function localGradeAnswer(
   profile: ParentProfile,
   questionId: string,
   choiceId: string | "idk",
   avoidIds: string[],
+  prevMastery?: MasteryLevel,
 ): SchoolGradeResult | null {
   const item = RADAR_BANK.find((r) => r.id === questionId);
   if (!item) return null;
@@ -126,7 +150,7 @@ export function localGradeAnswer(
     return {
       correct: false,
       explanation: item.explainWrong,
-      mastery: "shaky",
+      mastery: nextMastery(prevMastery, "idk"),
       nextCoach: "Want another try?",
       nextQuestion: next,
       source: "local",
@@ -140,7 +164,7 @@ export function localGradeAnswer(
   return {
     correct,
     explanation: correct ? item.explainCorrect : item.explainWrong,
-    mastery: correct ? "growing" : "shaky",
+    mastery: nextMastery(prevMastery, correct ? "correct" : "wrong"),
     nextCoach: correct ? "Nice. One more?" : "Try another?",
     nextQuestion: next,
     source: "local",

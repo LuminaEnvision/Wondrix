@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { loadMastery, loadProfile, pickFocusSkills } from "@/lib/demo-store";
+import { loadExtraTopic, loadMastery, loadProfile, pickFocusSkills } from "@/lib/demo-store";
 import { gradeFromLabel } from "@/lib/grades";
 import type { SchoolPlan } from "@/lib/school-agent";
 import { getSkill } from "@/lib/skills";
@@ -17,6 +17,7 @@ export default function SchoolHomePage() {
   const [gradeLabel, setGradeLabel] = useState("Year 3");
   const [gradeBlurb, setGradeBlurb] = useState("");
   const [coachNote, setCoachNote] = useState("");
+  const [whyById, setWhyById] = useState<Partial<Record<SkillId, string>>>({});
   const refresh = useCallback(() => {
     const profile = loadProfile();
     const mastery = loadMastery();
@@ -31,7 +32,13 @@ export default function SchoolHomePage() {
     void fetch("/api/school/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "plan", profile, focusIds }),
+      body: JSON.stringify({
+        action: "plan",
+        profile,
+        focusIds,
+        mastery,
+        extraTopic: loadExtraTopic(),
+      }),
     })
       .then(async (res) => {
         if (!res.ok) return;
@@ -39,6 +46,12 @@ export default function SchoolHomePage() {
         setCoachNote(plan.coachNote);
         if (plan.focus?.length) {
           setFocus(plan.focus.map((f) => f.id));
+          // Only show reasons the live agent wrote (local "why" is generic).
+          setWhyById(
+            plan.source !== "local"
+              ? Object.fromEntries(plan.focus.map((f) => [f.id, f.why]))
+              : {},
+          );
         }
       })
       .catch(() => {
@@ -108,6 +121,9 @@ export default function SchoolHomePage() {
                   <div>
                     <p className="font-semibold text-ink">{skill.title}</p>
                     <p className="text-sm capitalize text-ink-soft">{skill.subject}</p>
+                    {whyById[id] ? (
+                      <p className="mt-1 text-xs text-ink-soft">{whyById[id]}</p>
+                    ) : null}
                   </div>
                   <Link
                     href={`/school/practice?skill=${id}`}

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { loadProfile, saveMastery, loadMastery } from "@/lib/demo-store";
 import { radarForGrade } from "@/lib/radar";
+import { nextMastery } from "@/lib/school-agent";
 import { getSkill } from "@/lib/skills";
 import { PROFILE_CHANGED_EVENT, type MasteryLevel, type RadarItem, type SkillId } from "@/lib/types";
 
@@ -39,7 +40,10 @@ export default function RadarPage() {
     const correct =
       choiceId !== "idk" &&
       Boolean(item.choices.find((c) => c.id === choiceId)?.correct);
-    const level: MasteryLevel = correct ? "growing" : "shaky";
+    const level: MasteryLevel = nextMastery(
+      mastery[item.skillId],
+      choiceId === "idk" ? "idk" : correct ? "correct" : "wrong",
+    );
     mastery[item.skillId] = level;
     saveMastery(mastery);
 
