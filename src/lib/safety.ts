@@ -18,6 +18,10 @@ const UNSAFE: RegExp[] = [
   /\b(hurt|kill|harm|poison|stab)\w*\b.{0,40}\bwithout (anyone|anybody|them|people|getting caught)\b/i,
   /\b(make|build|get|buy)\b.{0,20}\b(gun|weapon|bomb|explosive)s?\b/i,
   /\b(drug deal|buy drugs|sell drugs|get high)\b/i,
+  // Dangerous "experiments" at home: toxic gas mixes, fire and fuel.
+  /\b(mix|mixing|combine|combining)\b.{0,30}\b(bleach|ammonia|drain cleaner|chlorine)\b.{0,30}\b(and|with)\b/i,
+  /\b(bleach|ammonia|drain cleaner)\b.{0,15}\b(and|with|\+)\b.{0,15}\b(bleach|ammonia|vinegar|drain cleaner)\b.{0,60}\b(try|at home|make)\b/i,
+  /\b(set|light)\b.{0,30}\b(on fire|alight|ablaze)\b/i,
   /\b(hate (all|those)|racist joke)\b/i,
 ];
 

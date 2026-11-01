@@ -58,7 +58,7 @@ function systemPrompt(profile: ParentProfile | undefined, topicId: string | null
     "If the child answers your previous follow-up, react to their idea kindly (even if partly wrong, gently correct) before continuing.",
     "Rules: no em dashes, no markdown, no lists, no emojis. Never scold. Never promise images or links. Do not ask for personal details (name, school, address, photos).",
     "Safety: only educational, age-appropriate content. If the topic is unsafe (violence, self-harm, sexual, drugs, hate, relationships), do not engage: kindly steer to a safe science question instead.",
-    'Reply ONLY as JSON: {"unsafe": boolean, "answer": string, "followUp": string, "topic": string, "draw": boolean}. "unsafe" is true only if the child\'s latest message asks about an unsafe topic (then answer with the kind redirect). "topic" is a 2 to 5 word label of what was explored, for the parent summary. "draw" is true only when a simple diagram (steps of a process, a cycle, a comparison, sizes, or parts of a thing) would really help the child see the idea; false for greetings, opinions and small talk.',
+    'Reply ONLY as JSON: {"unsafe": boolean, "answer": string, "followUp": string, "topic": string, "draw": boolean}. "unsafe" is true only if the child\'s latest message asks about an unsafe topic (then answer with the kind redirect). "topic" is a 2 to 5 word label of what was explored, for the parent summary. "draw" is true when a simple diagram would help the child see the idea: a process or cycle (how rain happens, how plants drink, moon phases), a comparison (solid vs liquid vs gas), sizes or amounts (Sun vs Earth), or parts of a thing (parts of a flower or robot). "draw" is false for greetings, opinions, small talk and yes/no facts.',
   ]
     .filter(Boolean)
     .join("\n");
@@ -89,7 +89,7 @@ export async function aiExtraReply(input: {
   if (!raw) return null;
 
   const answer = typeof raw.answer === "string" ? cleanKidText(raw.answer) : "";
-  const followUp = typeof raw.followUp === "string" ? cleanKidText(raw.followUp) : "";
+  const followUp = typeof raw.followUp === "string" ? oneQuestion(cleanKidText(raw.followUp)) : "";
   if (!answer) return null;
 
   const topic =
@@ -133,5 +133,19 @@ export async function aiExtraVisual(input: {
     ],
     { tag: "extra.visual", temperature: 0.3, maxTokens: 260 },
   );
-  return raw ? parseVisual(raw.visual) : null;
+  if (!raw) return null;
+  const visual = parseVisual(raw.visual);
+  if (!visual && raw.visual) {
+    console.warn(`[ai] extra.visual invalid spec dropped · ${JSON.stringify(raw.visual).slice(0, 160)}`);
+  }
+  return visual;
+}
+
+/**
+ * Canvas rule "exactly ONE follow-up": small models sometimes ask two.
+ * Keep everything up to and including the first question.
+ */
+export function oneQuestion(text: string): string {
+  const i = text.indexOf("?");
+  return i === -1 ? text : text.slice(0, i + 1).trim();
 }

@@ -153,6 +153,9 @@ export function localExtraReply(
   }
 
   return {
-    text: `You asked about "${childText.trim()}". I can explore that with you. Try asking it as a why or how question, like "why are wheels round?" and I'll explain step by step.`,
+    // Generic fallback (unknown question, or the live agent timed out). It must not
+    // echo the question back or promise to "explore" it: the question was not checked
+    // by the AI safety layer, so stay neutral and steer to safe curiosity.
+    text: "I couldn't think that one through just now. Try asking again in a moment, or ask me a why or how question about stars, robots, plants, or how something works. What are you curious about?",
   };
 }

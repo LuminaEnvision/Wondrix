@@ -185,3 +185,19 @@ describe("School agent: lead-in and explanation", () => {
     expect(await aiExplain({ profile: profile(), questionId: item.id, choiceId: "b", correct: true })).toBeNull();
   });
 });
+
+describe("oneQuestion (exactly one follow-up)", () => {
+  it("keeps only up to the first question", async () => {
+    const { oneQuestion } = await import("@/lib/extra-agent");
+    expect(oneQuestion("Have you seen ice melt? What happens to the molecules?")).toBe("Have you seen ice melt?");
+    expect(oneQuestion("Black holes spin fast too. Have you seen a spinning top?")).toBe("Black holes spin fast too. Have you seen a spinning top?");
+    expect(oneQuestion("No question here.")).toBe("No question here.");
+  });
+
+  it("is applied to the agent output", async () => {
+    fakeFetch(() => chatResponse('{"answer":"Molecules are tiny.","followUp":"Seen ice melt? Why?","topic":"Molecules"}'));
+    const r = await aiExtraReply({ message: "molecule?", topicId: null, history: [], profile: profile() });
+    expect(r?.followUp).toBe("Seen ice melt?");
+    expect(r?.text).toBe("Molecules are tiny. Seen ice melt?");
+  });
+});

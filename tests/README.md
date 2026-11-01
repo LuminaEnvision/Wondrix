@@ -6,6 +6,8 @@
 | API | Vitest | `tests/api/` | Route handlers: `/api/extra/chat`, `/api/extra/visual`, `/api/school/session`, `/api/tts` | No |
 | End-to-end | Playwright | `tests/e2e/` | Real app in Chromium (phone + desktop): setup gate, PIN lock, grade change, School practice and radar, Extra answers, diagrams, voice bubble, every page without errors or horizontal scroll | No (local mode; the AI flow is mocked at the network) |
 
+| Live eval | `scripts/eval-agents.mjs` | `npm run eval` | ~27 real calls to the running app with the real model, scored against the canvas rules; report in `eval-results/` | **Yes** (server needs `ZAI_API_KEY`) |
+
 ## Run
 
 ```bash

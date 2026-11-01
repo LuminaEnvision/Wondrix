@@ -35,3 +35,13 @@ describe("localExtraReply (offline fallback)", () => {
     }
   });
 });
+
+describe("generic fallback", () => {
+  it("never echoes an unknown question back or promises to explore it", () => {
+    const q = "zxq unknown thing about something odd";
+    const r = localExtraReply(q);
+    expect(r.text).not.toContain(q);
+    expect(r.text).not.toMatch(/explore that with you/i);
+    expect(r.text.trim().endsWith("?")).toBe(true);
+  });
+});

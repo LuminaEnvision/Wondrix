@@ -104,6 +104,8 @@ npm run build && npm run test:e2e     # end-to-end in Chromium, phone + desktop 
 npm run test:all                      # lint + typecheck + tests + build + e2e (what CI runs)
 ```
 
+Live agent quality check (uses real Z.ai tokens, ~2 min): start `npm run dev` with `ZAI_API_KEY`, then `npm run eval`. It scores ~27 cases (Extra answers per age band, safety, when to draw, School plan and grading) and writes a report to `eval-results/`.
+
 Details in [tests/README.md](./tests/README.md). CI runs on every push and PR (`.github/workflows/ci.yml`).
 
 ## Stack
