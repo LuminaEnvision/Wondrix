@@ -20,7 +20,7 @@ test.describe("School door (local mode)", () => {
   test("practice: answer, see feedback, mastery saved, next question is new", async ({ page }) => {
     // forces-motion has two Year 5+ questions, so "next" must show the other one.
     await page.goto("/parent");
-    await page.locator("select").first().selectOption("Year 6");
+    await page.locator('select[name="grade"]').selectOption("Year 6");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await page.goto("/school/practice?skill=forces-motion");
     await expect(page.getByRole("heading", { name: "Forces and motion" })).toBeVisible();

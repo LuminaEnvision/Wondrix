@@ -23,6 +23,10 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 - `docs/DEV_CHANGELOG.md`: detailed per-commit log (what, how, why, tests) and stage status.
 
 ### Added (curriculum + question bank)
+- **School curriculum picker** in Parent (British, American, Indian CBSE/ICSE, IB, UAE MoE, Other):
+  - grades are shown the way the school names them, with ages ("Grade 3 (age 8–9)") in Parent, School, Practice, Radar and the summary
+  - the AI prompts get the grade name and spelling (math / maths)
+  - there is still one internal grade scale and one question bank; old saved profiles default to UK
 - `docs/CURRICULUM_RESEARCH.md`: what Dubai children study.
   - KHDA 2024-25 split: UK 37%, Indian 26%, US 14%, IB 7%.
   - Grade equivalence across curricula.

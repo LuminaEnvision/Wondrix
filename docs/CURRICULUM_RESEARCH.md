@@ -41,7 +41,7 @@ KHDA (Dubai's private-school regulator), academic year 2024-25:
 \* Indian school-entry age varies by school.
 
 **Rule of thumb:** UK Year *N* ≈ US / IB / CBSE / UAE Grade *N−1*.
-**Suggested UI:** under the grade picker, show "Year 4 (Grade 3 / Class 3)".
+**Implemented:** Parent asks for the school curriculum and the grade picker shows names in that curriculum, with ages (`src/lib/curriculum.ts`).
 
 ## 3. The shared core: TIMSS Grade 4
 
@@ -123,7 +123,8 @@ Current skills (15): measure-length, halves-quarters, add-within-100, shapes-ang
   - Anastasia reviews accuracy and tone in the PR.
 - **Phase 2 (needs a product decision):** add the missing skills from section 5, starting with **data (charts and tables)**, **place value**, **decimals**, **light & shadows**, **plants** and **water & weather**.
   - This needs updates to the skill graph, the grade defaults and the radar.
-- **Phase 3 (later):** Arabic UI and questions for UAE MoE Cycle 1, and grade labels for the other curricula in the picker.
+- **Done:** a curriculum picker in Parent (UK, US, Indian, IB, UAE MoE, Other). It renames grades everywhere ("Year 4" → "Grade 3" / "Class 3", with ages) and tells the AI the grade name and spelling. There is still one internal scale and one question bank (`src/lib/curriculum.ts`).
+- **Phase 3 (later):** Arabic UI and questions for UAE MoE Cycle 1, and per-curriculum topic-order tweaks only where a real difference is confirmed.
 
 ---
 

@@ -8,6 +8,7 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { gradeName } from "./curriculum";
 import { loadProfile, MASTERY_KEY, PROFILE_KEY } from "./demo-store";
 import { PROFILE_CHANGED_EVENT } from "./types";
 
@@ -56,4 +57,14 @@ function readGradeLabel(): string {
 /** The saved grade label ("Year 4"...), live-updated; empty string before hydration. */
 export function useProfileGradeLabel(): string {
   return useSyncExternalStore(subscribeProfile, readGradeLabel, () => "");
+}
+
+function readGradeName(): string {
+  const p = loadProfile();
+  return gradeName(p.gradeLabel, p.curriculum);
+}
+
+/** The saved grade in the family's curriculum ("Grade 3"...); empty string before hydration. */
+export function useProfileGradeName(): string {
+  return useSyncExternalStore(subscribeProfile, readGradeName, () => "");
 }

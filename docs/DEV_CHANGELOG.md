@@ -39,7 +39,31 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Curriculum research + question bank phase 1 (75 new questions)
+### School curriculum picker (grade names + AI wording per curriculum)
+
+**Why:** Jorge suggested letting parents choose the curriculum if the curricula differ a lot. The research says they differ mostly in **grade names and ages**: UK Year N ≈ US / IB / UAE Grade N−1 ≈ Indian Class N−1. Content mostly does not differ (all are TIMSS-benchmarked in Dubai). The real risk was a US parent picking "Year 4" for a Grade 4 child, which puts practice one year too high.
+
+**Design:** one internal grade scale (the stored `gradeLabel` stays "Year 4" etc.) and **one question bank**. The curriculum only changes:
+1. how the grade is **shown**: Parent options with ages, School header, "Focus skills for…", Practice, Radar, day summary;
+2. how the **AI talks**: `curriculumPromptLine()` gives the Extra and School agents the grade name in that curriculum, "same level as UK Year N", and American or British English.
+
+Five separate banks were rejected: they would multiply review work for little gain. Topic-order tweaks are deferred until a real difference is confirmed.
+
+**Files**
+- `src/lib/curriculum.ts` (**new**): `CURRICULA` (UK, US, Indian CBSE/ICSE, IB, UAE MoE, Other), `gradeName`, `gradeNameWithAge`, `asCurriculum` (unknown or missing → UK, so old profiles keep working), `curriculumPromptLine`.
+- `types.ts`: optional `curriculum` on `ParentProfile`; default profile `"uk"`.
+- `parent/page.tsx`: the **School curriculum** select above the grade select (minimal markup so the UI redesign can restyle it); grade options show `Grade 3 (age 8–9): …`; the selects have `name` attributes.
+- `school/page.tsx`, `school/practice/page.tsx`, `school/radar/page.tsx` (new `useProfileGradeName()` hook): show the curriculum grade name.
+- `extra-agent.ts`, `school-agent-ai.ts`: prompts use `curriculumPromptLine()`.
+
+**Tested:** lint ✔, typecheck ✔, **161/161** unit + API ✔, build ✔, **58/58** e2e ✔.
+- unit: the mapping for every curriculum and grade with ages, the UK fallback, the prompt line (US: "Grade 3", same as UK Year 4, American English), and the Extra prompt with a US profile
+- e2e: pick **American** → the grade option reads "Grade 3 (age 8–9)" → Save says "…for Grade 3." → the summary says "Sara (Grade 3)" → School shows "Grade 3 ·" → Radar says "Short checks for Grade 3."
+- The old e2e tests now select the grade by `select[name="grade"]`; they previously used the first select, which is now the curriculum select.
+
+---
+
+### `cb5df15`: Curriculum research + question bank phase 1 (75 new questions)
 
 **Why:** practice ran out after 1–2 questions per skill, and Anastasia asked to prioritise the question bank before the deck. Jorge asked for broad research first, global and for Dubai, so the questions fit what children actually study.
 

@@ -41,6 +41,8 @@ export type RadarItem = {
 
 export type ParentProfile = {
   childNickname: string;
+  /** School curriculum: changes grade names and AI wording only (see src/lib/curriculum.ts). */
+  curriculum?: import("./curriculum").Curriculum;
   ageBand: AgeBand;
   gradeLabel: string;
   subjects: Array<"math" | "science">;

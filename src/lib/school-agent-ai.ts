@@ -13,6 +13,7 @@
 
 import { chatJSON, chatText, cleanKidText } from "./ai";
 import { skillsForProfile } from "./demo-store";
+import { curriculumPromptLine } from "./curriculum";
 import { gradeFromLabel } from "./grades";
 import { RADAR_BANK } from "./radar";
 import { getSkill, skillsFromParentNote } from "./skills";
@@ -87,6 +88,7 @@ export async function aiPlanFocus(input: {
       {
         role: "user",
         content: [
+          curriculumPromptLine(profile),
           `Grade: ${grade.label}. Subjects: ${profile.subjects.join(", ")}.`,
           `Teacher/parent note: ${profile.oneLiner.trim() || "(none)"}`,
           `Extra interest today: ${input.extraTopic || "(none)"}`,
@@ -173,7 +175,7 @@ export async function aiExplain(input: {
       {
         role: "user",
         content: [
-          `Grade: ${input.profile.gradeLabel}. Skill: ${getSkill(item.skillId).title}.`,
+          `${curriculumPromptLine(input.profile)} Skill: ${getSkill(item.skillId).title}.`,
           `Question: ${item.prompt}`,
           `Choices: ${item.choices.map((c) => c.label).join(" / ")}`,
           `Correct answer: ${right}`,

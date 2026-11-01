@@ -20,13 +20,14 @@ import {
   lockParentSession,
   setParentPin,
 } from "@/lib/parent-auth";
+import { asCurriculum, CURRICULA, gradeName, gradeNameWithAge, type Curriculum } from "@/lib/curriculum";
 import type { ParentProfile } from "@/lib/types";
 import { useHydrated } from "@/lib/use-client-state";
 
 function daySummaryFor(p: ParentProfile): string {
   return buildDaySummary({
     nickname: p.childNickname,
-    gradeLabel: p.gradeLabel,
+    gradeLabel: gradeName(p.gradeLabel, p.curriculum),
     focus: pickFocusSkills(loadMastery(), p),
     calmMode: p.calmMode,
     extraTopic: loadExtraTopic(),
@@ -91,15 +92,35 @@ function ParentHome() {
             </label>
 
             <label className="block space-y-1">
+              <span className="text-sm font-bold text-ink-soft">School curriculum</span>
+              <select
+                name="curriculum"
+                value={asCurriculum(profile.curriculum)}
+                onChange={(e) => update("curriculum", e.target.value as Curriculum)}
+                className="w-full rounded-2xl border border-stroke bg-bg/40 px-4 py-3 outline-none focus:border-brand/40"
+              >
+                {CURRICULA.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-ink-soft">
+                Shows grades the way your school names them. Practice stays matched to your child&apos;s age.
+              </p>
+            </label>
+
+            <label className="block space-y-1">
               <span className="text-sm font-bold text-ink-soft">Grade / year</span>
               <select
+                name="grade"
                 value={profile.gradeLabel}
                 onChange={(e) => update("gradeLabel", e.target.value)}
                 className="w-full rounded-2xl border border-stroke bg-bg/40 px-4 py-3 outline-none focus:border-brand/40"
               >
                 {GRADE_OPTIONS.map((g) => (
                   <option key={g.id} value={g.label}>
-                    {g.label}: {g.blurb}
+                    {gradeNameWithAge(g.id, profile.curriculum)}: {g.blurb}
                   </option>
                 ))}
               </select>
@@ -168,7 +189,7 @@ function ParentHome() {
             </button>
             {saved ? (
               <p className="text-sm font-semibold text-brand">
-                Saved. Open School to see new focus skills for {profile.gradeLabel}.
+                Saved. Open School to see new focus skills for {gradeName(profile.gradeLabel, profile.curriculum)}.
               </p>
             ) : null}
           </div>

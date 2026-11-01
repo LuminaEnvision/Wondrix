@@ -31,6 +31,14 @@ describe("Extra agent prompt", () => {
     expect(systemPrompt(calls[0])).toContain(expected);
   });
 
+  it("uses the family's curriculum grade name in the prompt", async () => {
+    const { calls } = fakeFetch(() => chatResponse('{"answer":"A.","followUp":"B?","topic":"t"}'));
+    await aiExtraReply({ message: "why?", topicId: null, history: [], profile: profile({ curriculum: "us" }) });
+    const sys = systemPrompt(calls[0]);
+    expect(sys).toContain('"Grade 3"');
+    expect(sys).toContain("American English");
+  });
+
   it("includes grade, picked interest and calm mode", async () => {
     const { calls } = fakeFetch(() => chatResponse('{"answer":"A.","followUp":"B?","topic":"t"}'));
     await aiExtraReply({ message: "why?", topicId: "sky", history: [], profile: profile({ calmMode: true }) });
