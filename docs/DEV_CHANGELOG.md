@@ -39,7 +39,44 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Visible voice state (play / preparing / speaking / stop) + slow-device fallback
+### Tap-to-talk mic with live meter + `npm run check` (all tests in one command)
+
+**Context (Jorge's 3rd test, Chrome on a laptop):** everything worked: AI answers, diagrams, mic, browser voice, and Kokoro after a short wait. One problem: **the mic was confusing**. You couldn't tell if it was recording or listening, whether to hold or tap, or whether it sends by itself when you stop talking. The old version listened for one phrase and sent it the moment the browser detected silence, so a child who pauses to think got cut off.
+
+**What changed**
+1. **`startDictation()` in `voice.ts`** (replaces `listenOnce`)
+   - `continuous` + `interimResults` recognition, with the live transcript sent to the UI.
+   - **Never sends on silence.** `no-speech`/`aborted` are ignored, and when the browser ends recognition on its own (Chrome does after a pause), it **restarts** until the child taps Done.
+   - `finish()` stops and delivers the final text; `cancel()` discards it.
+   - Clear error messages: permission, network, Brave blocking speech ("try Chrome"), no microphone.
+   - **Live mic level:** a separate `getUserMedia` stream feeds an `AnalyserNode` (RMS, sampled ~16×/s, 0..1). It is purely visual, and all tracks are stopped on finish or cancel.
+2. **`DictationPanel` component** (shown above the input while recording)
+   - A pulsing **"Listening…"** badge and a **timer**.
+   - An **18-bar live volume meter** that moves with the child's voice, as proof the mic hears them.
+   - The **words so far** ("…") or "Ask your question out loud…".
+   - The hint **"Take your time. Tap Done when you finish."**, which turns into **"I'm still listening. Take your time, then tap Done."** after ~8s without sound or new words.
+   - Big **"✕ Cancel"** and **"✓ Done, send my question"** buttons. An empty result says "I didn't catch that…".
+   - The Mic button becomes a one-tap start: an icon + "Mic", "Recording" while active, accessible name "Ask with your voice".
+3. **`scripts/run-all-tests.sh` → `npm run check`**
+   - Runs lint → typecheck → unit/API → build → e2e and prints a ✔/✘ summary with times. The exit code is non-zero if anything fails.
+   - `--quick` skips build and e2e. `--eval` also starts `next start` on port 3177 and runs the live agent eval when `ZAI_API_KEY` is in `.env.local` or the environment; otherwise it is skipped with a note.
+   - **Machine prep:** runs `npm ci` if `node_modules` is missing. If the native Rollup binary cannot load (old CPU, "Illegal instruction"), it installs the WebAssembly Rollup with `--no-save`, so `package.json` and the lockfile are untouched. It installs Playwright Chromium if it is missing.
+4. Types: `SpeechRecognitionEvent.resultIndex` added to `src/types/speech.d.ts`.
+
+**Why**
+- Kids pause to think, so a mic that cuts them off feels broken. Tap → see the meter move → tap Done is clear for a child and for a judge watching the demo.
+- One command to run every check makes it easy for both team members (and CI-like local runs) to confirm nothing broke before a push.
+
+**Tested**
+- `npm run check` → lint ✔, typecheck ✔, **144/144** unit + API ✔, build ✔, **54/54** e2e ✔. New e2e `tests/e2e/mic.spec.ts` uses Chromium's fake microphone (a real tone, so the meter moves) and a fake recognition:
+  - one tap → panel + "Listening…" → live words → **meter above resting height** → the browser's own "end" mid-question **restarts without sending** → Done → the question is sent and answered
+  - Cancel → nothing is sent
+- `npm run check -- --quick --eval` → live eval **26/27 cases, 100/101 checks (99%), 0 fallbacks**.
+- Screenshot of the panel at phone size: meter, live words, timer, hint and buttons all visible.
+
+---
+
+### `69545c0`: Visible voice state (play / preparing / speaking / stop) + slow-device fallback
 
 **What Jorge saw (2nd test):**
 - `npm test` 144/144 and e2e 46/46 on his PC (with the wasm-Rollup workaround). Build OK.

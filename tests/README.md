@@ -11,6 +11,7 @@
 ## Run
 
 ```bash
+npm run check         # everything, with a summary (see the root README for --quick / --eval)
 npm test              # unit + API (~1s)
 npm run build && npm run test:e2e   # end-to-end (~25s)
 npm run test:all      # lint + typecheck + unit/API + build + e2e

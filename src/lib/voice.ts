@@ -477,63 +477,164 @@ function getRecognitionCtor(): (new () => SpeechRecognition) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-export type ListenHandle = {
-  stop: () => void;
+const MIC_ERRORS: Record<string, string> = {
+  "not-allowed": "Please allow the microphone in the browser.",
+  network:
+    "Voice listening needs internet (Chrome sends audio to a speech service). Check wifi, or type your question.",
+  "service-not-allowed":
+    "This browser blocked speech recognition (Brave does this). Try Chrome, or type instead.",
+  "audio-capture": "No microphone found. Check your device, or type instead.",
+  "language-not-supported": "This language is not supported for voice. Type instead.",
 };
 
-/** One-shot listen: returns transcript when the child finishes speaking. */
-export function listenOnce(options: {
-  onResult: (transcript: string) => void;
-  onError?: (message: string) => void;
-  onStart?: () => void;
-  onEnd?: () => void;
+export type DictationHandle = {
+  /** Child tapped "Done": stop listening and deliver the final text via onDone. */
+  finish: () => void;
+  /** Child tapped "Cancel": stop and discard. */
+  cancel: () => void;
+};
+
+/**
+ * Tap-to-talk dictation for kids.
+ * - Starts on one tap and keeps listening through pauses (a child may think for a while):
+ *   it never sends on silence; if the browser ends recognition early, it restarts.
+ * - Streams the live transcript (onText) and a 0..1 microphone level (onLevel) for a meter.
+ * - finish() delivers the text (onDone); cancel() discards it.
+ */
+export function startDictation(options: {
+  onText: (text: string) => void;
+  onLevel?: (level: number) => void;
+  onDone: (text: string) => void;
+  onError: (message: string) => void;
   lang?: string;
-}): ListenHandle | null {
+}): DictationHandle | null {
   const Ctor = getRecognitionCtor();
   if (!Ctor) {
-    options.onError?.("Voice input needs Chrome, Edge, or Safari.");
+    options.onError("Voice input needs Chrome, Edge, or Safari. You can type instead.");
     return null;
   }
 
+  let finalText = "";
+  let interimText = "";
+  let active = true; // false once finished/cancelled
+  let delivering = false; // finish() pressed: deliver on the next end
+  let stream: MediaStream | null = null;
+  let levelCtx: AudioContext | null = null;
+  let raf = 0;
+
+  const text = () => `${finalText} ${interimText}`.replace(/\s+/g, " ").trim();
+
   const recognition = new Ctor();
   recognition.lang = options.lang ?? "en-US";
-  recognition.interimResults = false;
+  recognition.interimResults = true;
+  recognition.continuous = true;
   recognition.maxAlternatives = 1;
-  recognition.continuous = false;
 
-  recognition.onstart = () => options.onStart?.();
-  recognition.onend = () => options.onEnd?.();
+  recognition.onresult = (event) => {
+    interimText = "";
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const r = event.results[i];
+      const t = r[0]?.transcript ?? "";
+      if (r.isFinal) finalText = `${finalText} ${t}`;
+      else interimText += t;
+    }
+    options.onText(text());
+  };
+
   recognition.onerror = (event) => {
     const err = event.error;
-    if (err === "aborted" || err === "no-speech") {
-      options.onEnd?.();
+    if (err === "no-speech" || err === "aborted") return; // silence is fine: keep listening
+    active = false;
+    cleanupLevel();
+    options.onError(MIC_ERRORS[err] ?? `Mic issue (${err}). You can still type your question.`);
+  };
+
+  recognition.onend = () => {
+    if (delivering) {
+      delivering = false;
+      active = false;
+      cleanupLevel();
+      options.onDone(text());
       return;
     }
-    const messages: Record<string, string> = {
-      "not-allowed": "Please allow the microphone in the browser.",
-      network:
-        "Voice listening needs internet (Chrome sends audio to a speech service). Try Chrome outside Cursor, check wifi, or type your question.",
-      "service-not-allowed": "This browser blocked speech recognition. Try Chrome on localhost, or type instead.",
-      "audio-capture": "No microphone found. Check your device, or type instead.",
-      "language-not-supported": "This language is not supported for voice. Type instead.",
-    };
-    options.onError?.(messages[err] ?? `Mic issue (${err}). You can still type your question.`);
-    options.onEnd?.();
+    // Browsers stop after a pause; the child has not tapped Done yet, so keep going.
+    if (active) {
+      try {
+        recognition.start();
+      } catch {
+        /* already starting */
+      }
+    }
   };
-  recognition.onresult = (event) => {
-    const text = event.results[0]?.[0]?.transcript?.trim();
-    if (text) options.onResult(text);
-  };
+
+  function cleanupLevel() {
+    cancelAnimationFrame(raf);
+    stream?.getTracks().forEach((t) => t.stop());
+    stream = null;
+    void levelCtx?.close().catch(() => {});
+    levelCtx = null;
+    options.onLevel?.(0);
+  }
+
+  // Live volume meter (separate from recognition; purely visual).
+  if (options.onLevel && navigator.mediaDevices?.getUserMedia) {
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((s) => {
+        if (!active) {
+          s.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        stream = s;
+        levelCtx = new AudioContext();
+        const analyser = levelCtx.createAnalyser();
+        analyser.fftSize = 512;
+        levelCtx.createMediaStreamSource(s).connect(analyser);
+        const data = new Uint8Array(analyser.fftSize);
+        let last = 0;
+        const tick = (now: number) => {
+          if (!active && !delivering) return;
+          if (now - last > 60) {
+            last = now;
+            analyser.getByteTimeDomainData(data);
+            let sum = 0;
+            for (const v of data) sum += ((v - 128) / 128) ** 2;
+            const rms = Math.sqrt(sum / data.length);
+            options.onLevel?.(Math.min(1, rms * 4));
+          }
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+      })
+      .catch(() => {
+        /* meter is optional; recognition still works */
+      });
+  }
 
   try {
     recognition.start();
   } catch {
-    options.onError?.("Could not start the microphone.");
+    options.onError("Could not start the microphone.");
     return null;
   }
 
   return {
-    stop: () => {
+    finish: () => {
+      if (!active) return;
+      delivering = true;
+      try {
+        recognition.stop(); // onend delivers the final text
+      } catch {
+        delivering = false;
+        active = false;
+        cleanupLevel();
+        options.onDone(text());
+      }
+    },
+    cancel: () => {
+      active = false;
+      delivering = false;
+      cleanupLevel();
       try {
         recognition.abort();
       } catch {

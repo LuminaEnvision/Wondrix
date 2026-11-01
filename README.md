@@ -98,13 +98,23 @@ Tune prompts and model behaviour against the canvas goals in [docs/PROJECT_CANVA
 
 ## Tests
 
+**One command for everything:**
+
+```bash
+npm run check                 # lint + typecheck + unit/API tests + build + end-to-end, with a summary
+npm run check -- --quick      # skip build + end-to-end (~10s)
+npm run check -- --eval       # also score the live AI agents (real Z.ai tokens; needs ZAI_API_KEY)
+```
+
+`npm run check` also prepares the machine: on old CPUs it swaps Rollup for its WebAssembly build (local only), and it installs Playwright's Chromium on the first run.
+
+Individual commands:
+
 ```bash
 npm test                              # unit + API tests (Vitest, ~1s, no keys needed)
 npm run build && npm run test:e2e     # end-to-end in Chromium, phone + desktop (Playwright)
-npm run test:all                      # lint + typecheck + tests + build + e2e (what CI runs)
+npm run eval                          # live agent quality check against a running app (npm run dev / npm start)
 ```
-
-Live agent quality check (uses real Z.ai tokens, ~2 min): start `npm run dev` with `ZAI_API_KEY`, then `npm run eval`. It scores ~27 cases (Extra answers per age band, safety, when to draw, School plan and grading) and writes a report to `eval-results/`.
 
 Details in [tests/README.md](./tests/README.md). CI runs on every push and PR (`.github/workflows/ci.yml`).
 

@@ -10,11 +10,13 @@ import { safetyCheck } from "@/lib/safety";
 import {
   canListen,
   canSpeak,
-  listenOnce,
+  startDictation,
+  type DictationHandle,
   speak,
   stopSpeaking,
   warmUpVoice,
 } from "@/lib/voice";
+import { DictationPanel } from "@/components/DictationPanel";
 import { ExtraVisual } from "@/components/ExtraVisual";
 import { SpeakButton } from "@/components/SpeakButton";
 import { VoiceLoadingBubble } from "@/components/VoiceLoadingBubble";
@@ -82,7 +84,14 @@ function ExtraInner() {
   const [voiceOn, setVoiceOn] = useState(true);
   const [listening, setListening] = useState(false);
   const [voiceHint, setVoiceHint] = useState("");
-  const listenRef = useRef<ReturnType<typeof listenOnce> | null>(null);
+  const listenRef = useRef<DictationHandle | null>(null);
+  // Dictation panel state (live words, mic meter, timer, "take your time" hint)
+  const [dictText, setDictText] = useState("");
+  const [levels, setLevels] = useState<number[]>(() => Array(18).fill(0));
+  const [seconds, setSeconds] = useState(0);
+  const [quiet, setQuiet] = useState(false);
+  const lastSoundAt = useRef(0);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const didGreet = useRef(false);
   const messagesRef = useRef<Msg[]>([]);
   const nextId = useRef(1);
@@ -99,7 +108,8 @@ function ExtraInner() {
     warmUpVoice();
     return () => {
       stopSpeaking();
-      listenRef.current?.stop();
+      listenRef.current?.cancel();
+      if (tickRef.current) clearInterval(tickRef.current);
     };
   }, []);
 
@@ -209,31 +219,70 @@ function ExtraInner() {
     say(`How about this: ${item.seed}`);
   }
 
-  function toggleMic() {
-    if (listening) {
-      listenRef.current?.stop();
-      setListening(false);
-      return;
-    }
+  function stopDictationUi() {
+    if (tickRef.current) clearInterval(tickRef.current);
+    tickRef.current = null;
+    listenRef.current = null;
+    setListening(false);
+  }
+
+  /** One tap starts listening; the child taps Done (or Cancel) when finished. */
+  function startMic() {
+    if (listening || busy) return;
     if (!micOk) {
       setVoiceHint("Voice input needs Chrome or Edge with mic permission. You can still type below.");
       return;
     }
     stopSpeaking();
-    setVoiceHint("Listening… ask your question out loud.");
-    listenRef.current = listenOnce({
-      onStart: () => setListening(true),
-      onEnd: () => setListening(false),
-      onError: (message) => {
-        setVoiceHint(message);
-        setListening(false);
+    setVoiceHint("");
+    setDictText("");
+    setLevels(Array(18).fill(0));
+    setSeconds(0);
+    setQuiet(false);
+    lastSoundAt.current = Date.now();
+
+    const handle = startDictation({
+      onText: (t) => {
+        lastSoundAt.current = Date.now();
+        setDictText(t);
       },
-      onResult: (transcript) => {
-        setVoiceHint("");
-        setInput(transcript);
-        void send(transcript);
+      onLevel: (level) => {
+        if (level > 0.08) lastSoundAt.current = Date.now();
+        setLevels((prev) => [...prev.slice(1), level]);
+      },
+      onDone: (t) => {
+        stopDictationUi();
+        const question = t.trim();
+        if (!question) {
+          setVoiceHint("I didn't catch that. Tap Mic to try again, or type your question.");
+          return;
+        }
+        setInput(question);
+        void send(question);
+      },
+      onError: (message) => {
+        stopDictationUi();
+        setVoiceHint(message);
       },
     });
+    if (!handle) return;
+    listenRef.current = handle;
+    setListening(true);
+    const startedAt = Date.now();
+    tickRef.current = setInterval(() => {
+      setSeconds(Math.floor((Date.now() - startedAt) / 1000));
+      setQuiet(Date.now() - lastSoundAt.current > 8000);
+    }, 500);
+  }
+
+  function finishMic() {
+    listenRef.current?.finish();
+  }
+
+  function cancelMic() {
+    listenRef.current?.cancel();
+    stopDictationUi();
+    setDictText("");
   }
 
   return (
@@ -318,6 +367,17 @@ function ExtraInner() {
 
         {voiceHint ? <p className="text-sm font-semibold text-extra">{voiceHint}</p> : null}
 
+        {listening ? (
+          <DictationPanel
+            text={dictText}
+            levels={levels}
+            seconds={seconds}
+            quiet={quiet}
+            onDone={finishMic}
+            onCancel={cancelMic}
+          />
+        ) : null}
+
         <form
           className="flex gap-2"
           onSubmit={(e) => {
@@ -327,15 +387,22 @@ function ExtraInner() {
         >
           <button
             type="button"
-            onClick={toggleMic}
+            onClick={startMic}
             aria-pressed={listening}
-            disabled={busy}
-            className={`rounded-full px-4 py-3 font-bold text-white ${
-              listening ? "bg-brand animate-pulse" : "bg-ink"
+            disabled={busy || listening}
+            className={`rounded-full px-4 py-3 font-bold text-white disabled:opacity-60 ${
+              listening ? "bg-extra" : "bg-ink"
             }`}
-            title="Ask with your voice"
+            title="Tap once and ask with your voice"
+            aria-label="Ask with your voice"
           >
-            {listening ? "Listening…" : "Mic"}
+            <span className="inline-flex items-center gap-1.5">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <rect x="9" y="3" width="6" height="11" rx="3" />
+                <path d="M5 11a7 7 0 0 0 14 0M12 18v3" strokeLinecap="round" />
+              </svg>
+              {listening ? "Recording" : "Mic"}
+            </span>
           </button>
           <input
             id="extra-question"

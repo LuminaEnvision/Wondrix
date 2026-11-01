@@ -23,6 +23,8 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 - `docs/DEV_CHANGELOG.md`: detailed per-commit log (what, how, why, tests) and stage status.
 
 ### Added (voice UX)
+- **Tap-to-talk mic for kids** (`DictationPanel`): one tap starts; a live volume meter, the words so far and a timer show it is listening; it **never sends on silence** (keeps listening through pauses and browser restarts) and shows "Take your time" after ~8s of quiet; big **Done, send my question** / **Cancel** buttons.
+- `npm run check` (`scripts/run-all-tests.sh`): lint, typecheck, unit/API, build and end-to-end in one go with a summary; `--quick`, `--eval`; auto-handles old CPUs and the first Playwright install.
 - Per-message voice control (`SpeakButton`): **Listen** → **Preparing voice…** (spinner) → **Speaking** (animated equalizer bars) with **Stop**; "No sound available on this device" when no engine can play. Replaces the small "Hear again" link.
 - Kokoro gets 8s for the first sentence on slow devices (no AVX / WASM only), then the browser voice takes over; after 2 slow tries Kokoro is skipped for the session. `[voice]` console logs show which engine played and how fast.
 
