@@ -39,7 +39,49 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Fixes from Jorge's local test (Kali, older PC, Brave)
+### Visible voice state (play / preparing / speaking / stop) + slow-device fallback
+
+**What Jorge saw (2nd test):**
+- `npm test` 144/144 and e2e 46/46 on his PC (with the wasm-Rollup workaround). Build OK.
+- The natural voice reached **"ready"** (console: "Failed to create WebGPU Context Provider", so the new **WASM fallback worked**), but **no sound**, and **"Hear again" gave no feedback**.
+- CPU flags: `sse4_1` only, **no AVX/AVX2**.
+- Console: a "form field should have an id or name" warning. The other entries came from a browser extension (`contentscript.js`, MetaMask-style) and dev mode, not from the app.
+
+**Diagnosis**
+- Without AVX, Kokoro on WASM can take **many seconds per sentence**. The old code waited silently for the first chunk, so a click on "Hear again" looked like nothing happened.
+- If generation is slow or fails, the browser voice is the fallback. On Linux, Brave/Chromium often has **no speech voices** unless `speech-dispatcher` is installed. Before this change the browser engine reported success **without checking that audio started**, so the result was silence with no message.
+
+**What changed**
+1. **Speech state in `voice.ts`:** `idle | preparing | speaking | unavailable`, with the message id. It is exposed through `subscribeSpeech` / `getSpeech`, used with `useSyncExternalStore`.
+   - Each engine now reports success **only when audio really starts**:
+     - Kokoro: first chunk scheduled
+     - browser: first `utterance.onstart`
+     - Azure: `audio.play()` resolved
+   - Each engine marks `idle` when the last audio ends. The browser engine gives up after 4s without `onstart`.
+   - If no engine plays, the state is `unavailable`.
+   - The browser voice assignment is wrapped in try/catch, so an unusual voice object falls back to the default voice.
+2. **Slow-device fallback.** If Kokoro's first sentence is not ready in **8s**, its request is cancelled and the browser voice speaks. After **2** slow tries Kokoro is skipped for the rest of the session.
+3. **`[voice]` console logs:** which engine started and how long it took, Kokoro too slow, no browser voices installed, no voice at all.
+4. **`SpeakButton` component**, on every answer and on the starter question:
+   - **▶ Listen** button
+   - → **Preparing voice…** with a spinner
+   - → **Speaking** with animated equalizer bars (CSS `wx-eq`, still bars when `prefers-reduced-motion`)
+   - a **■ Stop** button in both active states
+   - **"No sound available on this device. You can read the answer."** when nothing can play
+   - `role="status"` / `aria-live` for screen readers, and distinct accessible names ("Listen to this answer" / "Listen to the starter question")
+   - It replaces the small "Hear again" text link.
+5. **Extra question input:** `id="extra-question"`, `name="question"`, `aria-label`, `autoComplete="off"`.
+
+**Tested**
+- Lint 0, typecheck OK, **144/144** unit + API, build OK, **50/50** e2e. New tests:
+  - **Listen → Speaking (bars + Stop) → Stop → Listen**, with a fake browser voice that starts and talks
+  - **No voices on the device → "Preparing voice…" then "No sound available on this device"**, simulating Linux without speech-dispatcher
+- Screenshots of the three states at phone size look right.
+- To confirm on Jorge's PC: which `[voice]` line appears in the console. If it is "no browser speech voices", run `sudo apt install speech-dispatcher espeak-ng` and restart the browser.
+
+---
+
+### `5b17aef`: Fixes from Jorge's local test (Kali, older PC, Brave)
 
 **What Jorge saw**
 1. `npm test` → **"Illegal instruction"**.

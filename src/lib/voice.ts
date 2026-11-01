@@ -20,7 +20,22 @@ export type VoiceStatus =
   | { engine: Engine; state: "idle" | "ready" | "failed" }
   | { engine: "kokoro"; state: "loading"; progress: number };
 
-type SpeakOpts = { rate?: number; pitch?: number };
+type SpeakOpts = {
+  rate?: number;
+  pitch?: number;
+  /** Which message is being read (lets the UI show a per-message play state). */
+  id?: string;
+};
+
+/** What the voice is doing right now (for play buttons and "speaking" indicators). */
+export type SpeechState =
+  | { state: "idle" }
+  | { state: "preparing"; id?: string }
+  | { state: "speaking"; id?: string; engine: Engine }
+  | { state: "unavailable"; id?: string };
+
+/** Max wait for Kokoro's first sentence before the browser voice takes over. */
+const KOKORO_FIRST_CHUNK_MS = 8000;
 
 const KOKORO_VOICE = process.env.NEXT_PUBLIC_KOKORO_VOICE || "af_heart";
 
@@ -40,6 +55,29 @@ let audioCtx: AudioContext | null = null;
 let activeSources: AudioBufferSourceNode[] = [];
 let audioEl: HTMLAudioElement | null = null;
 let audioUrl: string | null = null;
+
+const IDLE: SpeechState = { state: "idle" };
+let speech: SpeechState = IDLE;
+const speechListeners = new Set<() => void>();
+
+function setSpeech(next: SpeechState) {
+  speech = next;
+  speechListeners.forEach((fn) => fn());
+}
+
+/** useSyncExternalStore-friendly subscription to the speech state. */
+export function subscribeSpeech(fn: () => void): () => void {
+  speechListeners.add(fn);
+  return () => speechListeners.delete(fn);
+}
+
+export function getSpeech(): SpeechState {
+  return speech;
+}
+
+export function getServerSpeech(): SpeechState {
+  return IDLE;
+}
 
 const statusListeners = new Set<(s: VoiceStatus) => void>();
 let lastStatus: VoiceStatus = { engine: "kokoro", state: "idle" };
@@ -80,6 +118,7 @@ function splitSentences(text: string): string[] {
 export function stopSpeaking() {
   playToken++;
   stopAllAudio();
+  if (speech.state !== "idle") setSpeech(IDLE);
 }
 
 function stopAllAudio() {
@@ -109,17 +148,36 @@ export function speak(text: string, opts?: SpeakOpts) {
   if (typeof window === "undefined" || !text.trim()) return;
   stopSpeaking();
   const token = playToken;
+  const id = opts?.id;
+  setSpeech({ state: "preparing", id });
+  const started = Date.now();
   void (async () => {
     for (const engine of engineChain()) {
       if (token !== playToken) return;
       try {
         const ok = await ENGINES[engine](text, opts ?? {}, token);
-        if (ok) return;
-      } catch {
-        /* try next engine */
+        if (ok) {
+          console.info(`[voice] ${engine} started after ${Date.now() - started} ms`);
+          return;
+        }
+      } catch (err) {
+        console.warn(`[voice] ${engine} failed`, err);
       }
     }
+    if (token === playToken) {
+      console.warn("[voice] no voice could play on this device");
+      setSpeech({ state: "unavailable", id });
+    }
   })();
+}
+
+/** Called by an engine when its audio really starts / ends. */
+function markSpeaking(token: number, engine: Engine, id?: string) {
+  if (token === playToken) setSpeech({ state: "speaking", id, engine });
+}
+
+function markDone(token: number) {
+  if (token === playToken) setSpeech(IDLE);
 }
 
 /** Start loading the natural voice early (call when a voice screen opens). */
@@ -129,6 +187,7 @@ export function warmUpVoice() {
   if ("speechSynthesis" in window) window.speechSynthesis.getVoices();
 }
 
+/** Each engine resolves true only once audio has actually started. */
 const ENGINES: Record<Engine, (text: string, opts: SpeakOpts, token: number) => Promise<boolean>> = {
   kokoro: speakKokoro,
   azure: speakAzure,
@@ -142,9 +201,11 @@ const ENGINES: Record<Engine, (text: string, opts: SpeakOpts, token: number) => 
 let kokoroWorker: Worker | null = null;
 let kokoroState: "idle" | "loading" | "ready" | "failed" = "idle";
 let kokoroReqId = 0;
+/** Times Kokoro was too slow for the first sentence; after 2 we stop using it this session. */
+let kokoroSlowStrikes = 0;
 
 function getKokoroWorker(): Worker | null {
-  if (kokoroState === "failed") return null;
+  if (kokoroState === "failed" || kokoroSlowStrikes >= 2) return null;
   if (kokoroWorker) return kokoroWorker;
   if (typeof Worker === "undefined") {
     kokoroState = "failed";
@@ -210,6 +271,23 @@ async function speakKokoro(text: string, opts: SpeakOpts, token: number): Promis
 
   return new Promise<boolean>((resolve) => {
     let gotAudio = false;
+    let allQueued = false;
+    // Slow devices (no AVX, WASM only) can need many seconds per sentence:
+    // don't leave the child in silence, let the browser voice take over.
+    const timer = setTimeout(() => {
+      if (gotAudio) return;
+      kokoroSlowStrikes++;
+      console.warn(
+        `[voice] kokoro too slow (> ${KOKORO_FIRST_CHUNK_MS} ms for the first sentence), using the browser voice` +
+          (kokoroSlowStrikes >= 2 ? "; natural voice turned off for this session" : ""),
+      );
+      cleanup();
+      worker.postMessage({ type: "speak", id: -1, sentences: [], voice: KOKORO_VOICE, speed: 1 });
+      resolve(false);
+    }, KOKORO_FIRST_CHUNK_MS);
+    const finishIfDone = () => {
+      if (allQueued && activeSources.length === 0) markDone(token);
+    };
     const onMessage = (e: MessageEvent) => {
       const m = e.data as {
         type: string;
@@ -235,17 +313,25 @@ async function speakKokoro(text: string, opts: SpeakOpts, token: number): Promis
         activeSources.push(src);
         src.onended = () => {
           activeSources = activeSources.filter((s) => s !== src);
+          finishIfDone();
         };
         if (!gotAudio) {
           gotAudio = true;
+          clearTimeout(timer);
+          markSpeaking(token, "kokoro", opts.id);
           resolve(true);
         }
       } else if (m.type === "done" || m.type === "error") {
+        allQueued = true;
         cleanup();
+        finishIfDone();
         resolve(gotAudio);
       }
     };
-    const cleanup = () => worker.removeEventListener("message", onMessage);
+    const cleanup = () => {
+      clearTimeout(timer);
+      worker.removeEventListener("message", onMessage);
+    };
     worker.addEventListener("message", onMessage);
     worker.postMessage({
       type: "speak",
@@ -263,7 +349,7 @@ async function speakKokoro(text: string, opts: SpeakOpts, token: number): Promis
 
 let azureUnavailable = false;
 
-async function speakAzure(text: string, _opts: SpeakOpts, token: number): Promise<boolean> {
+async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise<boolean> {
   if (azureUnavailable) return false;
   const res = await fetch("/api/tts", {
     method: "POST",
@@ -279,9 +365,11 @@ async function speakAzure(text: string, _opts: SpeakOpts, token: number): Promis
   if (token !== playToken) return false;
   audioUrl = URL.createObjectURL(blob);
   audioEl = new Audio(audioUrl);
+  audioEl.onended = () => markDone(token);
   try {
     await audioEl.play();
     emit({ engine: "azure", state: "ready" });
+    markSpeaking(token, "azure", opts.id);
     return true;
   } catch {
     return false;
@@ -329,17 +417,51 @@ async function speakBrowser(text: string, opts: SpeakOpts, token: number): Promi
   if (!("speechSynthesis" in window)) return false;
   const voice = await bestBrowserVoice();
   if (token !== playToken) return false;
-  // One utterance per sentence: avoids Chrome cutting long text and sounds less flat.
-  for (const sentence of splitSentences(text)) {
-    const u = new SpeechSynthesisUtterance(sentence);
-    u.rate = opts.rate ?? 0.95;
-    u.pitch = opts.pitch ?? 1.05;
-    u.lang = voice?.lang ?? "en-US";
-    if (voice) u.voice = voice;
-    window.speechSynthesis.speak(u);
+  if (!voice && window.speechSynthesis.getVoices().length === 0) {
+    // Typical on Linux without speech-dispatcher: the API exists but has no voices.
+    console.warn("[voice] the browser has no speech voices installed");
   }
-  emit({ engine: "browser", state: "ready" });
-  return true;
+  const sentences = splitSentences(text);
+  return new Promise<boolean>((resolve) => {
+    let started = false;
+    // If nothing starts within a few seconds, the browser cannot speak here.
+    const timer = setTimeout(() => {
+      if (!started) {
+        window.speechSynthesis.cancel();
+        resolve(false);
+      }
+    }, 4000);
+    // One utterance per sentence: avoids Chrome cutting long text and sounds less flat.
+    sentences.forEach((sentence, i) => {
+      const u = new SpeechSynthesisUtterance(sentence);
+      u.rate = opts.rate ?? 0.95;
+      u.pitch = opts.pitch ?? 1.05;
+      u.lang = voice?.lang ?? "en-US";
+      if (voice) {
+        try {
+          u.voice = voice;
+        } catch {
+          /* unusual voice object: keep the default voice for this language */
+        }
+      }
+      u.onstart = () => {
+        if (started) return;
+        started = true;
+        clearTimeout(timer);
+        emit({ engine: "browser", state: "ready" });
+        markSpeaking(token, "browser", opts.id);
+        resolve(true);
+      };
+      if (i === sentences.length - 1) u.onend = () => markDone(token);
+      u.onerror = (e) => {
+        if (!started && e.error !== "interrupted" && e.error !== "canceled") {
+          clearTimeout(timer);
+          resolve(false);
+        }
+      };
+      window.speechSynthesis.speak(u);
+    });
+  });
 }
 
 /* ------------------------------------------------------------------ */

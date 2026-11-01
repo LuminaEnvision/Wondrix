@@ -101,3 +101,52 @@ test.describe("Extra door", () => {
     await expect(page.getByText("Getting Wondrix's voice ready…")).toHaveCount(0);
   });
 });
+
+test.describe("voice controls", () => {
+  test.beforeEach(async ({ page }) => {
+    await skipSetup(page);
+  });
+
+  test("Listen → Speaking (bars + Stop) → Stop returns to Listen", async ({ page }) => {
+    // Fake browser voice: starts quickly, "talks" for 3s unless cancelled.
+    await page.addInitScript(() => {
+      const timers: number[] = [];
+      const fake = {
+        getVoices: () => [{ name: "Google US English", lang: "en-US" }],
+        addEventListener: () => {},
+        cancel: () => timers.splice(0).forEach((t) => clearTimeout(t)),
+        speak: (u: { onstart?: () => void; onend?: () => void }) => {
+          timers.push(window.setTimeout(() => u.onstart?.(), 100));
+          timers.push(window.setTimeout(() => u.onend?.(), 3000));
+        },
+      };
+      Object.defineProperty(window, "speechSynthesis", { value: fake, configurable: true });
+    });
+    await page.goto("/extra");
+    await page.getByRole("button", { name: "Voice answers on" }).click(); // no auto-speak; test the manual button
+    await page.getByPlaceholder("Ask anything curious…").fill("why are wheels round?");
+    await page.getByRole("button", { name: "Send" }).click();
+    const listen = page.getByRole("button", { name: "Listen to this answer" });
+    await expect(listen).toBeVisible();
+    await listen.click();
+    await expect(page.getByText("Speaking", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Stop reading" }).click();
+    await expect(page.getByText("Speaking", { exact: true })).toHaveCount(0);
+    await expect(listen).toBeVisible();
+  });
+
+  test("no voice on the device → clear message instead of silence", async ({ page }) => {
+    // Linux browser without speech-dispatcher: API exists, nothing ever starts.
+    await page.addInitScript(() => {
+      const fake = { getVoices: () => [], addEventListener: () => {}, cancel: () => {}, speak: () => {} };
+      Object.defineProperty(window, "speechSynthesis", { value: fake, configurable: true });
+    });
+    await page.goto("/extra");
+    await page.getByRole("button", { name: "Voice answers on" }).click();
+    await page.getByPlaceholder("Ask anything curious…").fill("why are wheels round?");
+    await page.getByRole("button", { name: "Send" }).click();
+    await page.getByRole("button", { name: "Listen to this answer" }).click();
+    await expect(page.getByText("Preparing voice…")).toBeVisible();
+    await expect(page.getByText(/No sound available on this device/)).toBeVisible({ timeout: 10_000 });
+  });
+});

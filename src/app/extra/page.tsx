@@ -16,6 +16,7 @@ import {
   warmUpVoice,
 } from "@/lib/voice";
 import { ExtraVisual } from "@/components/ExtraVisual";
+import { SpeakButton } from "@/components/SpeakButton";
 import { VoiceLoadingBubble } from "@/components/VoiceLoadingBubble";
 import type { Visual } from "@/lib/visual";
 
@@ -105,7 +106,7 @@ function ExtraInner() {
   useEffect(() => {
     if (didGreet.current) return;
     didGreet.current = true;
-    if (voiceOn && speakOk) speak(OPENING);
+    if (voiceOn && speakOk) speak(OPENING, { id: "opening" });
   }, [voiceOn, speakOk]);
 
   // When the ?topic= changes, prefill its starter question (React's
@@ -116,8 +117,8 @@ function ExtraInner() {
     setInput(topic.seed);
   }
 
-  function say(text: string) {
-    if (voiceOn && speakOk) speak(text);
+  function say(text: string, id?: string) {
+    if (voiceOn && speakOk) speak(text, { id });
   }
 
   async function send(text: string) {
@@ -179,7 +180,7 @@ function ExtraInner() {
     // A redirected question is not an "explored topic": only count it for the parent.
     if (redirected) recordSafetyRedirect();
     else saveExtraTopic(topicLabel);
-    say(reply.text);
+    say(reply.text, `msg-${agentMsg.id}`);
     setBusy(false);
 
     if (drawFor) void drawVisual(agentMsg.id, trimmed, drawFor);
@@ -250,6 +251,9 @@ function ExtraInner() {
               {topic ? topic.label : "Let's wonder"}
             </h1>
             <p className="mt-2 text-ink-soft">{OPENING}</p>
+            <div className="mt-2">
+              <SpeakButton id="opening" text={OPENING} tone="extra" label="Listen to the starter question" />
+            </div>
           </div>
           <div className="relative h-28 w-24 shrink-0 sm:h-40 sm:w-36">
             <Image
@@ -305,15 +309,7 @@ function ExtraInner() {
                     Wondrix is drawing it for you…
                   </p>
                 ) : null}
-                {msg.role === "agent" ? (
-                  <button
-                    type="button"
-                    onClick={() => say(msg.text)}
-                    className="text-xs font-bold text-brand underline-offset-2 hover:underline"
-                  >
-                    Hear again
-                  </button>
-                ) : null}
+                {msg.role === "agent" ? <SpeakButton id={`msg-${msg.id}`} text={msg.text} /> : null}
               </div>
             ))
           )}
@@ -342,6 +338,10 @@ function ExtraInner() {
             {listening ? "Listening…" : "Mic"}
           </button>
           <input
+            id="extra-question"
+            name="question"
+            aria-label="Your question for Wondrix"
+            autoComplete="off"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask anything curious…"

@@ -22,7 +22,12 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 - `/api/tts` prepared for Azure Speech neural voices (`NEXT_PUBLIC_TTS_ENGINE=azure` + `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION`); returns 501 when not configured.
 - `docs/DEV_CHANGELOG.md`: detailed per-commit log (what, how, why, tests) and stage status.
 
+### Added (voice UX)
+- Per-message voice control (`SpeakButton`): **Listen** → **Preparing voice…** (spinner) → **Speaking** (animated equalizer bars) with **Stop**; "No sound available on this device" when no engine can play. Replaces the small "Hear again" link.
+- Kokoro gets 8s for the first sentence on slow devices (no AVX / WASM only), then the browser voice takes over; after 2 slow tries Kokoro is skipped for the session. `[voice]` console logs show which engine played and how fast.
+
 ### Fixed
+- Extra question field has `id`/`name`/label (browser "form field" warning).
 - Parent summary no longer lists a safety-redirected question as an "explored" Extra topic; it shows only a count ("Wondrix gently redirected 1 question…").
 - Kokoro voice: checks for a real WebGPU adapter and falls back to WASM if WebGPU fails (old GPUs advertise WebGPU without an adapter); the real error is logged in the browser console.
 - Dev mode: instant-navigation validation limited to opted-in segments (`manual-warning`), removing the per-page "Could not validate…" errors and extra CPU work; project root pinned (no stray-lockfile warning).
