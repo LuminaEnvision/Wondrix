@@ -5,12 +5,16 @@ test.describe("School door (local mode)", () => {
     await seedProfile(page, { gradeLabel: "Year 4" });
   });
 
-  test("practice: a skill with one question ends kindly instead of a dead end", async ({ page }) => {
+  test("practice never dead-ends: many Next questions in a row keep coming", async ({ page }) => {
     await page.goto("/school/practice?skill=halves-quarters");
-    await page.getByRole("button", { name: "One quarter" }).click();
-    await page.getByRole("button", { name: "Next question" }).click();
-    await expect(page.getByText(/all the practice for this skill today/)).toBeVisible();
-    await expect(page.getByRole("link", { name: "Back to this week" })).toBeVisible();
+    const prompt = page.locator("p.text-lg");
+    for (let i = 0; i < 7; i++) {
+      await expect(prompt).toBeVisible();
+      await page.locator("main button").first().click();
+      await page.getByRole("button", { name: "Next question" }).click();
+    }
+    await expect(prompt).toBeVisible();
+    await expect(page.getByText(/No questions for this skill/)).toHaveCount(0);
   });
 
   test("practice: answer, see feedback, mastery saved, next question is new", async ({ page }) => {

@@ -22,6 +22,15 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 - `/api/tts` prepared for Azure Speech neural voices (`NEXT_PUBLIC_TTS_ENGINE=azure` + `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION`); returns 501 when not configured.
 - `docs/DEV_CHANGELOG.md`: detailed per-commit log (what, how, why, tests) and stage status.
 
+### Added (curriculum + question bank)
+- `docs/CURRICULUM_RESEARCH.md`: what Dubai children study.
+  - KHDA 2024-25 split: UK 37%, Indian 26%, US 14%, IB 7%.
+  - Grade equivalence across curricula.
+  - TIMSS grade-4 shared core (Dubai benchmarks schools against TIMSS/PISA).
+  - Notes per curriculum (England NC, CCSS/NGSS, CBSE Maths Mela, IB PYP, UAE MoE).
+  - Gap analysis of the Wondrix skill map, and writing rules.
+- **Question bank phase 1 (draft for review):** 75 new questions (5 per skill) in `src/lib/question-bank.ts`. Metric units, AED, Dubai + global contexts, misconception-based wrong answers. The bank grows from 20 to 95 items. Review sheet: `docs/QUESTION_BANK_REVIEW.md`.
+
 ### Added (conversation memory)
 - **Extra remembers the conversation for this visit:** saved in `sessionStorage` (survives reload, cleared when the tab closes) with a **New chat** button. The agent gets the last 12 turns (trimmed to 400 chars each) plus memory rules: short replies like "yes" answer its last question, don't repeat, remind in one sentence and add one new detail.
 - If the model drifts out of JSON in long chats, its plain-text answer is kept (follow-up split off) instead of falling back.

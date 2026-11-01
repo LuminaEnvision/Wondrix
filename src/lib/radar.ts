@@ -1,4 +1,5 @@
 import { gradeFromLabel, gradeIndex } from "./grades";
+import { QUESTION_BANK } from "./question-bank";
 import type { RadarItem, SkillId } from "./types";
 
 /** Gap radar + practice bank. Each item is tied to grades so Year 7 ≠ Year 3 questions. */
@@ -266,6 +267,8 @@ export const RADAR_BANK: RadarItem[] = [
     explainCorrect: "The Moon reflects sunlight; as it orbits, we see different lit portions.",
     explainWrong: "Lunar eclipse (Earth's shadow) is rare. Phases happen every month from geometry.",
   },
+  // Phase 1 question bank (docs/CURRICULUM_RESEARCH.md): about 5 more items per skill.
+  ...QUESTION_BANK,
 ];
 
 export function itemsForGrade(gradeLabel: string, skillId?: SkillId): RadarItem[] {

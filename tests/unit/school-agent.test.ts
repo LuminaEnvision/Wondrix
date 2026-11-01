@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RADAR_BANK } from "@/lib/radar";
+import { itemsForGrade, RADAR_BANK } from "@/lib/radar";
 import {
   defaultFocusFromProfile,
   localGradeAnswer,
@@ -94,20 +94,27 @@ describe("local School plan and questions", () => {
   });
 });
 
-describe("localNextQuestion recycling (small banks)", () => {
+describe("localNextQuestion recycling", () => {
   const y6 = { ...profile, gradeLabel: "Year 6" };
 
-  it("after every question was seen, recycles but never repeats the last one", () => {
-    const a = localNextQuestion(y6, "forces-motion", [])!;
-    const b = localNextQuestion(y6, "forces-motion", [a.questionId])!;
-    expect(b.questionId).not.toBe(a.questionId);
-    const c = localNextQuestion(y6, "forces-motion", [a.questionId, b.questionId])!;
-    expect(c.questionId).toBe(a.questionId);
+  it("serves every question once, then recycles without repeating the last one", () => {
+    const pool = itemsForGrade("Year 6", "forces-motion").map((r) => r.id);
+    expect(pool.length).toBeGreaterThanOrEqual(3);
+    const seen: string[] = [];
+    for (let i = 0; i < pool.length; i++) {
+      const next = localNextQuestion(y6, "forces-motion", seen)!;
+      expect(seen).not.toContain(next.questionId);
+      seen.push(next.questionId);
+    }
+    expect([...seen].sort()).toEqual([...pool].sort());
+    const recycled = localNextQuestion(y6, "forces-motion", seen)!;
+    expect(recycled.questionId).not.toBe(seen.at(-1));
   });
 
-  it("a skill with a single question returns null after it (UI shows 'done for today')", () => {
-    const y4 = { ...profile, gradeLabel: "Year 4" };
-    const only = localNextQuestion(y4, "halves-quarters", [])!;
-    expect(localNextQuestion(y4, "halves-quarters", [only.questionId])).toBeNull();
+  it("after seeing every item, the next one is never the question just answered (Year 7+ algebra)", () => {
+    const only = { ...profile, gradeLabel: "Year 7+" };
+    const all = itemsForGrade("Year 7+", "algebra-intro").map((r) => r.id);
+    const next = localNextQuestion(only, "algebra-intro", all)!;
+    expect(next.questionId).not.toBe(all.at(-1));
   });
 });

@@ -138,3 +138,38 @@ describe("focus picking (local School plan)", () => {
     expect(two).toContain("gently redirected 2 questions");
   });
 });
+
+describe("question bank (phase 1)", () => {
+  it("has at least 5 items per skill overall", () => {
+    for (const skill of SKILL_GRAPH) {
+      const n = RADAR_BANK.filter((r) => r.skillId === skill.id).length;
+      expect(n, skill.id).toBeGreaterThanOrEqual(5);
+    }
+  });
+
+  it("only lists grades where the skill is taught (not before the skill's entry grade)", () => {
+    for (const item of RADAR_BANK.filter((r) => r.id.startsWith("q-"))) {
+      const skill = getSkill(item.skillId);
+      for (const g of item.grades) expect(skillAllowedForGrade(skill.fromGrade, g), `${item.id} in ${g}`).toBe(true);
+    }
+  });
+
+  it("follows the Dubai-ready writing rules (metric, no em dashes, short prompts)", () => {
+    for (const item of RADAR_BANK.filter((r) => r.id.startsWith("q-"))) {
+      const all = [item.prompt, item.explainCorrect, item.explainWrong, ...item.choices.map((c) => c.label)].join(" ");
+      expect(all, item.id).not.toMatch(/[—–]/);
+      expect(all, item.id).not.toMatch(/\d[\d,.]*\s*(miles?|inch(es)?|in\.|feet|foot|ft|pounds?|lbs?|°F|\$)/i);
+      expect(all, item.id).not.toMatch(/\bdollars?\b|°F/i);
+      expect(item.prompt.length, item.id).toBeLessThanOrEqual(110);
+      expect(item.choices).toHaveLength(3);
+    }
+  });
+
+  it("every grade has practice for each of its default focus skills", () => {
+    for (const g of GRADE_OPTIONS) {
+      for (const skillId of g.defaultSkills) {
+        expect(itemsForGrade(g.label, skillId).length, `${g.label} ${skillId}`).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+});
