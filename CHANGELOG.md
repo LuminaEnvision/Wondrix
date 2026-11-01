@@ -34,6 +34,7 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 - Kokoro gets 8s for the first sentence on slow devices (no AVX / WASM only), then the browser voice takes over; after 2 slow tries Kokoro is skipped for the session. `[voice]` console logs show which engine played and how fast.
 
 ### Fixed
+- CI: `npm run typecheck` now runs `next typegen` first. Next's global route types (`LayoutProps`) only existed after a local dev/build, so typecheck failed on every fresh CI checkout.
 - Extra question field has `id`/`name`/label (browser "form field" warning).
 - Parent summary no longer lists a safety-redirected question as an "explored" Extra topic; it shows only a count ("Wondrix gently redirected 1 question…").
 - Kokoro voice: checks for a real WebGPU adapter and falls back to WASM if WebGPU fails (old GPUs advertise WebGPU without an adapter); the real error is logged in the browser console.
