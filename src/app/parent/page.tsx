@@ -7,6 +7,7 @@ import { ParentLock } from "@/components/ParentLock";
 import {
   buildDaySummary,
   loadExtraTopic,
+  loadSafetyRedirects,
   loadMastery,
   loadProfile,
   pickFocusSkills,
@@ -29,6 +30,7 @@ function daySummaryFor(p: ParentProfile): string {
     focus: pickFocusSkills(loadMastery(), p),
     calmMode: p.calmMode,
     extraTopic: loadExtraTopic(),
+    safetyRedirects: loadSafetyRedirects(),
   });
 }
 

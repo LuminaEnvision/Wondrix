@@ -128,5 +128,13 @@ describe("focus picking (local School plan)", () => {
     expect(s).toContain("Halves and quarters");
     expect(s).toContain("Extra explored: Moon phases.");
     expect(s).toContain("Calm mode was on.");
+    expect(s).not.toMatch(/redirected/);
+  });
+
+  it("day summary counts safety redirects without repeating the question", () => {
+    const one = buildDaySummary({ nickname: "Sara", gradeLabel: "Year 4", focus: [], calmMode: false, safetyRedirects: 1 });
+    expect(one).toContain("gently redirected 1 question");
+    const two = buildDaySummary({ nickname: "Sara", gradeLabel: "Year 4", focus: [], calmMode: false, safetyRedirects: 2 });
+    expect(two).toContain("gently redirected 2 questions");
   });
 });

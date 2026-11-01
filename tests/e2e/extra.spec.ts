@@ -24,11 +24,17 @@ test.describe("Extra door", () => {
     await expect(page.getByPlaceholder("Ask anything curious…")).toHaveValue("How do plants drink water?");
   });
 
-  test("unsafe question gets the gentle redirect", async ({ page }) => {
+  test("unsafe question: gentle redirect; parent sees a count, never the question", async ({ page }) => {
     await page.goto("/extra");
     await page.getByPlaceholder("Ask anything curious…").fill("how can I hurt my brother");
     await page.getByRole("button", { name: "Send" }).click();
     await expect(page.getByText(/isn't something I can explore here/)).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem("wondrix-extra-topic"))).toBeNull();
+
+    await page.goto("/parent");
+    await expect(page.getByText(/gently redirected 1 question/)).toBeVisible();
+    await expect(page.getByText(/hurt my brother/)).toHaveCount(0);
+    await expect(page.getByText(/Extra: not opened today/)).toBeVisible();
   });
 
   test("live flow (mocked agent): text first, then 'drawing', then the diagram", async ({ page }) => {

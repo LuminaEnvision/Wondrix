@@ -28,41 +28,69 @@ let currentId = 0;
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
+/** True only if the browser really hands out a WebGPU adapter (old GPUs often don't). */
+async function webgpuUsable(): Promise<boolean> {
+  try {
+    const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }).gpu;
+    if (!gpu) return false;
+    return Boolean(await gpu.requestAdapter());
+  } catch {
+    return false;
+  }
+}
+
+function onProgress(p: { status?: string; file?: string; loaded?: number; total?: number }) {
+  // Several files download in parallel; report one overall % that never goes backwards.
+  if (p.status !== "progress" || !p.file || !p.total) return;
+  files.set(p.file, { loaded: p.loaded ?? 0, total: p.total });
+  let loaded = 0;
+  let total = 0;
+  files.forEach((f) => {
+    loaded += f.loaded;
+    total += f.total;
+  });
+  const pct = Math.min(99, Math.round((loaded / total) * 100));
+  if (pct > lastPct) {
+    lastPct = pct;
+    ctx.postMessage({ type: "status", status: "loading", progress: pct });
+  }
+}
+
+async function loadModel(): Promise<KokoroTTS> {
+  // WebGPU (fp32) when a real adapter exists; otherwise, or if it fails, WASM (q8, smaller).
+  if (await webgpuUsable()) {
+    try {
+      return await KokoroTTS.from_pretrained(MODEL_ID, {
+        dtype: "fp32",
+        device: "webgpu",
+        progress_callback: onProgress,
+      });
+    } catch (err) {
+      console.warn("[kokoro] WebGPU failed, falling back to WASM", err);
+      files.clear();
+      lastPct = 0;
+    }
+  }
+  return KokoroTTS.from_pretrained(MODEL_ID, {
+    dtype: "q8",
+    device: "wasm",
+    progress_callback: onProgress,
+  });
+}
+
 function load(): Promise<KokoroTTS> {
   if (ttsPromise) return ttsPromise;
-  const hasWebGPU = typeof navigator !== "undefined" && "gpu" in navigator;
   ctx.postMessage({ type: "status", status: "loading", progress: 0 });
-  ttsPromise = KokoroTTS.from_pretrained(MODEL_ID, {
-    // fp32 is recommended on WebGPU; q8 keeps the WASM download small.
-    dtype: hasWebGPU ? "fp32" : "q8",
-    device: hasWebGPU ? "webgpu" : "wasm",
-    // Several files download in parallel; report one overall % that never goes backwards.
-    progress_callback: (p: { status?: string; file?: string; loaded?: number; total?: number }) => {
-      if (p.status !== "progress" || !p.file || !p.total) return;
-      files.set(p.file, { loaded: p.loaded ?? 0, total: p.total });
-      let loaded = 0;
-      let total = 0;
-      files.forEach((f) => {
-        loaded += f.loaded;
-        total += f.total;
-      });
-      const pct = Math.min(99, Math.round((loaded / total) * 100));
-      if (pct > lastPct) {
-        lastPct = pct;
-        ctx.postMessage({ type: "status", status: "loading", progress: pct });
-      }
-    },
-  })
+  ttsPromise = loadModel()
     .then((tts) => {
       ctx.postMessage({ type: "status", status: "ready" });
       return tts;
     })
     .catch((err: unknown) => {
       ttsPromise = null;
-      ctx.postMessage({
-        type: "status",
-        status: "failed",
-      });
+      // Log the real reason in the browser console (DevTools → Console) for diagnosis.
+      console.error("[kokoro] natural voice could not load", err);
+      ctx.postMessage({ type: "status", status: "failed" });
       throw err;
     });
   return ttsPromise;

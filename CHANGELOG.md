@@ -23,6 +23,9 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 - `docs/DEV_CHANGELOG.md`: detailed per-commit log (what, how, why, tests) and stage status.
 
 ### Fixed
+- Parent summary no longer lists a safety-redirected question as an "explored" Extra topic; it shows only a count ("Wondrix gently redirected 1 question…").
+- Kokoro voice: checks for a real WebGPU adapter and falls back to WASM if WebGPU fails (old GPUs advertise WebGPU without an adapter); the real error is logged in the browser console.
+- Dev mode: instant-navigation validation limited to opted-in segments (`manual-warning`), removing the per-page "Could not validate…" errors and extra CPU work; project root pinned (no stray-lockfile warning).
 - Keyword gate now also blocks dangerous home "experiments" (mixing bleach/ammonia, setting things on fire) so the offline fallback never answers them.
 - Generic local fallback no longer echoes an unknown question back or offers to "explore" it.
 - Extra follow-up is trimmed to exactly one question.

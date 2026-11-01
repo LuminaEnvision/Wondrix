@@ -4,8 +4,9 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { loadProfile, saveExtraTopic } from "@/lib/demo-store";
+import { loadProfile, recordSafetyRedirect, saveExtraTopic } from "@/lib/demo-store";
 import { localExtraReply } from "@/lib/extra-reply";
+import { safetyCheck } from "@/lib/safety";
 import {
   canListen,
   canSpeak,
@@ -133,6 +134,7 @@ function ExtraInner() {
     let reply = localExtraReply(trimmed, topic?.id ?? null);
     let topicLabel = topic?.label ?? trimmed.slice(0, 40);
     let drawFor: string | null = null;
+    let redirected = safetyCheck(trimmed).ok === false;
 
     try {
       const res = await fetch("/api/extra/chat", {
@@ -152,7 +154,9 @@ function ExtraInner() {
           topic?: string;
           draw?: boolean;
           visual?: Visual | null;
+          source?: string;
         };
+        if (data.source === "safety") redirected = true;
         if (data.text) {
           // Local replies may carry a ready-made visual; live ones draw in a second step.
           reply = { text: data.text, visual: data.visual ?? undefined };
@@ -172,7 +176,9 @@ function ExtraInner() {
       drawing: Boolean(drawFor),
     };
     setMessages((m) => [...m, agentMsg]);
-    saveExtraTopic(topicLabel);
+    // A redirected question is not an "explored topic": only count it for the parent.
+    if (redirected) recordSafetyRedirect();
+    else saveExtraTopic(topicLabel);
     say(reply.text);
     setBusy(false);
 

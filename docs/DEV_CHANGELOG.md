@@ -39,7 +39,39 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Stage 6: Live agent eval, model comparison, final review (and 3 fixes from the eval)
+### Fixes from Jorge's local test (Kali, older PC, Brave)
+
+**What Jorge saw**
+1. `npm test` → **"Illegal instruction"**.
+2. E2E → "Executable doesn't exist" (Playwright browser not downloaded).
+3. `npm run dev` printed **"Could not validate that a segment in your UI has instant navigation"** on every page (the "1 Insight" badge).
+4. On the home page, clicking School / Extra / Parent seemed to do nothing; opening in a new tab worked.
+5. **The safety-redirected question appeared in the parent summary** as the Extra topic.
+6. The natural voice showed "Natural voice not available here".
+7. The juice answer and diagram worked (screenshot), and the redirect for "how to hurt my brother?" worked.
+
+**Diagnosis and fixes**
+
+| # | Cause | Fix |
+|---|-------|-----|
+| 1 | Vitest → Rollup's **native binary** needs newer CPU instructions | No code change. Local workaround documented in `tests/README.md`: `npm install --no-save rollup@npm:@rollup/wasm-node@4.67.3` (WebAssembly Rollup; `package.json` and the lockfile untouched). Verified here: 143/143 pass with the wasm build. |
+| 2 | First run on a new machine | `npx playwright install chromium` (documented) |
+| 3 | The project has `cacheComponents: true`. With it, Next 16 dev mode validates **every** page for "instant navigation" by default and logs an error when it cannot render a segment for validation. Our pages are client-side (localStorage), so this is noise **and extra rendering work** in dev. It does not affect production. | `next.config.ts`: `experimental.instantInsights.validationLevel: "manual-warning"`, so only segments that opt in with `export const instant` are validated. Checked in `next dev`: **0** "Could not validate" errors (was one per page load). |
+| 4 | Not reproducible here: clicks navigate in ~0.4–1.1s in `next dev`, **even with the CPU throttled 6×**. On Jorge's PC, dev mode compiles each route on its first click (log: "Compiling /parent …", "Slow filesystem detected"), plus fix #3's extra validation work. That looks like an unresponsive click; a new tab does a full load. | Fix #3 removes the extra work. Recommendation for slow machines: `npm run build && npm start` (no on-demand compile; prefetching on). |
+| 5 | **Bug.** `/extra` saved the raw question as the topic even when the reply was a safety redirect. | A redirected question (keyword gate client-side, or `source: "safety"` from the API) is **not** saved as a topic. Instead `recordSafetyRedirect()` keeps a **per-day count only**, never the text. The parent summary says: "Wondrix gently redirected 1 question to safer topics today; a calm chat about it may help." |
+| 6 | Likely: the Kokoro worker picked WebGPU only because `navigator.gpu` exists. Old GPUs/drivers expose it but return **no adapter**, so loading failed instead of using WASM. (A CPU without WASM SIMD could also fail; to be confirmed with the browser console.) | The worker now **requests an adapter first** and **falls back to WASM** if WebGPU is unavailable or fails. The real error is logged in the browser console (`[kokoro] natural voice could not load …`) for diagnosis. |
+
+- Also: `next.config.ts` pins `turbopack.root` / `outputFileTracingRoot` to the project folder, which silences the "ignored package-lock.json in /home/…" warning caused by a stray lockfile in the home folder.
+- Not changed: chat messages are not saved across reloads (F5 clears the chat, by design in the prototype). The Extra topic and the safety count are saved.
+
+**Tested**
+- `npm run lint` 0 · typecheck OK · **144/144** unit + API (new: summary with safety redirects) · build OK · **46/46** e2e. The e2e unsafe-question test now also checks that Parent shows the count and **never** the question text, and that no topic is saved.
+- `next dev` + headless Chromium: home → School / Extra / Parent navigate; no instant-navigation errors.
+- Kokoro on Jorge's PC: still needs a re-test (and the console message if it fails).
+
+---
+
+### `3a599e9`: Stage 6: Live agent eval, model comparison, final review (and 3 fixes from the eval)
 
 **Files:** `scripts/eval-agents.mjs` (**new**), `package.json` (`npm run eval`), `.gitignore` (`/eval-results/`), `src/lib/safety.ts`, `src/lib/extra-reply.ts`, `src/lib/extra-agent.ts`, tests, README, `tests/README.md`, `CHANGELOG.md`
 
