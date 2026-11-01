@@ -39,7 +39,15 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Extra conversation memory for the visit (context that survives reload)
+### Merged upstream + cleanup
+
+- **`LuminaEnvision/Wondrix#2` merged** by the project lead: merge commit `2a92a1b`, parents `3e94b2e` + `ef5d3b8`. Her main is identical in code to `ef5d3b8`, so it includes everything in this log up to conversation memory. Fork main and the working branch were fast-forwarded to `2a92a1b`.
+- **Removed `docs/PR_DESCRIPTION.md`.** It was only a copy-paste helper for opening the PR.
+- Note for testers: `npm start` serves the last build, so after `git pull` always run `npm run build && npm start`. A test done before the merge, or without a rebuild, shows the old behaviour (for example, follow-ups without memory).
+
+---
+
+### `ef5d3b8`: Extra conversation memory for the visit (context that survives reload)
 
 **Question from Jorge:** "In Extra the AI answers but can't continue the conversation, even when it asks a question back. It feels like each message starts from zero."
 
