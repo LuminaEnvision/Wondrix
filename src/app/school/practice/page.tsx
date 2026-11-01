@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { gradeName } from "@/lib/curriculum";
 import { loadMastery, loadProfile, setSkillMastery } from "@/lib/demo-store";
 import type { SchoolGradeResult, SchoolQuestionPayload } from "@/lib/school-agent";
 import type { SkillId } from "@/lib/types";
@@ -28,9 +29,9 @@ async function requestQuestion(skillId: SkillId, avoid: string[]): Promise<Quest
       body: JSON.stringify({ action: "question", profile, skillId, avoidIds: avoid }),
     });
     if (!res.ok) throw new Error("fail");
-    return { question: (await res.json()) as SchoolQuestionPayload, gradeLabel: profile.gradeLabel };
+    return { question: (await res.json()) as SchoolQuestionPayload, gradeLabel: gradeName(profile.gradeLabel, profile.curriculum) };
   } catch {
-    return { question: null, gradeLabel: profile.gradeLabel };
+    return { question: null, gradeLabel: gradeName(profile.gradeLabel, profile.curriculum) };
   }
 }
 

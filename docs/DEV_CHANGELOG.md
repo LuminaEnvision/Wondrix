@@ -39,7 +39,82 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Fix CI: typecheck failed on every push
+### School curriculum picker (grade names + AI wording per curriculum)
+
+**Why:** Jorge suggested letting parents choose the curriculum if the curricula differ a lot. The research says they differ mostly in **grade names and ages**: UK Year N ≈ US / IB / UAE Grade N−1 ≈ Indian Class N−1. Content mostly does not differ (all are TIMSS-benchmarked in Dubai). The real risk was a US parent picking "Year 4" for a Grade 4 child, which puts practice one year too high.
+
+**Design:** one internal grade scale (the stored `gradeLabel` stays "Year 4" etc.) and **one question bank**. The curriculum only changes:
+1. how the grade is **shown**: Parent options with ages, School header, "Focus skills for…", Practice, Radar, day summary;
+2. how the **AI talks**: `curriculumPromptLine()` gives the Extra and School agents the grade name in that curriculum, "same level as UK Year N", and American or British English.
+
+Five separate banks were rejected: they would multiply review work for little gain. Topic-order tweaks are deferred until a real difference is confirmed.
+
+**Files**
+- `src/lib/curriculum.ts` (**new**): `CURRICULA` (UK, US, Indian CBSE/ICSE, IB, UAE MoE, Other), `gradeName`, `gradeNameWithAge`, `asCurriculum` (unknown or missing → UK, so old profiles keep working), `curriculumPromptLine`.
+- `types.ts`: optional `curriculum` on `ParentProfile`; default profile `"uk"`.
+- `parent/page.tsx`: the **School curriculum** select above the grade select (minimal markup so the UI redesign can restyle it); grade options show `Grade 3 (age 8–9): …`; the selects have `name` attributes.
+- `school/page.tsx`, `school/practice/page.tsx`, `school/radar/page.tsx` (new `useProfileGradeName()` hook): show the curriculum grade name.
+- `extra-agent.ts`, `school-agent-ai.ts`: prompts use `curriculumPromptLine()`.
+
+**Tested:** lint ✔, typecheck ✔, **161/161** unit + API ✔, build ✔, **58/58** e2e ✔.
+- unit: the mapping for every curriculum and grade with ages, the UK fallback, the prompt line (US: "Grade 3", same as UK Year 4, American English), and the Extra prompt with a US profile
+- e2e: pick **American** → the grade option reads "Grade 3 (age 8–9)" → Save says "…for Grade 3." → the summary says "Sara (Grade 3)" → School shows "Grade 3 ·" → Radar says "Short checks for Grade 3."
+- The old e2e tests now select the grade by `select[name="grade"]`; they previously used the first select, which is now the curriculum select.
+
+---
+
+### `cb5df15`: Curriculum research + question bank phase 1 (75 new questions)
+
+**Why:** practice ran out after 1–2 questions per skill, and Anastasia asked to prioritise the question bank before the deck. Jorge asked for broad research first, global and for Dubai, so the questions fit what children actually study.
+
+**Research → `docs/CURRICULUM_RESEARCH.md`** (sources listed in the file)
+- **Dubai (KHDA 2024-25):**
+  - curricula: UK 37%, Indian 26%, US 14%, IB 7%, UK/IB 4% (17 curricula overall)
+  - 185 nationalities
+  - Emirati families favour US, then UK, then IB
+- **Shared core:** Dubai benchmarks private schools against **TIMSS / PISA** (KHDA National Agenda), so the TIMSS grade-4 weights are the common target:
+  - maths: number 50%, measurement & geometry 30%, data 20%
+  - science: life 45%, physical 35%, earth 20%
+- **Per curriculum:**
+  - England NC (year-by-year programmes)
+  - CCSS / NGSS (fractions, measurement and data; grade-5 space and Earth systems)
+  - CBSE / NCERT "Maths Mela" (NEP 2020)
+  - IB PYP (5 maths strands, concept-led science)
+  - UAE MoE (cycles; Cycle 1 maths and science mainly in Arabic)
+- **Grade equivalence:** UK Year N ≈ US / IB / CBSE / UAE Grade N−1. This part is marked "background" in the doc and needs checking before publishing.
+- **Gap analysis:** the biggest gaps are the **data strand** (20% of TIMSS maths, missing entirely) and core **number** (place value, division, decimals). Science gaps: light, sound, electricity, plants, human body, water cycle. These are phase 2 and need a product decision, because they change the skill graph.
+- **Writing rules:**
+  - metric units only; AED for money
+  - inclusive local and global contexts; climate-aware (no snowy winters)
+  - 3 choices with misconception-based wrong answers
+  - TIMSS cognitive mix (knowing, applying, reasoning)
+  - short, age-fit English; no em dashes
+
+**Question bank → `src/lib/question-bank.ts`**
+- **75 new items, 5 per skill** for all 15 skills, merged into `RADAR_BANK`. The bank grows from 20 to **95**.
+- A compact authoring helper `q({... choices: [a, b, c], correct })` keeps the items easy to edit.
+- Examples:
+  - dates and AED in maths
+  - mangroves on the UAE coast and desert animals at night
+  - the UAE **Hope Probe** to Mars
+  - the Sun rising in the east "in Dubai"
+- **Review sheet → `docs/QUESTION_BANK_REVIEW.md`**: generated from the code, grouped by skill, with ✅ on the correct answer, both explanations and the years each item is for. Anastasia can review it without reading code.
+
+**Tests added / changed**
+- At least 5 items per skill.
+- **No item is listed for a year before its skill is taught.** This caught 4 items (`q-alg-4`, `q-day-1`, `q-cells-3`, `q-cells-4`), which were fixed.
+- Writing rules are checked: no em dashes, no imperial units or dollars, prompt ≤110 characters, exactly 3 choices. The unit check first flagged a camel's "wide feet" (body part, not a unit), so it now only matches numbers with units.
+- Every grade has at least 2 items for each of its default focus skills.
+- Recycling tests are now data-driven: serve every item once, then recycle without repeating the last one.
+- The e2e "single question ends kindly" test became "practice never dead-ends" (7 Next questions in a row), because no skill has a one-item pool any more.
+
+**Tested:** `npm run check` → lint ✔, typecheck ✔, **156/156** unit + API ✔, build ✔, **56/56** e2e ✔.
+
+**Next:** Anastasia reviews the sheet (accuracy, tone, age fit). Phase 2 skills (data, place value, decimals, light, plants, water & weather) once we agree on the skill map.
+
+---
+
+### `aea6292`: Fix CI: typecheck failed on every push
 
 **Symptom:** GitHub Actions "CI" failed on every push (runs #1 to #14). The log showed `src/app/layout.tsx(24,50): error TS2304: Cannot find name 'LayoutProps'.`; build and e2e were skipped.
 

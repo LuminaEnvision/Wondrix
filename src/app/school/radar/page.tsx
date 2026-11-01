@@ -9,7 +9,7 @@ import { radarForGrade } from "@/lib/radar";
 import { nextMastery } from "@/lib/school-agent";
 import { getSkill } from "@/lib/skills";
 import type { MasteryLevel, SkillId } from "@/lib/types";
-import { useProfileGradeLabel } from "@/lib/use-client-state";
+import { useProfileGradeLabel, useProfileGradeName } from "@/lib/use-client-state";
 
 export default function RadarPage() {
   // Live grade from the saved profile; a grade change remounts the run (fresh radar).
@@ -18,6 +18,7 @@ export default function RadarPage() {
 }
 
 function RadarRun({ gradeLabel }: { gradeLabel: string }) {
+  const gradeShown = useProfileGradeName();
   const bank = useMemo(() => (gradeLabel ? radarForGrade(gradeLabel, 5) : []), [gradeLabel]);
   const [index, setIndex] = useState(0);
   const [finished, setFinished] = useState(false);
@@ -65,7 +66,7 @@ function RadarRun({ gradeLabel }: { gradeLabel: string }) {
           <p className="text-sm font-bold uppercase tracking-wide text-school">Gap radar</p>
           <h1 className="font-display mt-1 text-3xl font-semibold">Find quiet delays</h1>
           <p className="mt-2 text-ink-soft">
-            Short checks for {gradeLabel || "your grade"}. Built for kids who prefer not to speak up
+            Short checks for {gradeShown || "your grade"}. Built for kids who prefer not to speak up
             about what&apos;s hard.
           </p>
         </div>

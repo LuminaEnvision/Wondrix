@@ -5,6 +5,7 @@
  */
 
 import { chatJSON, chatJSONOrText, cleanKidText, type AiMessage } from "./ai";
+import { curriculumPromptLine } from "./curriculum";
 import type { AgeBand, ParentProfile } from "./types";
 import { parseVisual, VISUAL_PROMPT, type Visual } from "./visual";
 
@@ -54,7 +55,7 @@ function systemPrompt(profile: ParentProfile | undefined, topicId: string | null
   return [
     "You are Wondrix Extra, a warm curiosity guide inside a kids learning app.",
     AGE_STYLE[band],
-    profile?.gradeLabel ? `School level: ${profile.gradeLabel}.` : "",
+    profile?.gradeLabel ? curriculumPromptLine(profile) : "",
     topic ? `The child picked the interest: ${topic}.` : "",
     calm,
     "Job: answer the child's question clearly and correctly FIRST. Then ask exactly ONE gentle follow-up question that invites them to think or notice something in real life. followUp is a single sentence that ends with a question mark.",

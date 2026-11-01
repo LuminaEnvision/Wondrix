@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { loadExtraTopic, loadMastery, loadProfile, pickFocusSkills } from "@/lib/demo-store";
+import { gradeName } from "@/lib/curriculum";
 import { gradeFromLabel } from "@/lib/grades";
 import type { SchoolPlan } from "@/lib/school-agent";
 import { getSkill } from "@/lib/skills";
@@ -85,7 +86,8 @@ export default function SchoolHomePage() {
   const coachNote = active?.coachNote ?? "";
   const calm = local?.profile.calmMode ?? false;
   const nickname = local?.profile.childNickname ?? "friend";
-  const gradeLabel = local?.grade.label ?? "Year 3";
+  // Grade shown in the family's curriculum ("Year 4" / "Grade 3" / "Class 3").
+  const gradeLabel = local ? gradeName(local.grade.label, local.profile.curriculum) : "Year 3";
   const gradeBlurb = local?.grade.blurb ?? "";
 
   return (

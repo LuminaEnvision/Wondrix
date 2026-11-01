@@ -12,6 +12,7 @@ export const DEFAULT_PROFILE: ParentProfile = {
   childNickname: "Alex",
   ageBand: "young",
   gradeLabel: "Year 3",
+  curriculum: "uk",
   subjects: ["math", "science"],
   oneLiner: "",
   calmMode: false,

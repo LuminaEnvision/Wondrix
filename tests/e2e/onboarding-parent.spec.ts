@@ -54,7 +54,7 @@ test.describe("first run + parent controls", () => {
     );
 
     await page.goto("/parent");
-    await page.locator("select").first().selectOption("Year 7+");
+    await page.locator('select[name="grade"]').selectOption("Year 7+");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText(/Saved\. Open School/)).toBeVisible();
     await expect(page.getByText(/Sara \(Year 7\+\) practiced:/)).toBeVisible();
@@ -68,6 +68,22 @@ test.describe("first run + parent controls", () => {
 
     await page.goto("/school/radar");
     await expect(page.getByText("Short checks for Year 7+.")).toBeVisible();
+  });
+
+  test("choosing the American curriculum shows US grade names everywhere", async ({ page }) => {
+    await seedProfile(page, { gradeLabel: "Year 4" });
+    await page.goto("/parent");
+    await page.locator('select[name="curriculum"]').selectOption("us");
+    // Grade options are renamed (same internal level).
+    await expect(page.locator('select[name="grade"] option:checked')).toHaveText(/^Grade 3 \(age 8–9\)/);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText(/Saved\. Open School to see new focus skills for Grade 3\./)).toBeVisible();
+    await expect(page.getByText(/Sara \(Grade 3\) practiced:/)).toBeVisible();
+
+    await page.goto("/school");
+    await expect(page.getByText("Grade 3 ·")).toBeVisible();
+    await page.goto("/school/radar");
+    await expect(page.getByText("Short checks for Grade 3.")).toBeVisible();
   });
 
   test("calm mode shows a single focus skill", async ({ page }) => {
