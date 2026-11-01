@@ -3,9 +3,10 @@ import { skillsFromParentNote, SKILL_GRAPH } from "./skills";
 import type { MasteryLevel, ParentProfile, SkillId } from "./types";
 import { notifyProfileChanged } from "./types";
 
-const PROFILE_KEY = "wondrix-profile";
-const MASTERY_KEY = "wondrix-mastery";
+export const PROFILE_KEY = "wondrix-profile";
+export const MASTERY_KEY = "wondrix-mastery";
 const EXTRA_TOPIC_KEY = "wondrix-extra-topic";
+const SAFETY_KEY = "wondrix-safety-redirects";
 
 export const DEFAULT_PROFILE: ParentProfile = {
   childNickname: "Alex",
@@ -105,13 +106,20 @@ export function buildDaySummary(input: {
   focus: SkillId[];
   extraTopic?: string;
   calmMode: boolean;
+  /** Questions the safety gate redirected today (never the question text itself). */
+  safetyRedirects?: number;
 }): string {
   const focusText = input.focus.map(skillTitle).join(", ") || "general practice";
   const extra = input.extraTopic
     ? `Extra explored: ${input.extraTopic}.`
     : "Extra: not opened today.";
   const calm = input.calmMode ? " Calm mode was on." : "";
-  return `${input.nickname} (${input.gradeLabel}) practiced: ${focusText}. ${extra}${calm} Tip: ask one dinner question about today's focus.`;
+  const n = input.safetyRedirects ?? 0;
+  const safety =
+    n > 0
+      ? ` Wondrix gently redirected ${n === 1 ? "1 question" : `${n} questions`} to safer topics today; a calm chat about it may help.`
+      : "";
+  return `${input.nickname} (${input.gradeLabel}) practiced: ${focusText}. ${extra}${calm}${safety} Tip: ask one dinner question about today's focus.`;
 }
 
 function skillTitle(id: SkillId): string {
@@ -126,4 +134,84 @@ export function saveExtraTopic(label: string) {
 export function loadExtraTopic(): string | undefined {
   if (typeof window === "undefined") return undefined;
   return localStorage.getItem(EXTRA_TOPIC_KEY) || undefined;
+}
+
+/**
+ * Count safety redirects per day for the parent summary. Only a number is kept:
+ * the unsafe question itself is never stored or shown as an "explored" topic.
+ */
+function todayKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function recordSafetyRedirect() {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = JSON.parse(localStorage.getItem(SAFETY_KEY) || "{}") as { day?: string; count?: number };
+    const count = raw.day === todayKey() ? (raw.count ?? 0) + 1 : 1;
+    localStorage.setItem(SAFETY_KEY, JSON.stringify({ day: todayKey(), count }));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+export function loadSafetyRedirects(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const raw = JSON.parse(localStorage.getItem(SAFETY_KEY) || "{}") as { day?: string; count?: number };
+    return raw.day === todayKey() ? (raw.count ?? 0) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Extra chat memory for the current visit (sessionStorage)            */
+/* ------------------------------------------------------------------ */
+
+const EXTRA_CHAT_KEY = "wondrix-extra-chat";
+const MAX_SAVED_MESSAGES = 30;
+
+export type SavedChatMessage = {
+  id: number;
+  role: "child" | "agent";
+  text: string;
+  visual?: unknown;
+};
+
+/**
+ * The Extra conversation survives a reload in the same tab (so the agent keeps its
+ * context), and is cleared when the tab closes or the child taps "New chat".
+ */
+export function saveExtraChat(messages: SavedChatMessage[]) {
+  if (typeof window === "undefined") return;
+  try {
+    const slim = messages.slice(-MAX_SAVED_MESSAGES).map(({ id, role, text, visual }) => ({ id, role, text, visual: visual ?? null }));
+    sessionStorage.setItem(EXTRA_CHAT_KEY, JSON.stringify(slim));
+  } catch {
+    /* storage full or unavailable */
+  }
+}
+
+export function loadExtraChat(): SavedChatMessage[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(EXTRA_CHAT_KEY) || "[]") as unknown;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(
+      (m): m is SavedChatMessage =>
+        Boolean(m) && typeof m.id === "number" && (m.role === "child" || m.role === "agent") && typeof m.text === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function clearExtraChat() {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(EXTRA_CHAT_KEY);
+  } catch {
+    /* ignore */
+  }
 }

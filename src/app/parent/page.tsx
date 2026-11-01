@@ -1,13 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ParentLock } from "@/components/ParentLock";
 import {
   buildDaySummary,
-  DEFAULT_PROFILE,
   loadExtraTopic,
+  loadSafetyRedirects,
   loadMastery,
   loadProfile,
   pickFocusSkills,
@@ -21,34 +21,40 @@ import {
   setParentPin,
 } from "@/lib/parent-auth";
 import type { ParentProfile } from "@/lib/types";
+import { useHydrated } from "@/lib/use-client-state";
 
+function daySummaryFor(p: ParentProfile): string {
+  return buildDaySummary({
+    nickname: p.childNickname,
+    gradeLabel: p.gradeLabel,
+    focus: pickFocusSkills(loadMastery(), p),
+    calmMode: p.calmMode,
+    extraTopic: loadExtraTopic(),
+    safetyRedirects: loadSafetyRedirects(),
+  });
+}
+
+/** Parent settings read localStorage, so the form only mounts after hydration. */
 export default function ParentPage() {
-  const [profile, setProfile] = useState<ParentProfile>(DEFAULT_PROFILE);
-  const [summary, setSummary] = useState("");
-  const [saved, setSaved] = useState(false);
-  const [pinSet, setPinSet] = useState(false);
-  const [newPin, setNewPin] = useState("");
-  const [pinMsg, setPinMsg] = useState("");
-
-  function refreshSummary(p: ParentProfile) {
-    const focus = pickFocusSkills(loadMastery(), p);
-    setSummary(
-      buildDaySummary({
-        nickname: p.childNickname,
-        gradeLabel: p.gradeLabel,
-        focus,
-        calmMode: p.calmMode,
-        extraTopic: loadExtraTopic(),
-      }),
+  const hydrated = useHydrated();
+  if (!hydrated) {
+    return (
+      <AppShell backHref="/">
+        <p className="text-ink-soft">Loading…</p>
+      </AppShell>
     );
   }
+  return <ParentHome />;
+}
 
-  useEffect(() => {
-    const p = loadProfile();
-    setProfile(p);
-    setPinSet(hasParentPin());
-    refreshSummary(p);
-  }, []);
+function ParentHome() {
+  // Lazy initializers run once on the client: no setState-in-effect needed.
+  const [profile, setProfile] = useState<ParentProfile>(() => loadProfile());
+  const [summary, setSummary] = useState(() => daySummaryFor(loadProfile()));
+  const [saved, setSaved] = useState(false);
+  const [pinSet, setPinSet] = useState(() => hasParentPin());
+  const [newPin, setNewPin] = useState("");
+  const [pinMsg, setPinMsg] = useState("");
 
   function update<K extends keyof ParentProfile>(key: K, value: ParentProfile[K]) {
     setProfile((prev) => ({ ...prev, [key]: value }));
@@ -57,7 +63,7 @@ export default function ParentPage() {
 
   function onSave() {
     saveProfile(profile);
-    refreshSummary(profile);
+    setSummary(daySummaryFor(profile));
     setSaved(true);
   }
 

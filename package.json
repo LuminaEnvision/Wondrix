@@ -2,19 +2,28 @@
   "name": "wondrix",
   "version": "0.1.0",
   "private": true,
-  "description": "Wondrix — AI learning home (School + Extra) for Dubai Create AI Agents Championship, Best Societal AI Agent",
+  "description": "Wondrix \u2014 AI learning home (School + Extra) for Dubai Create AI Agents Championship, Best Societal AI Agent",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:all": "npm run lint && npm run typecheck && npm run test && npm run build && npm run test:e2e",
+    "eval": "node scripts/eval-agents.mjs",
+    "check": "bash scripts/run-all-tests.sh"
   },
   "dependencies": {
+    "kokoro-js": "^1.2.1",
     "next": "16.4.2",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -22,6 +31,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

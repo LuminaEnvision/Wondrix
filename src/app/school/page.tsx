@@ -2,61 +2,91 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { loadMastery, loadProfile, pickFocusSkills } from "@/lib/demo-store";
+import { loadExtraTopic, loadMastery, loadProfile, pickFocusSkills } from "@/lib/demo-store";
 import { gradeFromLabel } from "@/lib/grades";
 import type { SchoolPlan } from "@/lib/school-agent";
 import { getSkill } from "@/lib/skills";
-import { PROFILE_CHANGED_EVENT, type SkillId } from "@/lib/types";
+import type { SkillId } from "@/lib/types";
+import { useProfileKey } from "@/lib/use-client-state";
+
+type PlanView = {
+  /** Profile snapshot this plan belongs to (stale plans are ignored). */
+  key: string;
+  focus: SkillId[];
+  why: Partial<Record<SkillId, string>>;
+  coachNote: string;
+};
 
 export default function SchoolHomePage() {
-  const [focus, setFocus] = useState<SkillId[]>([]);
-  const [calm, setCalm] = useState(false);
-  const [nickname, setNickname] = useState("friend");
-  const [gradeLabel, setGradeLabel] = useState("Year 3");
-  const [gradeBlurb, setGradeBlurb] = useState("");
-  const [coachNote, setCoachNote] = useState("");
-  const refresh = useCallback(() => {
+  // Changes when the parent saves the profile (this tab or another tab).
+  const profileKey = useProfileKey();
+
+  // Local state of the child, derived during render (no setState in an effect).
+  const local = useMemo(() => {
+    if (!profileKey) return null;
     const profile = loadProfile();
     const mastery = loadMastery();
-    const grade = gradeFromLabel(profile.gradeLabel);
-    const focusIds = pickFocusSkills(mastery, profile);
-    setNickname(profile.childNickname);
-    setCalm(profile.calmMode);
-    setGradeLabel(grade.label);
-    setGradeBlurb(grade.blurb);
-    setFocus(focusIds);
+    return {
+      profile,
+      mastery,
+      grade: gradeFromLabel(profile.gradeLabel),
+      focusIds: pickFocusSkills(mastery, profile),
+    };
+  }, [profileKey]);
 
-    void fetch("/api/school/session", {
+  // The agent's plan arrives async; setState only happens in the fetch callbacks.
+  const [plan, setPlan] = useState<PlanView | null>(null);
+
+  useEffect(() => {
+    if (!local) return;
+    const controller = new AbortController();
+    const fallbackNote = `Today: ${local.focusIds.map((id) => getSkill(id).title).join(" · ") || "practice"}.`;
+
+    fetch("/api/school/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "plan", profile, focusIds }),
+      signal: controller.signal,
+      body: JSON.stringify({
+        action: "plan",
+        profile: local.profile,
+        focusIds: local.focusIds,
+        mastery: local.mastery,
+        extraTopic: loadExtraTopic(),
+      }),
     })
       .then(async (res) => {
         if (!res.ok) return;
-        const plan = (await res.json()) as SchoolPlan;
-        setCoachNote(plan.coachNote);
-        if (plan.focus?.length) {
-          setFocus(plan.focus.map((f) => f.id));
-        }
+        const data = (await res.json()) as SchoolPlan;
+        const hasFocus = Boolean(data.focus?.length);
+        setPlan({
+          key: profileKey,
+          coachNote: data.coachNote,
+          focus: hasFocus ? data.focus.map((f) => f.id) : local.focusIds,
+          // Only show reasons the live agent wrote (local "why" is generic).
+          why:
+            hasFocus && data.source !== "local"
+              ? Object.fromEntries(data.focus.map((f) => [f.id, f.why]))
+              : {},
+        });
       })
       .catch(() => {
-        setCoachNote(
-          `Today: ${focusIds.map((id) => getSkill(id).title).join(" · ") || "practice"}.`,
-        );
+        if (controller.signal.aborted) return;
+        setPlan({ key: profileKey, focus: local.focusIds, why: {}, coachNote: fallbackNote });
       });
-  }, []);
 
-  useEffect(() => {
-    refresh();
-    window.addEventListener(PROFILE_CHANGED_EVENT, refresh);
-    window.addEventListener("storage", refresh);
-    return () => {
-      window.removeEventListener(PROFILE_CHANGED_EVENT, refresh);
-      window.removeEventListener("storage", refresh);
-    };
-  }, [refresh]);
+    return () => controller.abort();
+  }, [local, profileKey]);
+
+  const active = plan?.key === profileKey ? plan : null;
+  const focus = active?.focus ?? local?.focusIds ?? [];
+  const whyById = active?.why ?? {};
+  const coachNote = active?.coachNote ?? "";
+  const calm = local?.profile.calmMode ?? false;
+  const nickname = local?.profile.childNickname ?? "friend";
+  const gradeLabel = local?.grade.label ?? "Year 3";
+  const gradeBlurb = local?.grade.blurb ?? "";
 
   return (
     <AppShell backHref="/">
@@ -108,6 +138,9 @@ export default function SchoolHomePage() {
                   <div>
                     <p className="font-semibold text-ink">{skill.title}</p>
                     <p className="text-sm capitalize text-ink-soft">{skill.subject}</p>
+                    {whyById[id] ? (
+                      <p className="mt-1 text-xs text-ink-soft">{whyById[id]}</p>
+                    ) : null}
                   </div>
                   <Link
                     href={`/school/practice?skill=${id}`}

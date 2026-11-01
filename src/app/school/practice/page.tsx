@@ -5,14 +5,36 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { loadProfile, setSkillMastery } from "@/lib/demo-store";
+import { loadMastery, loadProfile, setSkillMastery } from "@/lib/demo-store";
 import type { SchoolGradeResult, SchoolQuestionPayload } from "@/lib/school-agent";
 import type { SkillId } from "@/lib/types";
 
 function PracticeInner() {
   const params = useSearchParams();
   const skillId = (params.get("skill") as SkillId) || "measure-length";
+  // A new skill remounts the session, so its state starts fresh.
+  return <PracticeSession key={skillId} skillId={skillId} />;
+}
 
+type QuestionResult = { question: SchoolQuestionPayload | null; gradeLabel: string };
+
+/** Ask the School agent for a question (pure: no React state). */
+async function requestQuestion(skillId: SkillId, avoid: string[]): Promise<QuestionResult> {
+  const profile = loadProfile();
+  try {
+    const res = await fetch("/api/school/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "question", profile, skillId, avoidIds: avoid }),
+    });
+    if (!res.ok) throw new Error("fail");
+    return { question: (await res.json()) as SchoolQuestionPayload, gradeLabel: profile.gradeLabel };
+  } catch {
+    return { question: null, gradeLabel: profile.gradeLabel };
+  }
+}
+
+function PracticeSession({ skillId }: { skillId: SkillId }) {
   const [question, setQuestion] = useState<SchoolQuestionPayload | null>(null);
   const [avoidIds, setAvoidIds] = useState<string[]>([]);
   const [picked, setPicked] = useState<string | null>(null);
@@ -21,39 +43,26 @@ function PracticeInner() {
   const [grading, setGrading] = useState(false);
   const [gradeLabel, setGradeLabel] = useState("");
 
-  const fetchQuestion = useCallback(
-    async (avoid: string[]) => {
-      setLoading(true);
-      setPicked(null);
-      setResult(null);
-      const profile = loadProfile();
-      setGradeLabel(profile.gradeLabel);
-      try {
-        const res = await fetch("/api/school/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "question",
-            profile,
-            skillId,
-            avoidIds: avoid,
-          }),
-        });
-        if (!res.ok) throw new Error("fail");
-        const data = (await res.json()) as SchoolQuestionPayload;
-        setQuestion(data);
-      } catch {
-        setQuestion(null);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [skillId],
-  );
+  const showQuestion = useCallback((r: QuestionResult) => {
+    setGradeLabel(r.gradeLabel);
+    setQuestion(r.question);
+    setLoading(false);
+  }, []);
 
+  // First question for this skill. setState only runs in the promise callback.
   useEffect(() => {
-    void fetchQuestion([]);
-  }, [fetchQuestion]);
+    let cancelled = false;
+    void requestQuestion(skillId, []).then((r) => {
+      if (!cancelled) showQuestion(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [skillId, showQuestion]);
+
+  function fetchQuestion(avoid: string[]) {
+    void requestQuestion(skillId, avoid).then(showQuestion);
+  }
 
   async function choose(choiceId: string | "idk") {
     if (!question || grading || result) return;
@@ -67,6 +76,7 @@ function PracticeInner() {
         body: JSON.stringify({
           action: "grade",
           profile,
+          mastery: loadMastery(),
           questionId: question.questionId,
           choiceId,
           avoidIds: [...avoidIds, question.questionId],
@@ -99,7 +109,10 @@ function PracticeInner() {
       setResult(null);
       return;
     }
-    void fetchQuestion([...avoidIds, question?.questionId ?? ""]);
+    setLoading(true);
+    setPicked(null);
+    setResult(null);
+    fetchQuestion([...avoidIds, question?.questionId ?? ""]);
   }
 
   return (
@@ -121,9 +134,23 @@ function PracticeInner() {
         {loading ? (
           <p className="text-ink-soft">School agent is picking a question…</p>
         ) : !question ? (
-          <p className="text-ink-soft">
-            No questions for this skill at your grade yet. Change grade in Parent, or try another focus.
-          </p>
+          avoidIds.length ? (
+            <div className="space-y-3 rounded-3xl border border-stroke bg-card p-6">
+              <p className="font-display text-xl font-semibold text-ink">
+                That&apos;s all the practice for this skill today. Nice work!
+              </p>
+              <Link
+                href="/school"
+                className="inline-flex font-bold text-school underline-offset-4 hover:underline"
+              >
+                Back to this week
+              </Link>
+            </div>
+          ) : (
+            <p className="text-ink-soft">
+              No questions for this skill at your grade yet. Change grade in Parent, or try another focus.
+            </p>
+          )
         ) : (
           <div className="rounded-3xl border border-stroke bg-card p-6">
             {question.coachLead ? (

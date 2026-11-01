@@ -72,7 +72,7 @@ This release runs the loop with **local skill banks and keyword replies**. Live 
 
 ```bash
 npm install
-cp .env.example .env.local   # optional — leave OPENAI_API_KEY empty for local demo
+cp .env.example .env.local   # optional — leave ZAI_API_KEY empty for local demo
 npm run dev
 ```
 
@@ -89,12 +89,34 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Adding the live AI API (for developers)
 
-1. Put `OPENAI_API_KEY` (and optional `OPENAI_MODEL`) in `.env.local`  
+1. Put `ZAI_API_KEY` in `.env.local` (free GLM Flash models from https://z.ai; default model `glm-4.5-flash`). `OPENAI_API_KEY` also works as an alternative provider  
 2. Restart `npm run dev`  
 3. Extra uses `/api/extra/chat`; School uses `/api/school/session`  
 4. Without a key, both fall back to local banks — the UI still works for demos  
 
 Tune prompts and model behaviour against the canvas goals in [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md). Tracked in the first GitHub issue.
+
+## Tests
+
+**One command for everything:**
+
+```bash
+npm run check                 # lint + typecheck + unit/API tests + build + end-to-end, with a summary
+npm run check -- --quick      # skip build + end-to-end (~10s)
+npm run check -- --eval       # also score the live AI agents (real Z.ai tokens; needs ZAI_API_KEY)
+```
+
+`npm run check` also prepares the machine: on old CPUs it swaps Rollup for its WebAssembly build (local only), and it installs Playwright's Chromium on the first run.
+
+Individual commands:
+
+```bash
+npm test                              # unit + API tests (Vitest, ~1s, no keys needed)
+npm run build && npm run test:e2e     # end-to-end in Chromium, phone + desktop (Playwright)
+npm run eval                          # live agent quality check against a running app (npm run dev / npm start)
+```
+
+Details in [tests/README.md](./tests/README.md). CI runs on every push and PR (`.github/workflows/ci.yml`).
 
 ## Stack
 

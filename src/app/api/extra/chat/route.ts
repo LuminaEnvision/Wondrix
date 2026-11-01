@@ -1,78 +1,67 @@
 import { NextResponse } from "next/server";
+import { aiProvider, isFlagged } from "@/lib/ai";
+import { aiExtraReply, type ExtraChatMessage } from "@/lib/extra-agent";
 import { localExtraReply } from "@/lib/extra-reply";
-import { safetyCheck } from "@/lib/safety";
+import { SAFE_REDIRECT, safetyCheck } from "@/lib/safety";
+import type { ParentProfile } from "@/lib/types";
 
-type ChatMessage = { role: "child" | "agent"; text: string };
+type Body = {
+  message?: string;
+  topicId?: string | null;
+  history?: ExtraChatMessage[];
+  profile?: ParentProfile;
+};
 
 export async function POST(request: Request) {
-  let body: {
-    message?: string;
-    topicId?: string | null;
-    history?: ChatMessage[];
-  };
+  let body: Body;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const message = body.message?.trim() ?? "";
+  const message = body.message?.trim().slice(0, 500) ?? "";
   if (!message) {
     return NextResponse.json({ error: "Empty message" }, { status: 400 });
   }
+  const topicId = body.topicId ?? null;
 
+  // 1. Fast keyword gate (works with or without a key).
   const gate = safetyCheck(message);
   if (!gate.ok) {
-    return NextResponse.json({
-      text: gate.redirect,
-      source: "safety",
-    });
+    return NextResponse.json({ text: gate.redirect, source: "safety" });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (apiKey) {
-    try {
-      const history = (body.history ?? []).slice(-8);
-      const messages = [
-        {
-          role: "system",
-          content: `You are Wondrix, a warm kids learning guide (ages 7-12). Always answer the child's question clearly in 2-4 short sentences, then ask one gentle follow-up. No em dashes. No scolding. Text only — do not promise images. Stay educational and safe. No relationships, self-harm, or adult topics; redirect to curiosity if needed.`,
-        },
-        ...history.map((m) => ({
-          role: m.role === "child" ? "user" : "assistant",
-          content: m.text,
-        })),
-        { role: "user", content: message },
-      ];
+  // 2. Live agent.
+  //    OpenAI: moderation endpoint on the child's turn, in parallel with the reply.
+  //    Z.ai (no moderation endpoint): the agent flags unsafe input in its own JSON,
+  //    so we never fire two requests at once on the free tier's low concurrency.
+  const provider = aiProvider();
+  if (provider) {
+    const history = Array.isArray(body.history) ? body.history : [];
+    const agentCall = aiExtraReply({ message, topicId, history, profile: body.profile });
+    const [inputFlagged, reply] = provider.hasModerationEndpoint
+      ? await Promise.all([isFlagged(message), agentCall])
+      : [null, await agentCall];
 
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-          temperature: 0.6,
-          max_tokens: 220,
-          messages,
-        }),
-      });
+    if (inputFlagged || reply?.unsafeInput) {
+      return NextResponse.json({ text: SAFE_REDIRECT, source: "safety" });
+    }
 
-      if (res.ok) {
-        const data = (await res.json()) as {
-          choices?: { message?: { content?: string } }[];
-        };
-        const text = data.choices?.[0]?.message?.content?.trim();
-        if (text) {
-          return NextResponse.json({ text, source: "openai" });
-        }
+    if (reply) {
+      // 3. Check the agent's own output before a child sees it.
+      // (Moderation/classifier only: the keyword list would block innocent science like "germs kill".)
+      if (await isFlagged(reply.text)) {
+        return NextResponse.json({ text: SAFE_REDIRECT, source: "safety" });
       }
-    } catch {
-      // fall through to local
+      const { unsafeInput: _unsafe, ...publicReply } = reply;
+      void _unsafe;
+      return NextResponse.json({ ...publicReply, source: provider.id });
     }
   }
 
-  const local = localExtraReply(message, body.topicId);
+  // 4. Local fallback (no key, timeout or API error).
+  const hadHistory = Array.isArray(body.history) && body.history.length > 0;
+  const local = localExtraReply(message, topicId, hadHistory);
   return NextResponse.json({ ...local, source: "local" });
 }

@@ -19,6 +19,8 @@ interface SpeechRecognitionErrorEvent extends Event {
 }
 
 interface SpeechRecognitionEvent extends Event {
+  /** Index of the first result that changed in this event. */
+  resultIndex: number;
   results: SpeechRecognitionResultList;
 }
 
