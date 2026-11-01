@@ -115,7 +115,12 @@ export function localNextQuestion(
   skillId: SkillId,
   avoidIds: string[] = [],
 ): SchoolQuestionPayload | null {
-  const item = pickQuestion(profile.gradeLabel, skillId, avoidIds);
+  let item = pickQuestion(profile.gradeLabel, skillId, avoidIds);
+  // Small banks (1-2 items per skill): once every question was seen, recycle
+  // the earlier ones instead of hitting a dead end. Never repeat the last one.
+  if (!item && avoidIds.length) {
+    item = pickQuestion(profile.gradeLabel, skillId, avoidIds.slice(-1));
+  }
   if (!item) return null;
   return toQuestionPayload(item, "");
 }

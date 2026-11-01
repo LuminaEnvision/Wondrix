@@ -96,6 +96,16 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Tune prompts and model behaviour against the canvas goals in [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md). Tracked in the first GitHub issue.
 
+## Tests
+
+```bash
+npm test                              # unit + API tests (Vitest, ~1s, no keys needed)
+npm run build && npm run test:e2e     # end-to-end in Chromium, phone + desktop (Playwright)
+npm run test:all                      # lint + typecheck + tests + build + e2e (what CI runs)
+```
+
+Details in [tests/README.md](./tests/README.md). CI runs on every push and PR (`.github/workflows/ci.yml`).
+
 ## Stack
 
 - Next.js 16 (App Router) · React 19 · Tailwind CSS 4 · TypeScript  

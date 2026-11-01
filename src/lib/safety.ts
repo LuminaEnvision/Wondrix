@@ -11,6 +11,11 @@ const UNSAFE: RegExp[] = [
   /\b(suicide|suicidal|self[- ]?harm|cut(ting)? myself|kill(ing)? (myself|yourself))\b/i,
   /\b(sex|sexy|nude|nudes|naked|porn)\b/i,
   /\b(kill|hurt|harm|stab|shoot|poison|beat up|attack)\b.{0,30}\b(someone|somebody|people|person|him|her|them|my|a kid|kids|classmate|teacher|friend|brother|sister|mom|dad)\b/i,
+  // Same intent with the person first: "make my classmate get hurt", "want my brother to get hurt".
+  // Needs an intent verb, so "my friend got hurt, how do bones heal?" still passes.
+  /\b(make|want|wish|let)\b.{0,25}\b(someone|somebody|people|person|him|her|them|a kid|kids|classmate|teacher|friend|brother|sister|mom|dad)\b.{0,15}\b(get|be)\s+(hurt|killed|harmed|beaten up|stabbed|poisoned)\b/i,
+  // Secret harm: "how can a kid be poisoned without anyone knowing".
+  /\b(hurt|kill|harm|poison|stab)\w*\b.{0,40}\bwithout (anyone|anybody|them|people|getting caught)\b/i,
   /\b(make|build|get|buy)\b.{0,20}\b(gun|weapon|bomb|explosive)s?\b/i,
   /\b(drug deal|buy drugs|sell drugs|get high)\b/i,
   /\b(hate (all|those)|racist joke)\b/i,

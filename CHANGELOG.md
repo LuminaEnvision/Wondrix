@@ -17,8 +17,13 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 - Voice loading bubble in Extra: tells the child the natural voice is downloading (first time only, with progress), then "ready" or a gentle fallback note.
 - **On-the-spot visuals in Extra:** the agent decides when a diagram helps and describes it as a small JSON spec (steps, cycle, compare, scale, web); `ExtraVisual` draws it as on-brand SVG. Two-step flow (`/api/extra/visual`) keeps chat fast. No model-written markup, no stock art.
 - AI request queue (1 at a time on Z.ai free tier) and one retry on HTTP 429.
+- **Test suite:** 132 unit + API tests (Vitest, AI faked at `fetch`) and 46 end-to-end tests (Playwright, phone + desktop, local mode). `npm test`, `npm run test:e2e`, `npm run test:all`. GitHub Actions CI.
 - `/api/tts` prepared for Azure Speech neural voices (`NEXT_PUBLIC_TTS_ENGINE=azure` + `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION`); returns 501 when not configured.
 - `docs/DEV_CHANGELOG.md`: detailed per-commit log (what, how, why, tests) and stage status.
+
+### Fixed
+- Keyword gate missed person-first harm phrasing ("make my classmate get hurt"); now blocked without blocking "my friend got hurt, how do bones heal?".
+- Practice no longer dead-ends after the only question of a skill: it recycles earlier questions (never the last one) or says "That's all the practice for this skill today".
 
 ### Changed
 - ESLint is clean (0 errors): localStorage reads moved to `useSyncExternalStore` hooks (`src/lib/use-client-state.ts`), lazy state, render-time derivation and keyed remounts instead of setState in effects.

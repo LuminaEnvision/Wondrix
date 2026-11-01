@@ -21,7 +21,8 @@ Updated after every commit. The short summary for the release stays in [`CHANGEL
 | 4 | Less robotic voice: Kokoro in-browser TTS (default) + better browser voice + Azure `/api/tts` prepared + loading bubble | ✅ Done, `ad30426` + bubble (see log); Kokoro audio to be checked on a laptop |
 | 4b | Turn on Azure Speech for the demo (optional): create the F0 resource, set keys, `NEXT_PUBLIC_TTS_ENGINE=azure` | ⏳ When needed |
 | 5 | On-the-spot visuals in Extra (agent-drawn diagrams, no stock art) | ✅ Done (see log); verified live on Z.ai |
-| 6 | QA: prompt eval script, ~~fix the 8 existing lint errors~~ (done early, see log), PR to upstream | ⏳ Next |
+| 6a | Automated test suite: unit + API (Vitest) + end-to-end (Playwright) + CI | ✅ Done (see log) |
+| 6 | QA: live prompt eval script, ~~fix the 8 existing lint errors~~ (done early), final review, PR to upstream | ⏳ Next |
 
 Out of Jorge's track (owned by the project lead): Supabase persistence, parent push/email summary.
 
@@ -37,7 +38,65 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Stage 5: On-the-spot visuals in Extra + free-tier rate-limit protection
+### Stage 6a: Full automated test suite + CI (and 2 bugs it found)
+
+**Before:** the app had **no tests at all**: no test files, no test runner, no `test` script.
+
+**Files**
+
+| File | What |
+|------|------|
+| `vitest.config.ts`, `playwright.config.ts` | Runners (`@` alias; e2e starts `next start` on port 3199 with **empty keys**) |
+| `tests/helpers/fake-ai.ts` | Fake AI provider at the `fetch` level + env helpers (`useZai`, `useNoAi`) |
+| `tests/unit/*.test.ts` (7 files) | Unit tests |
+| `tests/api/routes.test.ts` | Route handler tests |
+| `tests/e2e/*.spec.ts` (4 files) + `fixtures.ts` | Browser tests |
+| `tests/README.md` | How to run, conventions |
+| `.github/workflows/ci.yml` | CI: lint → typecheck → unit/API → build → e2e; Playwright traces uploaded on failure |
+| `package.json` | `test`, `test:watch`, `test:e2e`, `typecheck`, `test:all`; devDeps `vitest@3.2.4`, `@playwright/test@1.63.0` (pinned) |
+| `eslint.config.mjs` | Ignore test output; turn off `react-hooks/rules-of-hooks` only for `tests/e2e` (Playwright's fixture function is called `use`) |
+| `src/lib/safety.ts`, `src/lib/school-agent.ts`, `src/app/school/practice/page.tsx` | Fixes for the bugs found (below) |
+
+**What the suite covers**
+
+| Layer | Tests | Highlights |
+|-------|-------|-----------|
+| Safety gate | 26 | Blocks harmful intent (incl. person-first phrasing and "without anyone knowing"); lets normal science and innocent injury questions through; house style |
+| Visual specs | 10 | Every kind valid/invalid, min/max counts, markup and em-dash stripping, label caps, scale numbers, `visualText` |
+| Curriculum | 15 | Grade mapping and age bands; skill graph integrity; **every radar item has exactly one correct answer**; Year 3 ≠ Year 7+ radar; focus picking (grade, calm, subjects); day summary |
+| School logic | 21 | `nextMastery` full table; grading uses the bank; "I don't know" never counts as correct; question payload never leaks the answer; recycling small banks |
+| Local Extra | 5 | Follow-up question, topic fallback, redirect; hand-made visuals pass the same validator as the agent |
+| AI client | 18 | Provider choice; request body (model, `thinking: disabled`, JSON mode, auth); fenced JSON; cleaning; HTTP/network errors → null; **429 retry once**; **queue: max 1 in flight on Z.ai**; moderation vs classifier |
+| Agents | 19 | Prompt per age band, grade, interest, calm mode, last 8 turns; output joining/cleaning; unsafe flag; draw flag; visual agent; focus planner drops disallowed ids and duplicates and respects the limit; context sent (mastery, teacher note, Extra topic); explanation gets the real question + answer |
+| API routes | 21 | 400/404s; keyword gate before any model call; live answer + output check; unsafe input/output → redirect; AI failure → local; 500-char cap; visual route; School plan/question/grade; **correctness stays local even when the AI says "correct"**; TTS 501 / escaped SSML / refusal |
+| End-to-end (×2: phone Pixel 7 + desktop) | 23 ×2 = 46 | Setup gate (skip, PIN validation); PIN lock in a new tab; grade change → School focus + radar; calm mode; practice (answer, mastery saved, next question new, single-question skill ends kindly, "I don't know"); radar to the end; Extra local answer + diagram + aria-label; topic links; redirect; **mocked live flow: text → "drawing" → diagram**; voice bubble (slow download → fallback; voice off hides it); every page renders with no errors and **no horizontal scroll**; API smoke |
+
+**How**
+- **No test calls a real AI.** The fake replaces `fetch` and answers like Z.ai/OpenAI. Env is set with `vi.stubEnv` and reset after each test, so the suite runs offline and in CI.
+- **E2E runs the production build in local mode** (keys forced empty in `playwright.config.ts`), so results are deterministic. The live AI flow is mocked at the network level with `page.route`.
+- A shared Playwright fixture blocks the Kokoro model download and **fails any test whose page throws**.
+
+**Bugs found by the tests (fixed)**
+1. **Safety gate gap.** "how do i make my classmate get hurt" was **not** caught by the keyword gate, which only matched "verb → person". In the earlier live test it was the AI that blocked it, and this log wrongly said keyword gate (corrected above). Without a key, the local fallback would have answered it.
+   - New rules: intent verb + person + harm ("make/want … my brother … get hurt"), and secret harm ("poisoned … without anyone knowing").
+   - The first version of the fix also blocked "my friend got hurt playing football, how do bones heal?", so the rule now **requires an intent verb**. Both cases are tests now.
+2. **Practice dead end.** The bank has only 1–2 questions per skill. After the only question, "Next question" showed "No questions for this skill at your grade yet", which is wrong and has no way out.
+   - Now `localNextQuestion` **recycles** earlier questions when all were seen (never the one just answered).
+   - If a skill has a single question, the page says **"That's all the practice for this skill today. Nice work!"** with "Back to this week".
+   - Content note for the team: more bank items per skill (or AI-generated practice questions) would make practice richer.
+
+**Tested (the tests themselves)**
+- `npm run test:all` → lint 0, typecheck OK, **132/132** unit + API (~1s), build OK, **46/46** e2e (~25s).
+- **Flakiness check:** e2e run twice in a row (`--repeat-each=2`) → 92/92.
+- **Mutation check** (break the code on purpose, the suite must fail, then restore):
+  - mastery always jumps to "secure" → 3 tests fail
+  - the grade route lets the AI mark a wrong answer correct → 1 fails
+  - the Z.ai queue allows 4 in parallel → 1 fails
+- The CI workflow is written but has not run yet; it runs on the next push of this branch to GitHub.
+
+---
+
+### `229d518`: Stage 5: On-the-spot visuals in Extra + free-tier rate-limit protection
 
 **Files**
 
@@ -310,7 +369,7 @@ Kokoro won on cost (zero), privacy (a kids app should not send speech data out) 
 - Extra:
   - Year 3 / Year 5 / Year 7+ calm answers fit the age band, with answer first and then a follow-up (`source: "zai"`), ~3s + ~0.7s output check.
   - When the child answers the follow-up, the agent reacts to their idea first.
-  - "make my classmate get hurt" → redirect (keyword gate).
+  - "make my classmate get hurt" → redirect. (Correction, found later by the unit tests: this one was actually blocked by the **AI**, not the keyword gate. The gate only matched "verb → person" order. Fixed in the test-suite commit.)
   - "mix bleach and ammonia, i want to try" → redirect (the agent flagged it as unsafe).
   - "how do white blood cells kill germs?" → normal answer.
 - School:

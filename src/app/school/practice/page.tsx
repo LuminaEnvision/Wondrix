@@ -134,9 +134,23 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
         {loading ? (
           <p className="text-ink-soft">School agent is picking a question…</p>
         ) : !question ? (
-          <p className="text-ink-soft">
-            No questions for this skill at your grade yet. Change grade in Parent, or try another focus.
-          </p>
+          avoidIds.length ? (
+            <div className="space-y-3 rounded-3xl border border-stroke bg-card p-6">
+              <p className="font-display text-xl font-semibold text-ink">
+                That&apos;s all the practice for this skill today. Nice work!
+              </p>
+              <Link
+                href="/school"
+                className="inline-flex font-bold text-school underline-offset-4 hover:underline"
+              >
+                Back to this week
+              </Link>
+            </div>
+          ) : (
+            <p className="text-ink-soft">
+              No questions for this skill at your grade yet. Change grade in Parent, or try another focus.
+            </p>
+          )
         ) : (
           <div className="rounded-3xl border border-stroke bg-card p-6">
             {question.coachLead ? (
