@@ -115,6 +115,24 @@ describe("POST /api/extra/chat", () => {
     expect(data.text).toMatch(/Wheels are round/);
   });
 
+  it("AI failure mid-chat + short reply → honest 'keep going' reply, not a random topic", async () => {
+    useZai();
+    fakeFetch(() => new Response("oops", { status: 500 }));
+    const { data } = await json(
+      await extraChat(
+        req({
+          message: "yes",
+          history: [
+            { role: "child", text: "why is the sky blue?" },
+            { role: "agent", text: "Blue light scatters most. Want to know about sunsets?" },
+          ],
+        }),
+      ),
+    );
+    expect(data.source).toBe("local");
+    expect(data.text).toMatch(/keeping our chat going/);
+  });
+
   it("caps very long messages at 500 characters", async () => {
     useZai();
     const { calls } = fakeZaiExtra();

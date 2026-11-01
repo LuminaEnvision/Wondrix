@@ -39,7 +39,55 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Tap-to-talk mic with live meter + `npm run check` (all tests in one command)
+### Extra conversation memory for the visit (context that survives reload)
+
+**Question from Jorge:** "In Extra the AI answers but can't continue the conversation, even when it asks a question back. It feels like each message starts from zero."
+
+**What we found (live test on Z.ai first)**
+- The page **already sent the history**; the request payloads showed `history.length` 0 → 2 → 4. When the agent answered, "yes" continued the thread (sky blue → sunsets). So the "reset" feeling had other causes:
+  1. **Local fallback has no context.** When Z.ai is slow or fails (common on the free tier), a short reply like "yes" or "why?" hit the generic/keyword local replies. In one run "what about at sunset?" got the canned **stars** answer, so it looked like Wondrix forgot.
+  2. **The chat was lost on reload (F5).** Nothing was saved.
+  3. **Format drift.** With more history, `glm-4.5-flash` sometimes answered in **plain text instead of JSON** ("bad JSON"). That reply was thrown away, so the local fallback answered.
+  4. **Repetition.** The model re-explained things it had already said.
+
+**What changed**
+1. **Session memory (`demo-store.ts`: `saveExtraChat` / `loadExtraChat` / `clearExtraChat`)**
+   - The conversation (last 30 messages: id, role, text, diagram) is saved in **`sessionStorage`**: it survives a reload in the same tab and is cleared when the tab closes.
+   - `/extra` restores it after hydration with React's render-time adjustment (no setState in an effect) and saves on every change.
+   - A **"New chat"** button (shown when there are messages) clears the chat and storage.
+   - Message ids now continue after restored messages, so React keys and the per-message voice state stay correct.
+2. **Short-term context for the agent (`extra-agent.ts`)**
+   - The last **12 turns** (was 8), each trimmed to **400 characters**, which keeps tokens low.
+   - New prompt rules:
+     - short replies (yes / no / ok / why / one word) answer *your* last follow-up, so continue that thread
+     - don't repeat facts you already explained; go one step deeper
+     - if asked again, remind in one sentence and add ONE new detail
+   - A short system reminder after the history: "Reply ONLY with the JSON object…".
+3. **Keep plain-text answers (`ai.ts`: `chatJSONOrText`)**
+   - When the model drifts out of JSON, its text is kept. `splitPlainAnswer()` uses the last question as the follow-up.
+   - Logged as `bad JSON (plain text kept)`. `chatJSON` still returns null for callers that need strict JSON (School, visuals, classifier).
+4. **Honest offline continuation (`extra-reply.ts`)**
+   - When there is earlier chat and the child sends a **short reply** (`isShortReply`) while the agent is unavailable, the local reply says "I love that you're keeping our chat going! I need a moment to think right now…" instead of a random canned topic.
+   - The safety gate still runs first.
+
+**Why**
+- Curiosity grows through follow-ups (canvas: "answers once, then gently follows up"). That only works if the child's "yes" or "why?" lands in the same thread, including after an accidental reload.
+- `sessionStorage`, not `localStorage`: the memory belongs to this visit only, nothing about the child's chat persists after the tab closes, and Supabase can take over later.
+
+**Tested**
+- `npm run check` → lint ✔, typecheck ✔, **152/152** unit + API ✔, build ✔, **56/56** e2e ✔.
+- New tests:
+  - unit: 12-turn window, 400-char trim, memory rules in the prompt, JSON reminder, plain-text answer kept and split, `isShortReply`, mid-chat short reply keeps the thread, safety first mid-chat
+  - API: AI failure + history + "yes" → honest keep-going reply
+  - **e2e:** history sent `[0, 2]` → **reload keeps the chat** → next message sends history 4 → **New chat** clears it (history 0 after reload)
+- Live (Z.ai), "why is the sky blue?" → "yes" → **F5** → "why?" → "what about at sunset?":
+  - all four answered by the agent, in the same thread
+  - two plain-text answers were kept instead of discarded
+  - the last answer referred back: "Sunset is just like sunrise… for the same reason"
+
+---
+
+### `bb6edbd`: Tap-to-talk mic with live meter + `npm run check` (all tests in one command)
 
 **Context (Jorge's 3rd test, Chrome on a laptop):** everything worked: AI answers, diagrams, mic, browser voice, and Kokoro after a short wait. One problem: **the mic was confusing**. You couldn't tell if it was recording or listening, whether to hold or tap, or whether it sends by itself when you stop talking. The old version listened for one phrase and sent it the moment the browser detected silence, so a child who pauses to think got cut off.
 

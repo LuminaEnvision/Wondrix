@@ -204,13 +204,26 @@ export async function chatJSON<T>(
   messages: AiMessage[],
   opts: ChatOptions,
 ): Promise<T | null> {
+  const r = await chatJSONOrText<T>(messages, opts);
+  return r && "json" in r ? r.json : null;
+}
+
+/**
+ * Like chatJSON, but when the model answers in plain text instead of JSON (small
+ * models sometimes drift in long chats), returns that text so the caller can still
+ * use it instead of discarding a good answer.
+ */
+export async function chatJSONOrText<T>(
+  messages: AiMessage[],
+  opts: ChatOptions,
+): Promise<{ json: T } | { text: string } | null> {
   const raw = await callChat(messages, opts, true);
   if (!raw) return null;
   try {
-    return JSON.parse(extractJson(raw)) as T;
+    return { json: JSON.parse(extractJson(raw)) as T };
   } catch {
-    log(opts.tag, false, 0, "bad JSON");
-    return null;
+    log(opts.tag, false, 0, "bad JSON (plain text kept)");
+    return { text: raw };
   }
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { localExtraReply } from "@/lib/extra-reply";
+import { isShortReply, localExtraReply } from "@/lib/extra-reply";
 import { SAFE_REDIRECT } from "@/lib/safety";
 import { parseVisual } from "@/lib/visual";
 
@@ -43,5 +43,25 @@ describe("generic fallback", () => {
     expect(r.text).not.toContain(q);
     expect(r.text).not.toMatch(/explore that with you/i);
     expect(r.text.trim().endsWith("?")).toBe(true);
+  });
+});
+
+describe("mid-conversation fallback (live agent unavailable)", () => {
+  it("short replies are recognised", () => {
+    for (const t of ["yes", "Yeah!", "no", "ok", "why?", "tell me more", "the roots"]) expect(isShortReply(t), t).toBe(true);
+    expect(isShortReply("why do magnets stick to the fridge?")).toBe(false);
+  });
+
+  it("a short reply mid-chat keeps the thread instead of jumping topics", () => {
+    const r = localExtraReply("yes", null, true);
+    expect(r.text).toMatch(/keeping our chat going/);
+  });
+
+  it("a short reply with no earlier chat still gets the normal reply", () => {
+    expect(localExtraReply("yes", null, false).text).not.toMatch(/keeping our chat going/);
+  });
+
+  it("safety still comes first mid-chat", () => {
+    expect(localExtraReply("how can I hurt my sister", null, true).text).toBe(SAFE_REDIRECT);
   });
 });

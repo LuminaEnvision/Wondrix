@@ -150,3 +150,45 @@ test.describe("voice controls", () => {
     await expect(page.getByText(/No sound available on this device/)).toBeVisible({ timeout: 10_000 });
   });
 });
+
+test.describe("conversation memory (this visit)", () => {
+  test.beforeEach(async ({ page }) => {
+    await skipSetup(page);
+  });
+
+  test("history is sent with each message, survives a reload, and New chat clears it", async ({ page }) => {
+    const histories: number[] = [];
+    await page.route("**/api/extra/chat", async (route) => {
+      const body = JSON.parse(route.request().postData() || "{}") as { message: string; history: unknown[] };
+      histories.push(body.history.length);
+      await route.fulfill({
+        json: { text: `Reply to: ${body.message}. Want to know more?`, answer: `Reply to: ${body.message}.`, topic: "Sky", source: "zai" },
+      });
+    });
+    await page.goto("/extra");
+    await page.getByRole("button", { name: "Voice answers on" }).click();
+    const ask = async (q: string) => {
+      await page.getByPlaceholder("Ask anything curious…").fill(q);
+      await page.getByRole("button", { name: "Send" }).click();
+      await expect(page.getByText(`Reply to: ${q}.`, { exact: false })).toBeVisible();
+    };
+    await ask("why is the sky blue?");
+    await ask("yes");
+    expect(histories).toEqual([0, 2]);
+
+    // Reload: the conversation (and so the agent's context) is still there.
+    await page.reload();
+    await expect(page.getByText("Reply to: yes.", { exact: false })).toBeVisible();
+    await page.getByRole("button", { name: "Voice answers on" }).click();
+    await ask("what about sunsets?");
+    expect(histories).toEqual([0, 2, 4]);
+
+    // New chat starts fresh.
+    await page.getByRole("button", { name: "New chat" }).click();
+    await expect(page.getByText("Reply to: yes.", { exact: false })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByText("Wondrix is ready.", { exact: false })).toBeVisible();
+    await ask("hello again");
+    expect(histories.at(-1)).toBe(0);
+  });
+});

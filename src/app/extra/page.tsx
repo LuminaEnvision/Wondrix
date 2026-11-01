@@ -4,7 +4,15 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { loadProfile, recordSafetyRedirect, saveExtraTopic } from "@/lib/demo-store";
+import {
+  clearExtraChat,
+  loadExtraChat,
+  loadProfile,
+  recordSafetyRedirect,
+  saveExtraChat,
+  saveExtraTopic,
+} from "@/lib/demo-store";
+import { useHydrated } from "@/lib/use-client-state";
 import { localExtraReply } from "@/lib/extra-reply";
 import { safetyCheck } from "@/lib/safety";
 import {
@@ -94,7 +102,20 @@ function ExtraInner() {
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const didGreet = useRef(false);
   const messagesRef = useRef<Msg[]>([]);
-  const nextId = useRef(1);
+
+  // Restore this visit's conversation after a reload (sessionStorage), so the
+  // agent keeps its short-term context. Render-time adjustment, not an effect.
+  const hydrated = useHydrated();
+  const [restored, setRestored] = useState(false);
+  if (hydrated && !restored) {
+    setRestored(true);
+    const saved = loadExtraChat();
+    if (saved.length) setMessages(saved.map((m) => ({ ...m, visual: (m.visual as Visual | null) ?? null })));
+  }
+
+  useEffect(() => {
+    if (restored) saveExtraChat(messages);
+  }, [messages, restored]);
 
   const micOk = canListen();
   const speakOk = canSpeak();
@@ -138,11 +159,13 @@ function ExtraInner() {
     setBusy(true);
     setInput("");
 
-    const childMsg: Msg = { id: nextId.current++, role: "child", text: trimmed };
     const history = messagesRef.current;
+    // Ids continue after restored messages (keys + per-message voice state).
+    const baseId = history.reduce((max, m) => Math.max(max, m.id), 0);
+    const childMsg: Msg = { id: baseId + 1, role: "child", text: trimmed };
     setMessages((m) => [...m, childMsg]);
 
-    let reply = localExtraReply(trimmed, topic?.id ?? null);
+    let reply = localExtraReply(trimmed, topic?.id ?? null, history.length > 0);
     let topicLabel = topic?.label ?? trimmed.slice(0, 40);
     let drawFor: string | null = null;
     let redirected = safetyCheck(trimmed).ok === false;
@@ -180,7 +203,7 @@ function ExtraInner() {
     }
 
     const agentMsg: Msg = {
-      id: nextId.current++,
+      id: baseId + 2,
       role: "agent",
       text: reply.text,
       visual: reply.visual ?? null,
@@ -332,6 +355,20 @@ function ExtraInner() {
           >
             {voiceOn ? "Voice answers on" : "Voice answers off"}
           </button>
+          {messages.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                stopSpeaking();
+                setMessages([]);
+                clearExtraChat();
+              }}
+              className="rounded-full border border-stroke bg-card px-4 py-2 text-sm font-bold text-ink-soft"
+              title="Start a fresh conversation"
+            >
+              New chat
+            </button>
+          ) : null}
         </div>
 
         <div className="flex min-h-[260px] flex-1 flex-col gap-3 rounded-3xl border border-stroke bg-card p-4">

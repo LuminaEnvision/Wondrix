@@ -61,6 +61,7 @@ export async function POST(request: Request) {
   }
 
   // 4. Local fallback (no key, timeout or API error).
-  const local = localExtraReply(message, topicId);
+  const hadHistory = Array.isArray(body.history) && body.history.length > 0;
+  const local = localExtraReply(message, topicId, hadHistory);
   return NextResponse.json({ ...local, source: "local" });
 }

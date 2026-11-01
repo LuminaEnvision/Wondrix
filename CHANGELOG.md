@@ -22,6 +22,11 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 - `/api/tts` prepared for Azure Speech neural voices (`NEXT_PUBLIC_TTS_ENGINE=azure` + `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION`); returns 501 when not configured.
 - `docs/DEV_CHANGELOG.md`: detailed per-commit log (what, how, why, tests) and stage status.
 
+### Added (conversation memory)
+- **Extra remembers the conversation for this visit:** saved in `sessionStorage` (survives reload, cleared when the tab closes) with a **New chat** button. The agent gets the last 12 turns (trimmed to 400 chars each) plus memory rules: short replies like "yes" answer its last question, don't repeat, remind in one sentence and add one new detail.
+- If the model drifts out of JSON in long chats, its plain-text answer is kept (follow-up split off) instead of falling back.
+- If the live agent is unavailable mid-chat and the child replies briefly, the local reply keeps the thread honestly instead of jumping to a random topic.
+
 ### Added (voice UX)
 - **Tap-to-talk mic for kids** (`DictationPanel`): one tap starts; a live volume meter, the words so far and a timer show it is listening; it **never sends on silence** (keeps listening through pauses and browser restarts) and shows "Take your time" after ~8s of quiet; big **Done, send my question** / **Cancel** buttons.
 - `npm run check` (`scripts/run-all-tests.sh`): lint, typecheck, unit/API, build and end-to-end in one go with a summary; `--quick`, `--eval`; auto-handles old CPUs and the first Playwright install.

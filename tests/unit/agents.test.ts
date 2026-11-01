@@ -40,18 +40,55 @@ describe("Extra agent prompt", () => {
     expect(sys).toMatch(/Calm mode is ON/);
   });
 
-  it("sends at most the last 8 history turns, mapped to chat roles", async () => {
+  it("sends the last 12 history turns (short-term memory), mapped to chat roles", async () => {
     const { calls } = fakeFetch(() => chatResponse('{"answer":"A.","followUp":"B?","topic":"t"}'));
-    const history = Array.from({ length: 12 }, (_, i) => ({
+    const history = Array.from({ length: 16 }, (_, i) => ({
       role: (i % 2 ? "agent" : "child") as "agent" | "child",
       text: `turn ${i}`,
     }));
     await aiExtraReply({ message: "now", topicId: null, history, profile: profile() });
     const messages = calls[0].body.messages as { role: string; content: string }[];
-    expect(messages).toHaveLength(1 + 8 + 1);
+    // system + 12 history + child message + JSON-format reminder
+    expect(messages).toHaveLength(1 + 12 + 1 + 1);
     expect(messages[1].content).toBe("turn 4");
-    expect(messages.slice(1, 9).every((m) => m.role === "user" || m.role === "assistant")).toBe(true);
+    expect(messages.slice(1, 13).every((m) => m.role === "user" || m.role === "assistant")).toBe(true);
     expect(lastUser(calls[0])).toBe("now");
+    expect(messages.at(-1)).toEqual({ role: "system", content: expect.stringMatching(/JSON/) });
+  });
+
+  it("plain-text answer (format drift in long chats) is kept, not thrown away", async () => {
+    fakeFetch(() => chatResponse("Sunsets look red because light travels through more air. Have you seen a purple sky?"));
+    const r = await aiExtraReply({
+      message: "why?",
+      topicId: null,
+      history: [{ role: "agent", text: "Blue light scatters most." }],
+      profile: profile(),
+    });
+    expect(r).toMatchObject({
+      answer: "Sunsets look red because light travels through more air.",
+      followUp: "Have you seen a purple sky?",
+      draw: false,
+    });
+  });
+
+  it("trims long history turns to keep tokens low", async () => {
+    const { calls } = fakeFetch(() => chatResponse('{"answer":"A.","followUp":"B?","topic":"t"}'));
+    await aiExtraReply({
+      message: "yes",
+      topicId: null,
+      history: [{ role: "agent", text: "x".repeat(2000) }],
+      profile: profile(),
+    });
+    const messages = calls[0].body.messages as { role: string; content: string }[];
+    expect(messages[1].content).toHaveLength(400);
+  });
+
+  it("prompt tells the agent to treat short replies as answers to its last question", async () => {
+    const { calls } = fakeFetch(() => chatResponse('{"answer":"A.","followUp":"B?","topic":"t"}'));
+    await aiExtraReply({ message: "yes", topicId: null, history: [], profile: profile() });
+    const sys = systemPrompt(calls[0]);
+    expect(sys).toMatch(/Short replies like yes/);
+    expect(sys).toMatch(/Do not repeat facts you already explained/);
   });
 });
 

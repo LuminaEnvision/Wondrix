@@ -164,3 +164,54 @@ export function loadSafetyRedirects(): number {
     return 0;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Extra chat memory for the current visit (sessionStorage)            */
+/* ------------------------------------------------------------------ */
+
+const EXTRA_CHAT_KEY = "wondrix-extra-chat";
+const MAX_SAVED_MESSAGES = 30;
+
+export type SavedChatMessage = {
+  id: number;
+  role: "child" | "agent";
+  text: string;
+  visual?: unknown;
+};
+
+/**
+ * The Extra conversation survives a reload in the same tab (so the agent keeps its
+ * context), and is cleared when the tab closes or the child taps "New chat".
+ */
+export function saveExtraChat(messages: SavedChatMessage[]) {
+  if (typeof window === "undefined") return;
+  try {
+    const slim = messages.slice(-MAX_SAVED_MESSAGES).map(({ id, role, text, visual }) => ({ id, role, text, visual: visual ?? null }));
+    sessionStorage.setItem(EXTRA_CHAT_KEY, JSON.stringify(slim));
+  } catch {
+    /* storage full or unavailable */
+  }
+}
+
+export function loadExtraChat(): SavedChatMessage[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(EXTRA_CHAT_KEY) || "[]") as unknown;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(
+      (m): m is SavedChatMessage =>
+        Boolean(m) && typeof m.id === "number" && (m.role === "child" || m.role === "agent") && typeof m.text === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function clearExtraChat() {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(EXTRA_CHAT_KEY);
+  } catch {
+    /* ignore */
+  }
+}

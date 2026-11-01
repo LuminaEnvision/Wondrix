@@ -4,7 +4,7 @@
  * Server only (used by /api/extra/chat).
  */
 
-import { chatJSON, cleanKidText, type AiMessage } from "./ai";
+import { chatJSON, chatJSONOrText, cleanKidText, type AiMessage } from "./ai";
 import type { AgeBand, ParentProfile } from "./types";
 import { parseVisual, VISUAL_PROMPT, type Visual } from "./visual";
 
@@ -22,6 +22,10 @@ export type ExtraAgentReply = {
   /** The agent judged the child's message unsafe (used when the provider has no moderation endpoint). */
   unsafeInput: boolean;
 };
+
+/** Short-term memory: how many previous turns are sent, and max characters per turn. */
+export const HISTORY_TURNS = 12;
+export const HISTORY_CHARS = 400;
 
 const TOPIC_LABELS: Record<string, string> = {
   physics: "Physics",
@@ -56,6 +60,7 @@ function systemPrompt(profile: ParentProfile | undefined, topicId: string | null
     "Job: answer the child's question clearly and correctly FIRST. Then ask exactly ONE gentle follow-up question that invites them to think or notice something in real life. followUp is a single sentence that ends with a question mark.",
     "Accuracy first: if you are not sure, say so simply. Do not invent facts or mix up ideas (for example a fridge door is steel that a magnet attracts; it is not a magnet itself).",
     "If the child answers your previous follow-up, react to their idea kindly (even if partly wrong, gently correct) before continuing.",
+    "Conversation memory: this is one ongoing chat. Short replies like yes, no, ok, sure, why, or a single word answer YOUR last follow-up question, so continue that thread. Do not repeat facts you already explained; build on them and go one step deeper. If the child asks about something you already covered, remind them in ONE short sentence (for example: like we said, the light travels through more air) and then add ONE new detail they have not heard yet.",
     "Rules: no em dashes, no markdown, no lists, no emojis. Never scold. Never promise images or links. Do not ask for personal details (name, school, address, photos).",
     "Safety: only educational, age-appropriate content. If the topic is unsafe (violence, self-harm, sexual, drugs, hate, relationships), do not engage: kindly steer to a safe science question instead.",
     'Reply ONLY as JSON: {"unsafe": boolean, "answer": string, "followUp": string, "topic": string, "draw": boolean}. "unsafe" is true only if the child\'s latest message asks about an unsafe topic (then answer with the kind redirect). "topic" is a 2 to 5 word label of what was explored, for the parent summary. "draw" is true when a simple diagram would help the child see the idea: a process or cycle (how rain happens, how plants drink, moon phases), a comparison (solid vs liquid vs gas), sizes or amounts (Sun vs Earth), or parts of a thing (parts of a flower or robot). "draw" is false for greetings, opinions, small talk and yes/no facts.',
@@ -72,21 +77,30 @@ export async function aiExtraReply(input: {
 }): Promise<ExtraAgentReply | null> {
   const messages: AiMessage[] = [
     { role: "system", content: systemPrompt(input.profile, input.topicId) },
-    ...input.history.slice(-8).map<AiMessage>((m) => ({
+    // Short-term memory for this session: the last turns, trimmed to keep tokens low.
+    ...input.history.slice(-HISTORY_TURNS).map<AiMessage>((m) => ({
       role: m.role === "child" ? "user" : "assistant",
-      content: m.text,
+      content: String(m.text ?? "").slice(0, HISTORY_CHARS),
     })),
     { role: "user", content: input.message },
   ];
+  // Earlier assistant turns are plain text; in long chats the model may copy that
+  // format. A short reminder after the history keeps the JSON shape.
+  if (input.history.length) {
+    messages.push({ role: "system", content: "Reply ONLY with the JSON object described in the first message." });
+  }
 
-  const raw = await chatJSON<Partial<Record<keyof ExtraAgentReply | "unsafe", unknown>>>(messages, {
+  const result = await chatJSONOrText<Partial<Record<keyof ExtraAgentReply | "unsafe", unknown>>>(messages, {
     tag: "extra.chat",
     temperature: 0.6,
     maxTokens: 300,
     // Free-tier latency spikes past 12s now and then; give the main answer a bit more room.
     timeoutMs: 15000,
   });
-  if (!raw) return null;
+  if (!result) return null;
+  // Plain-text answer (format drift): keep it, split off the last question as the follow-up.
+  const raw: Partial<Record<keyof ExtraAgentReply | "unsafe", unknown>> =
+    "json" in result ? result.json : splitPlainAnswer(result.text);
 
   const answer = typeof raw.answer === "string" ? cleanKidText(raw.answer) : "";
   const followUp = typeof raw.followUp === "string" ? oneQuestion(cleanKidText(raw.followUp)) : "";
@@ -148,4 +162,15 @@ export async function aiExtraVisual(input: {
 export function oneQuestion(text: string): string {
   const i = text.indexOf("?");
   return i === -1 ? text : text.slice(0, i + 1).trim();
+}
+
+/** Turn a plain-text reply into { answer, followUp } (the last question, if any). */
+export function splitPlainAnswer(text: string): { answer: string; followUp: string; draw: boolean } {
+  const clean = text.replace(/^```\w*|```$/g, "").trim();
+  const sentences = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const last = sentences.at(-1) ?? "";
+  if (sentences.length > 1 && last.trim().endsWith("?")) {
+    return { answer: sentences.slice(0, -1).join(" "), followUp: last, draw: false };
+  }
+  return { answer: clean, followUp: "", draw: false };
 }

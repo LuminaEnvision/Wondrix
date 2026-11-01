@@ -14,6 +14,7 @@ Jorge's track from the project board: wire and tune live AI for `/api/extra/chat
   - The prompt adapts to age band (7–9 / 10–13 / 14–17), grade, picked interest and calm mode.
   - It answers first, then asks **exactly one** follow-up.
   - It returns a topic label that goes into the parent summary.
+- **It remembers the conversation for the visit:** the last 12 turns go to the model, "yes" or "why?" continues its last question, and the chat survives a reload (`sessionStorage`). A **New chat** button starts fresh.
 - **School agent:**
   - It reads the child's state: mastery, teacher note and Extra topic.
   - It picks today's focus **only from grade-allowed skills**, and gives a reason for each pick. Reasons show under each skill and are logged (`[agent] school.plan …`).
@@ -52,8 +53,8 @@ Jorge's track from the project board: wire and tune live AI for `/api/extra/chat
 
 | | Result |
 |---|---|
-| Unit + API (Vitest, AI faked) | **144/144** |
-| End-to-end (Playwright, phone + desktop, local mode) | **54/54** |
+| Unit + API (Vitest, AI faked) | **152/152** |
+| End-to-end (Playwright, phone + desktop, local mode) | **56/56** |
 | Live agent eval (`npm run eval`, real `glm-4.5-flash`) | **26/27 cases, 99% of checks** |
 | Lint / typecheck / build | clean |
 

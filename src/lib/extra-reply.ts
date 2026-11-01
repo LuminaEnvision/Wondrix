@@ -12,9 +12,17 @@ export type ExtraReply = {
   visual?: Visual;
 };
 
+/** True for short replies that only make sense as an answer to the previous turn. */
+export function isShortReply(text: string): boolean {
+  const t = text.toLowerCase().trim().replace(/[.!?]+$/, "");
+  return /^(yes|yeah|yep|yup|no|nope|ok|okay|sure|maybe|why|how|really|cool|wow|i don'?t know|idk|tell me more|more|go on)$/.test(t) || t.split(/\s+/).length <= 2;
+}
+
 export function localExtraReply(
   childText: string,
   topicId?: string | null,
+  /** True when there is an earlier conversation in this session. */
+  midConversation = false,
 ): ExtraReply {
   const gate = safetyCheck(childText);
   if (!gate.ok) {
@@ -22,6 +30,14 @@ export function localExtraReply(
   }
 
   const t = childText.toLowerCase().trim();
+
+  // Mid-chat short answer while the live agent is unavailable: don't jump to a random
+  // topic (it feels like Wondrix forgot); be honest and keep the thread.
+  if (midConversation && isShortReply(t) && !/^(hi|hello|hey|hola)\b/.test(t)) {
+    return {
+      text: "I love that you're keeping our chat going! I need a moment to think right now. Can you tell me a little more, or ask me again in a few seconds?",
+    };
+  }
 
   if (!t || /^(hi|hello|hey|hola)\b/.test(t)) {
     return {
