@@ -14,11 +14,17 @@ import {
   stopSpeaking,
   warmUpVoice,
 } from "@/lib/voice";
+import { ExtraVisual } from "@/components/ExtraVisual";
 import { VoiceLoadingBubble } from "@/components/VoiceLoadingBubble";
+import type { Visual } from "@/lib/visual";
 
 type Msg = {
+  id: number;
   role: "child" | "agent";
   text: string;
+  visual?: Visual | null;
+  /** The agent is drawing a diagram for this answer. */
+  drawing?: boolean;
 };
 
 const INTERESTS = [
@@ -77,6 +83,7 @@ function ExtraInner() {
   const listenRef = useRef<ReturnType<typeof listenOnce> | null>(null);
   const didGreet = useRef(false);
   const messagesRef = useRef<Msg[]>([]);
+  const nextId = useRef(1);
 
   const micOk = canListen();
   const speakOk = canSpeak();
@@ -119,12 +126,13 @@ function ExtraInner() {
     setBusy(true);
     setInput("");
 
-    const childMsg: Msg = { role: "child", text: trimmed };
+    const childMsg: Msg = { id: nextId.current++, role: "child", text: trimmed };
     const history = messagesRef.current;
     setMessages((m) => [...m, childMsg]);
 
     let reply = localExtraReply(trimmed, topic?.id ?? null);
     let topicLabel = topic?.label ?? trimmed.slice(0, 40);
+    let drawFor: string | null = null;
 
     try {
       const res = await fetch("/api/extra/chat", {
@@ -138,9 +146,17 @@ function ExtraInner() {
         }),
       });
       if (res.ok) {
-        const data = (await res.json()) as { text?: string; topic?: string };
+        const data = (await res.json()) as {
+          text?: string;
+          answer?: string;
+          topic?: string;
+          draw?: boolean;
+          visual?: Visual | null;
+        };
         if (data.text) {
-          reply = { text: data.text };
+          // Local replies may carry a ready-made visual; live ones draw in a second step.
+          reply = { text: data.text, visual: data.visual ?? undefined };
+          if (data.draw) drawFor = data.answer || data.text;
         }
         if (data.topic) topicLabel = data.topic;
       }
@@ -149,13 +165,34 @@ function ExtraInner() {
     }
 
     const agentMsg: Msg = {
+      id: nextId.current++,
       role: "agent",
       text: reply.text,
+      visual: reply.visual ?? null,
+      drawing: Boolean(drawFor),
     };
     setMessages((m) => [...m, agentMsg]);
     saveExtraTopic(topicLabel);
     say(reply.text);
     setBusy(false);
+
+    if (drawFor) void drawVisual(agentMsg.id, trimmed, drawFor);
+  }
+
+  /** Second step: ask the agent to draw the answer, then attach it to that message. */
+  async function drawVisual(msgId: number, question: string, answer: string) {
+    let visual: Visual | null = null;
+    try {
+      const res = await fetch("/api/extra/visual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, answer, profile: loadProfile() }),
+      });
+      if (res.ok) visual = ((await res.json()) as { visual?: Visual | null }).visual ?? null;
+    } catch {
+      // no drawing this time; the text answer is already shown
+    }
+    setMessages((m) => m.map((msg) => (msg.id === msgId ? { ...msg, visual, drawing: false } : msg)));
   }
 
   function pickSuggestion(item: Interest) {
@@ -245,9 +282,9 @@ function ExtraInner() {
               <p className="text-sm">Or tap a topic idea under the chat if you want a starter.</p>
             </div>
           ) : (
-            messages.map((msg, i) => (
+            messages.map((msg) => (
               <div
-                key={`${msg.role}-${i}`}
+                key={msg.id}
                 className={`max-w-[90%] space-y-2 rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === "child"
                     ? "ml-auto bg-extra text-white"
@@ -255,6 +292,13 @@ function ExtraInner() {
                 }`}
               >
                 <p>{msg.text}</p>
+                {msg.role === "agent" && msg.visual ? <ExtraVisual visual={msg.visual} /> : null}
+                {msg.role === "agent" && msg.drawing ? (
+                  <p className="flex items-center gap-2 text-xs font-semibold text-extra" role="status">
+                    <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-extra" aria-hidden />
+                    Wondrix is drawing it for you…
+                  </p>
+                ) : null}
                 {msg.role === "agent" ? (
                   <button
                     type="button"

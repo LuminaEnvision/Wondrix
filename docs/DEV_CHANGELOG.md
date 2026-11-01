@@ -20,8 +20,8 @@ Updated after every commit. The short summary for the release stays in [`CHANGEL
 | 3 | School agent: move to the shared client (so it also uses Z.ai), real question context, AI explains but never grades, logged focus decisions | ✅ Done, `df570da`; verified live on Z.ai |
 | 4 | Less robotic voice: Kokoro in-browser TTS (default) + better browser voice + Azure `/api/tts` prepared + loading bubble | ✅ Done, `ad30426` + bubble (see log); Kokoro audio to be checked on a laptop |
 | 4b | Turn on Azure Speech for the demo (optional): create the F0 resource, set keys, `NEXT_PUBLIC_TTS_ENGINE=azure` | ⏳ When needed |
-| 5 | On-the-spot visuals in Extra (agent-drawn SVG, no stock art) | ⏳ Next |
-| 6 | QA: prompt eval script, ~~fix the 8 existing lint errors~~ (done early, see log), PR to upstream | ⏳ Planned |
+| 5 | On-the-spot visuals in Extra (agent-drawn diagrams, no stock art) | ✅ Done (see log); verified live on Z.ai |
+| 6 | QA: prompt eval script, ~~fix the 8 existing lint errors~~ (done early, see log), PR to upstream | ⏳ Next |
 
 Out of Jorge's track (owned by the project lead): Supabase persistence, parent push/email summary.
 
@@ -37,7 +37,68 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Fix all 8 ESLint errors (React 19 hooks rules), no behaviour change
+### Stage 5: On-the-spot visuals in Extra + free-tier rate-limit protection
+
+**Files**
+
+| File | Change |
+|------|--------|
+| `src/lib/visual.ts` | **New.** Visual spec types (5 kinds), prompt text, strict validator `parseVisual()`, `visualText()` |
+| `src/components/ExtraVisual.tsx` | **New.** Draws each kind as an on-brand SVG (theme colours, word wrap, phone size) |
+| `src/app/api/extra/visual/route.ts` | **New.** Second-step route: answer → diagram spec |
+| `src/lib/extra-agent.ts` | Chat reply gains `draw: boolean`; new `aiExtraVisual()`; chat timeout 15s |
+| `src/app/extra/page.tsx` | Message ids; "Wondrix is drawing it for you…" status; diagram attached to its message |
+| `src/lib/extra-reply.ts` | Hand-made visuals for 4 local answers (offline demo shows diagrams too) |
+| `src/lib/ai.ts` | Request queue (max concurrency), one retry on HTTP 429, token count in logs |
+| `src/app/api/extra/chat/route.ts` | Returns `draw` (visual no longer inside the chat call) |
+
+**Design decision: the model never writes SVG/HTML**
+
+The agent only returns a tiny JSON **visual spec**, and our components draw it:
+
+| Kind | Use | Shape |
+|------|-----|-------|
+| `steps` | a process in order | 2–5 numbered boxes with arrows (label + short note) |
+| `cycle` | something that repeats | 3–6 nodes on a ring with curved arrows |
+| `compare` | 2–3 things side by side | coloured columns with 1–3 points each |
+| `scale` | sizes or amounts | horizontal bars with values (linear scale) |
+| `web` | parts of one thing | centre circle with 3–6 linked parts |
+
+Why:
+- **Safety:** no model-written markup ever reaches the page. Labels are plain strings rendered as SVG text (React escapes them), and `parseVisual()` drops anything that does not match the schema.
+- **Quality:** a small free model writes reliable short JSON, but drawing SVG by hand is unreliable for it. Our layouts always fit a phone screen and use the age-skin theme colours.
+- **Cost:** a spec is ~80–140 tokens.
+- **No stock art**, as the task asked: every diagram is built from the child's own question.
+
+**How (two steps, so chat stays fast)**
+1. `/api/extra/chat` answers as before and adds `"draw": true|false`: true only when a process, cycle, comparison, sizes or parts would help; false for greetings and small talk.
+2. The page shows the text right away (and speaks it). If `draw` is true, the message shows "Wondrix is drawing it for you…" and the page calls `/api/extra/visual` with the question + answer.
+3. `aiExtraVisual()` asks for `{"visual": spec}` (temperature 0.3, max 260 tokens) and must match the answer without new facts. `parseVisual()` validates it.
+4. The diagram is attached to **that** message by id, so it lands in the right place even if the child already asked something else.
+5. The `<figure>` has the title as caption and an `aria-label` with all of its text (`visualText()`), so screen readers can read it.
+6. **Offline / no key:** four local answers (wheels, Moon, plants, rain) include a hand-made spec, so the demo shows diagrams without AI too.
+7. **Safety of the visual route:** the question and answer must pass the keyword gate. The returned labels pass the keyword gate too. The answer itself already passed the AI output check in step 1, so no extra model call is spent here. Known limit: `/api/extra/visual` trusts the answer text sent by the client. That is fine for this prototype; a production version should look the answer up server-side.
+
+**Rate-limit protection (`ai.ts`)**
+- The first live test put the diagram inside the chat call. That raised the output to ~200 tokens, about 5–6s at the free model's ~40 tokens/s, and sometimes >12s. Timed-out requests seem to keep running at Z.ai, and the next requests then got **HTTP 429 "Rate limit reached"**. That is why the two-step design above was chosen.
+- **Queue:** every AI call from the server waits for a free slot. The default is **1 at a time on Z.ai** (4 on OpenAI) and can be changed with `AI_MAX_CONCURRENCY`, so our own server never fires parallel requests on the free tier.
+- **Retry:** on HTTP 429, wait ~1.5–2s and try once more, then fall back to local content.
+- **Timeouts:** the Extra chat answer may take up to 15s (spikes of 10–12s were seen); other calls keep 12s.
+- Logs show the tokens used: `[ai] extra.visual ok 2595ms (zai:glm-4.5-flash) · 93 tok`.
+
+**Tested**
+- `npm run lint` → 0 problems. `tsc --noEmit` passes. `next build` passes.
+- **Rendering:** all 5 kinds drawn in Chromium at phone width with long labels. All readable and nothing clipped. The scale value label was clipped at first ("1,392,700 k"); fixed with compact numbers ("1.4M km") and more room for the label.
+- **Live Z.ai, 8 questions in a row: 0 errors, 0 rate limits.**
+  - Drew for: Moon phases (`cycle`), Sun vs Earth (`scale`), parts of a robot (`web`), solid/liquid/gas (`compare`), rain (`cycle`).
+  - Did not draw for: "hi!" and "favourite colour" (correct), and "how do plants drink water?" (a judgement call).
+  - Chat ~2–5s (one 10s spike). Diagram ~2.3–4.2s, 79–138 tokens.
+- **End-to-end UI (live):** "how big is the sun compared to earth?" → answer shown and spoken → "Wondrix is drawing it for you…" → a `compare` diagram (Sun vs Earth) appears in the same message, no page errors. One earlier run hit a 12s timeout and fell back to the local answer as designed; that is why the chat timeout is now 15s.
+- Changed after testing: the `scale` bars use a **linear** scale. An earlier square-root version hid the point of "the Sun is 109× wider".
+
+---
+
+### `22b3549`: Fix all 8 ESLint errors (React 19 hooks rules), no behaviour change
 
 **Files:** `src/lib/use-client-state.ts` (**new**), `src/lib/demo-store.ts`, `src/components/SetupGate.tsx`, `src/components/ParentLock.tsx`, `src/app/parent/page.tsx`, `src/app/school/page.tsx`, `src/app/school/practice/page.tsx`, `src/app/school/radar/page.tsx`, `src/app/extra/page.tsx`
 

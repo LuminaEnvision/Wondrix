@@ -88,6 +88,39 @@ function log(tag: string, ok: boolean, ms: number, detail?: string) {
   else console.warn(line);
 }
 
+/* ------------------------------------------------------------------ */
+/* Concurrency limiter + 429 retry                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Free tiers (Z.ai GLM Flash) allow very few requests at the same time.
+ * Requests from this server are queued so we never exceed the limit
+ * (AI_MAX_CONCURRENCY; default 1 for Z.ai, 4 for OpenAI).
+ */
+let active = 0;
+const waiting: (() => void)[] = [];
+
+function maxConcurrency(provider: ProviderConfig): number {
+  const env = Number(process.env.AI_MAX_CONCURRENCY);
+  if (Number.isFinite(env) && env >= 1) return env;
+  return provider.id === "zai" ? 1 : 4;
+}
+
+async function withSlot<T>(provider: ProviderConfig, fn: () => Promise<T>): Promise<T> {
+  if (active >= maxConcurrency(provider)) {
+    await new Promise<void>((resolve) => waiting.push(resolve));
+  }
+  active++;
+  try {
+    return await fn();
+  } finally {
+    active--;
+    waiting.shift()?.();
+  }
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function callChat(
   messages: AiMessage[],
   opts: ChatOptions,
@@ -95,7 +128,25 @@ async function callChat(
 ): Promise<string | null> {
   const provider = aiProvider();
   if (!provider) return null;
+  return withSlot(provider, async () => {
+    // One retry on 429 (rate limit) after a short pause.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const result = await requestOnce(provider, messages, opts, json, attempt);
+      if (result !== "rate-limited") return result;
+      if (attempt === 0) await sleep(1500 + Math.round(Math.random() * 500));
+    }
+    return null;
+  });
+}
 
+async function requestOnce(
+  provider: ProviderConfig,
+  messages: AiMessage[],
+  opts: ChatOptions,
+  json: boolean,
+  attempt: number,
+): Promise<string | null | "rate-limited"> {
+  const tag = attempt ? `${opts.tag} (retry)` : opts.tag;
   const started = Date.now();
   try {
     const res = await fetch(`${provider.baseUrl}/chat/completions`, {
@@ -115,21 +166,26 @@ async function callChat(
       signal: AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),
     });
 
+    if (res.status === 429) {
+      log(tag, false, Date.now() - started, "HTTP 429 rate limit");
+      return "rate-limited";
+    }
     if (!res.ok) {
-      // 429 = free-tier rate limit; the caller falls back to local content.
-      log(opts.tag, false, Date.now() - started, `HTTP ${res.status}`);
+      log(tag, false, Date.now() - started, `HTTP ${res.status}`);
       return null;
     }
 
     const data = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
+      usage?: { completion_tokens?: number };
     };
     const content = data.choices?.[0]?.message?.content?.trim() || null;
-    log(opts.tag, Boolean(content), Date.now() - started, content ? undefined : "empty");
+    const tokens = data.usage?.completion_tokens;
+    log(tag, Boolean(content), Date.now() - started, content ? (tokens ? `${tokens} tok` : undefined) : "empty");
     return content;
   } catch (err) {
     const reason = err instanceof Error ? err.name : "error";
-    log(opts.tag, false, Date.now() - started, reason);
+    log(tag, false, Date.now() - started, reason);
     return null;
   }
 }

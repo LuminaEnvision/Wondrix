@@ -1,12 +1,15 @@
 /**
- * Content-first replies for Extra chat.
- * Text only. On-the-spot visuals are a later agent capability.
+ * Content-first replies for Extra chat (local fallback, no API key needed).
+ * A few answers carry a hand-made visual spec so the offline demo also shows
+ * diagrams; with a key, the live agent draws visuals on the spot.
  */
 
 import { safetyCheck } from "./safety";
+import type { Visual } from "./visual";
 
 export type ExtraReply = {
   text: string;
+  visual?: Visual;
 };
 
 export function localExtraReply(
@@ -35,6 +38,14 @@ export function localExtraReply(
   if (/wheel|wheels|circle|circular|round/.test(t)) {
     return {
       text: "Wheels are round so they can roll. A circle keeps the middle (the axle) the same height above the ground the whole time, so the ride stays smooth. A square wheel would go bump-bump-bump. Want to try imagining a triangle wheel next?",
+      visual: {
+        kind: "compare",
+        title: "Round wheel vs square wheel",
+        columns: [
+          { label: "Round wheel", points: ["Axle stays the same height", "Rolls smoothly"] },
+          { label: "Square wheel", points: ["Axle goes up and down", "Bump, bump, bump"] },
+        ],
+      },
     };
   }
 
@@ -59,6 +70,18 @@ export function localExtraReply(
   if (/moon|phase|crescent|shape/.test(t)) {
     return {
       text: "The Moon doesn't really change shape. Sunlight hits different parts as it goes around Earth, so we see a crescent, a half, or a full circle. Want to know what a new moon is?",
+      visual: {
+        kind: "cycle",
+        title: "Moon phases in a month",
+        items: [
+          { label: "New moon" },
+          { label: "Crescent" },
+          { label: "Half moon" },
+          { label: "Full moon" },
+          { label: "Half again" },
+          { label: "Crescent again" },
+        ],
+      },
     };
   }
 
@@ -71,6 +94,15 @@ export function localExtraReply(
   if (/plant|root|drink|water|living/.test(t) || topicId === "life") {
     return {
       text: "Roots drink water from the soil and send it up the stem to the leaves. The plant uses water, air, and light to make food. Want to know what leaves do with sunlight?",
+      visual: {
+        kind: "steps",
+        title: "How a plant drinks",
+        items: [
+          { label: "Roots soak up water", note: "From wet soil" },
+          { label: "Stem carries it up", note: "Through tiny tubes" },
+          { label: "Leaves use it", note: "With air and light to make food" },
+        ],
+      },
     };
   }
 
@@ -83,6 +115,16 @@ export function localExtraReply(
   if (/rain|cloud|thunder|lightning|weather/.test(t)) {
     return {
       text: "Clouds are made of tiny water drops. When drops join and get heavy, they fall as rain. Lightning is a giant spark of electricity in the cloud. Want to know why thunder comes after lightning?",
+      visual: {
+        kind: "cycle",
+        title: "The water cycle",
+        items: [
+          { label: "Sun warms water" },
+          { label: "Vapor rises" },
+          { label: "Clouds form" },
+          { label: "Rain falls" },
+        ],
+      },
     };
   }
 
