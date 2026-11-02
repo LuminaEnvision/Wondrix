@@ -1,5 +1,5 @@
 import { gradeFromLabel } from "./grades";
-import { pickQuestion, RADAR_BANK } from "./radar";
+import { pickQuestion, RADAR_BANK, shuffleChoices } from "./radar";
 import { getSkill, SKILL_GRAPH } from "./skills";
 import type { MasteryLevel, ParentProfile, RadarItem, SkillId } from "./types";
 
@@ -104,7 +104,8 @@ export function toQuestionPayload(
     skillId: item.skillId,
     skillTitle: getSkill(item.skillId).title,
     prompt: item.prompt,
-    choices: item.choices.map((c) => ({ id: c.id, label: c.label })),
+    // Fresh order every time the question is served (see shuffleChoices).
+    choices: shuffleChoices(item.choices).map((c) => ({ id: c.id, label: c.label })),
     coachLead,
     source,
   };

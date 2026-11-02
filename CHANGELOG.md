@@ -23,6 +23,12 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 - `docs/DEV_CHANGELOG.md`: detailed per-commit log (what, how, why, tests) and stage status.
 
 ### Added (curriculum + question bank)
+- **Question bank revised after review:**
+  - answer options are **shuffled every time** a question is shown (the correct answer had been first in 44/75)
+  - one wrong feedback line fixed (q-shapes-3)
+  - harder Year 7+ cells set
+  - real-misconception distractors from Year 5 up
+  - "dates" made unambiguous
 - **School curriculum picker** in Parent (British, American, Indian CBSE/ICSE, IB, UAE MoE, Other):
   - grades are shown the way the school names them, with ages ("Grade 3 (age 8–9)") in Parent, School, Practice, Radar and the summary
   - the AI prompts get the grade name and spelling (math / maths)

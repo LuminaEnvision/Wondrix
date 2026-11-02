@@ -173,3 +173,37 @@ describe("question bank (phase 1)", () => {
     }
   });
 });
+
+describe("answer position (review fix: correct answer was first in 44/75)", () => {
+  it("shuffleChoices keeps every option and changes order", async () => {
+    const { shuffleChoices, seededRandom } = await import("@/lib/radar");
+    const items = ["a", "b", "c"];
+    const rand = seededRandom(42);
+    const orders = new Set(Array.from({ length: 30 }, () => shuffleChoices(items, rand).join("")));
+    expect(orders.size).toBeGreaterThan(3);
+    for (const o of orders) expect([...o].sort().join("")).toBe("abc");
+  });
+
+  it("served questions put the correct answer in every position, about equally", async () => {
+    const { localNextQuestion } = await import("@/lib/school-agent");
+    const profile = { childNickname: "A", ageBand: "middle" as const, gradeLabel: "Year 5", subjects: ["math", "science"] as ("math" | "science")[], oneLiner: "", calmMode: false };
+    const counts = [0, 0, 0];
+    for (let i = 0; i < 300; i++) {
+      const q = localNextQuestion(profile, "solar-system", [])!;
+      const item = RADAR_BANK.find((r) => r.id === q.questionId)!;
+      const correctId = item.choices.find((c) => c.correct)!.id;
+      counts[q.choices.findIndex((c) => c.id === correctId)]++;
+    }
+    for (const c of counts) expect(c).toBeGreaterThan(50); // ~100 each if uniform
+  });
+});
+
+describe("distractor quality (review)", () => {
+  const silly = ["Sand", "Plastic", "Nothing at all", "Nowhere", "It is on fire", "Balls get tired", "Things grow at night", "Four cakes"];
+  it("no throwaway distractors in questions for Year 5 and above", () => {
+    const upper = new Set(["y5", "y6", "y7+"]);
+    for (const item of RADAR_BANK.filter((r) => r.id.startsWith("q-") && r.grades.some((g) => upper.has(g)))) {
+      for (const c of item.choices) expect(silly, `${item.id}: "${c.label}"`).not.toContain(c.label);
+    }
+  });
+});

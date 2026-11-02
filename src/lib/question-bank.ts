@@ -39,10 +39,10 @@ export const QUESTION_BANK: RadarItem[] = [
   }),
   q({
     id: "q-measure-2", skillId: "measure-length", grades: ["y3", "y4"],
-    prompt: "A crayon starts at 0 and ends at 8 on a ruler. How long is it?",
-    choices: ["7 cm", "8 cm", "9 cm"], correct: 1,
-    explainCorrect: "From 0 to 8 is 8 centimetres.",
-    explainWrong: "Count the spaces from 0, not the lines. From 0 to 8 is 8 cm.",
+    prompt: "A crayon starts at 2 and ends at 9 on a ruler. How long is it?",
+    choices: ["7 cm", "9 cm", "8 cm"], correct: 0,
+    explainCorrect: "Subtract the start from the end: 9 − 2 = 7 cm.",
+    explainWrong: "The crayon does not start at 0, so take away the start: 9 − 2 = 7 cm.",
   }),
   q({
     id: "q-measure-3", skillId: "measure-length", grades: ["y3", "y4"],
@@ -76,7 +76,7 @@ export const QUESTION_BANK: RadarItem[] = [
   }),
   q({
     id: "q-halves-2", skillId: "halves-quarters", grades: ["y1-2", "y3"],
-    prompt: "What is half of 12 dates?",
+    prompt: "What is half of 12 date fruits?",
     choices: ["6", "4", "24"], correct: 0,
     explainCorrect: "Share 12 into 2 equal groups: 6 and 6.",
     explainWrong: "Half means 2 equal groups. 12 shared by 2 is 6. 24 is double, not half.",
@@ -91,9 +91,9 @@ export const QUESTION_BANK: RadarItem[] = [
   q({
     id: "q-halves-4", skillId: "halves-quarters", grades: ["y3", "y4"],
     prompt: "A cake is cut into 4 equal slices. Priya eats 1 slice. What did she eat?",
-    choices: ["One half of the cake", "One quarter of the cake", "Four cakes"], correct: 1,
+    choices: ["One half of the cake", "One quarter of the cake", "One third of the cake"], correct: 1,
     explainCorrect: "1 out of 4 equal slices is one quarter.",
-    explainWrong: "One half would be 2 of the 4 slices. 1 slice out of 4 is one quarter.",
+    explainWrong: "One third would mean 3 equal slices, and one half would be 2 of the 4 slices. 1 slice out of 4 is one quarter.",
   }),
   q({
     id: "q-halves-5", skillId: "halves-quarters", grades: ["y3", "y4"],
@@ -160,7 +160,7 @@ export const QUESTION_BANK: RadarItem[] = [
     prompt: "Which shape has 4 equal sides and 4 right angles?",
     choices: ["A square", "A rectangle", "A triangle"], correct: 0,
     explainCorrect: "A square has 4 equal sides and 4 right angles.",
-    explainWrong: "A rectangle has right angles, but its sides are not all equal. A square has both.",
+    explainWrong: "A rectangle has 4 right angles, but its sides do not have to be equal. A square has 4 equal sides and 4 right angles.",
   }),
   q({
     id: "q-shapes-4", skillId: "shapes-angles", grades: ["y4", "y5"],
@@ -182,12 +182,12 @@ export const QUESTION_BANK: RadarItem[] = [
     id: "q-mult-1", skillId: "multiply-basics", grades: ["y4"],
     prompt: "What is 7 × 8?",
     choices: ["54", "56", "64"], correct: 1,
-    explainCorrect: "7 × 8 = 56. A trick: 5, 6, 7, 8 → 56 = 7 × 8.",
+    explainCorrect: "7 × 8 = 56. Trick: 5, 6, 7, 8 lines up as 56 = 7 × 8.",
     explainWrong: "64 is 8 × 8 and 54 is 6 × 9. 7 × 8 is 56.",
   }),
   q({
     id: "q-mult-2", skillId: "multiply-basics", grades: ["y4"],
-    prompt: "There are 6 boxes with 4 dates in each box. How many dates are there?",
+    prompt: "There are 6 boxes with 4 shells in each box. How many shells are there?",
     choices: ["10", "20", "24"], correct: 2,
     explainCorrect: "6 groups of 4 is 6 × 4 = 24.",
     explainWrong: "10 comes from adding 6 + 4. Equal groups mean multiply: 6 × 4 = 24.",
@@ -208,7 +208,7 @@ export const QUESTION_BANK: RadarItem[] = [
   }),
   q({
     id: "q-mult-5", skillId: "multiply-basics", grades: ["y4", "y5"],
-    prompt: "24 dates are shared equally between 4 friends. How many does each friend get?",
+    prompt: "24 stickers are shared equally between 4 friends. How many does each friend get?",
     choices: ["4", "6", "20"], correct: 1,
     explainCorrect: "24 ÷ 4 = 6, because 4 × 6 = 24.",
     explainWrong: "Sharing equally is dividing. Think: 4 × ? = 24. The answer is 6.",
@@ -275,10 +275,10 @@ export const QUESTION_BANK: RadarItem[] = [
   }),
   q({
     id: "q-pct-4", skillId: "percentages", grades: ["y6"],
-    prompt: "If you eat 100% of a pizza, how much did you eat?",
-    choices: ["Half of it", "All of it", "None of it"], correct: 1,
-    explainCorrect: "100% means the whole thing.",
-    explainWrong: "50% would be half. 100% means all of it.",
+    prompt: "A phone battery shows 75%. Which fraction is that?",
+    choices: ["1/4", "3/4", "7/5"], correct: 1,
+    explainCorrect: "75 out of 100 is three quarters.",
+    explainWrong: "25% is one quarter. 75% is three quarters.",
   }),
   q({
     id: "q-pct-5", skillId: "percentages", grades: ["y7+"],
@@ -306,9 +306,9 @@ export const QUESTION_BANK: RadarItem[] = [
   q({
     id: "q-alg-3", skillId: "algebra-intro", grades: ["y7+"],
     prompt: "Which expression means \"double a number, then add 5\"?",
-    choices: ["2n + 5", "2(n + 5)", "n + 25"], correct: 0,
+    choices: ["2n + 5", "2(n + 5)", "n + 10"], correct: 0,
     explainCorrect: "Double n is 2n, then add 5: 2n + 5.",
-    explainWrong: "2(n + 5) adds 5 first and then doubles. Double first: 2n + 5.",
+    explainWrong: "n + 10 doubles the 5 instead of the number, and 2(n + 5) adds 5 before doubling. Double the number first: 2n + 5.",
   }),
   q({
     id: "q-alg-4", skillId: "algebra-intro", grades: ["y7+"],
@@ -329,7 +329,7 @@ export const QUESTION_BANK: RadarItem[] = [
   q({
     id: "q-living-1", skillId: "living-things", grades: ["y1-2", "y3"],
     prompt: "Which of these do plants need to grow well?",
-    choices: ["Water and light", "Only darkness", "Nothing at all"], correct: 0,
+    choices: ["Water, light and air", "Only darkness", "Nothing at all"], correct: 0,
     explainCorrect: "Plants need water, light and air to grow.",
     explainWrong: "Plants use light to make their food, and they need water too.",
   }),
@@ -389,14 +389,14 @@ export const QUESTION_BANK: RadarItem[] = [
     prompt: "At about what temperature does water boil?",
     choices: ["10 °C", "50 °C", "100 °C"], correct: 2,
     explainCorrect: "Water boils at about 100 °C at sea level.",
-    explainWrong: "A hot Dubai day can reach 50 °C, but water boils at about 100 °C.",
+    explainWrong: "10 °C is a cold day and 50 °C is a very hot day in Dubai. Water needs about 100 °C to boil.",
   }),
   q({
     id: "q-materials-5", skillId: "materials", grades: ["y5", "y6"],
     prompt: "When sugar dissolves in water, what happens to the sugar?",
-    choices: ["It disappears forever", "It is still there, in tiny bits", "It turns into salt"], correct: 1,
+    choices: ["It disappears forever", "It is still there, in tiny bits", "It melts into water"], correct: 1,
     explainCorrect: "The sugar breaks into tiny bits you cannot see. The water tastes sweet.",
-    explainWrong: "Dissolved sugar has not vanished. Taste the water: it is sweet, so the sugar is still there.",
+    explainWrong: "Sugar does not melt in cold water and it does not vanish. Taste the water: it is sweet, so the sugar is still there in tiny bits.",
   }),
 
   /* ---------------- Day and night ---------------- */
@@ -424,14 +424,14 @@ export const QUESTION_BANK: RadarItem[] = [
   q({
     id: "q-day-4", skillId: "day-night", grades: ["y3", "y4"],
     prompt: "Why are shadows long early in the morning?",
-    choices: ["The Sun is low in the sky", "The Sun is closer to us", "Things grow at night"], correct: 0,
+    choices: ["The Sun is low in the sky", "The Sun is closer to us", "The Sun is further away in the morning"], correct: 0,
     explainCorrect: "When the Sun is low, light comes from the side and shadows stretch out.",
-    explainWrong: "The Sun is not closer in the morning. It is low in the sky, so shadows are long.",
+    explainWrong: "The Sun is not closer or further away in the morning. It is low in the sky, so its light comes from the side and shadows stretch out.",
   }),
   q({
     id: "q-day-5", skillId: "day-night", grades: ["y4", "y5"],
     prompt: "When it is daytime in Dubai, where is it night time?",
-    choices: ["Places on the other side of the Earth", "Every other country", "Nowhere"], correct: 0,
+    choices: ["Places on the side of the Earth facing away from the Sun", "Every other country", "Only at the North Pole"], correct: 0,
     explainCorrect: "The side of the Earth facing away from the Sun has night.",
     explainWrong: "Half of the Earth faces the Sun at any time. The far side is in night time.",
   }),
@@ -468,7 +468,7 @@ export const QUESTION_BANK: RadarItem[] = [
   q({
     id: "q-habitats-5", skillId: "habitats", grades: ["y5", "y6"],
     prompt: "What could happen if all the small fish in a sea area disappeared?",
-    choices: ["Animals that eat them would have less food", "Nothing would change", "The sea would turn fresh"], correct: 0,
+    choices: ["Animals that eat them would have less food", "Nothing would change", "Nothing, because the bigger animals would eat seaweed instead"], correct: 0,
     explainCorrect: "Living things depend on each other. Losing one food source affects the whole food chain.",
     explainWrong: "In a habitat everything is linked. Animals that eat the fish would go hungry.",
   }),
@@ -504,19 +504,19 @@ export const QUESTION_BANK: RadarItem[] = [
   }),
   q({
     id: "q-forces-5", skillId: "forces-motion", grades: ["y6", "y7+"],
-    prompt: "A ball rolling on grass slows down and stops. Why?",
-    choices: ["Friction slows it down", "Gravity pushes it backwards", "Balls get tired"], correct: 0,
-    explainCorrect: "Friction between the ball and the grass works against the motion.",
-    explainWrong: "Gravity pulls down, not backwards. Friction with the grass slows the ball.",
+    prompt: "Two children push a box from opposite sides with the same force. What happens?",
+    choices: ["It moves towards the stronger-looking child", "It stays still", "It moves up"], correct: 1,
+    explainCorrect: "Equal forces in opposite directions are balanced, so the box does not move.",
+    explainWrong: "When two pushes are the same size and opposite, they cancel out. Balanced forces mean no movement.",
   }),
 
   /* ---------------- Solar system ---------------- */
   q({
     id: "q-solar-1", skillId: "solar-system", grades: ["y5"],
-    prompt: "Which one of these is a star?",
-    choices: ["The Sun", "The Moon", "Mars"], correct: 0,
-    explainCorrect: "The Sun is a star: a huge ball of hot gas that makes its own light.",
-    explainWrong: "The Moon and Mars do not make their own light. The Sun is our closest star.",
+    prompt: "Why does the Sun look bigger and brighter than other stars?",
+    choices: ["It is the biggest star in space", "It is much closer to us", "It is hotter than all other stars"], correct: 1,
+    explainCorrect: "The Sun is a star like the others, but it is much, much closer to Earth.",
+    explainWrong: "Many stars are bigger and hotter than the Sun. It looks bigger and brighter because it is so close to us.",
   }),
   q({
     id: "q-solar-2", skillId: "solar-system", grades: ["y5", "y6"],
@@ -535,9 +535,9 @@ export const QUESTION_BANK: RadarItem[] = [
   q({
     id: "q-solar-4", skillId: "solar-system", grades: ["y5", "y6"],
     prompt: "Why does the Moon shine at night?",
-    choices: ["It reflects light from the Sun", "It makes its own light", "It is on fire"], correct: 0,
+    choices: ["It reflects light from the Sun", "It makes its own light", "It is a small star"], correct: 0,
     explainCorrect: "The Moon has no light of its own. It reflects sunlight, like a mirror.",
-    explainWrong: "The Moon is a rocky ball, not a fire. We see it because sunlight bounces off it.",
+    explainWrong: "The Moon is a rocky ball, not a star. It has no light of its own: sunlight bounces off it.",
   }),
   q({
     id: "q-solar-5", skillId: "solar-system", grades: ["y6", "y7+"],
@@ -550,10 +550,10 @@ export const QUESTION_BANK: RadarItem[] = [
   /* ---------------- Cells and microbes ---------------- */
   q({
     id: "q-cells-1", skillId: "cells-micro", grades: ["y7+"],
-    prompt: "What are all living things made of?",
-    choices: ["Cells", "Plastic", "Sand"], correct: 0,
-    explainCorrect: "Every living thing is made of one or more cells.",
-    explainWrong: "Cells are the building blocks of life. Every plant and animal is made of them.",
+    prompt: "Which part of a plant cell holds chlorophyll for photosynthesis?",
+    choices: ["Nucleus", "Cell wall", "Chloroplast"], correct: 2,
+    explainCorrect: "Chloroplasts contain green chlorophyll, which captures light to make food.",
+    explainWrong: "The nucleus controls the cell and the cell wall gives it shape. Photosynthesis happens in the chloroplasts.",
   }),
   q({
     id: "q-cells-2", skillId: "cells-micro", grades: ["y7+"],
@@ -564,23 +564,23 @@ export const QUESTION_BANK: RadarItem[] = [
   }),
   q({
     id: "q-cells-3", skillId: "cells-micro", grades: ["y7+"],
-    prompt: "Which tool do scientists use to see cells?",
-    choices: ["A microscope", "A telescope", "A thermometer"], correct: 0,
-    explainCorrect: "A microscope makes tiny things like cells look big.",
-    explainWrong: "A telescope is for faraway things like stars. A microscope is for tiny things.",
+    prompt: "A microscope has a x10 eyepiece lens and a x40 objective lens. What is the total magnification?",
+    choices: ["x50", "x400", "x4,000"], correct: 1,
+    explainCorrect: "Total magnification = eyepiece × objective = 10 × 40 = 400.",
+    explainWrong: "Multiply the two lenses, do not add them: 10 × 40 = 400.",
   }),
   q({
     id: "q-cells-4", skillId: "cells-micro", grades: ["y7+"],
-    prompt: "Why do we wash our hands with soap?",
-    choices: ["To remove harmful microbes", "To make our hands grow", "To add more cells"], correct: 0,
-    explainCorrect: "Soap helps wash away germs (harmful microbes) so we stay healthy.",
-    explainWrong: "Hand washing is about germs. Soap lifts microbes off the skin.",
+    prompt: "Which of these is made of just one cell?",
+    choices: ["A bee", "A bacterium", "A palm tree"], correct: 1,
+    explainCorrect: "A bacterium is a single-celled microbe.",
+    explainWrong: "Bees and palm trees are made of millions of cells. A bacterium is just one cell.",
   }),
   q({
     id: "q-cells-5", skillId: "cells-micro", grades: ["y7+"],
     prompt: "Which tiny living thing helps bread dough rise?",
-    choices: ["Yeast", "Salt", "Sand"], correct: 0,
+    choices: ["Flour", "Yeast", "Sugar"], correct: 1,
     explainCorrect: "Yeast is a microbe. It makes gas bubbles that make dough rise.",
-    explainWrong: "Salt and sand are not alive. Yeast is a living microbe that makes bread rise.",
+    explainWrong: "Flour and sugar are not alive. Yeast is a living microbe that makes bread rise.",
   }),
 ];

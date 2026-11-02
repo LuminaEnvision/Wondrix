@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { saveMastery, loadMastery } from "@/lib/demo-store";
-import { radarForGrade } from "@/lib/radar";
+import { radarForGrade, seededRandom, shuffleChoices } from "@/lib/radar";
 import { nextMastery } from "@/lib/school-agent";
 import { getSkill } from "@/lib/skills";
 import type { MasteryLevel, SkillId } from "@/lib/types";
@@ -19,7 +19,13 @@ export default function RadarPage() {
 
 function RadarRun({ gradeLabel }: { gradeLabel: string }) {
   const gradeShown = useProfileGradeName();
-  const bank = useMemo(() => (gradeLabel ? radarForGrade(gradeLabel, 5) : []), [gradeLabel]);
+  // One random seed per radar run: options are shuffled once and stay put while answering.
+  const [seed] = useState(() => Math.floor(Math.random() * 2 ** 31));
+  const bank = useMemo(() => {
+    if (!gradeLabel) return [];
+    const rand = seededRandom(seed);
+    return radarForGrade(gradeLabel, 5).map((item) => ({ ...item, choices: shuffleChoices(item.choices, rand) }));
+  }, [gradeLabel, seed]);
   const [index, setIndex] = useState(0);
   const [finished, setFinished] = useState(false);
   const [shaky, setShaky] = useState<SkillId[]>([]);

@@ -39,7 +39,55 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### School curriculum picker (grade names + AI wording per curriculum)
+### Question bank revised after Anastasia's review
+
+**Review findings:** all 75 marked answers were correct; tone was fine. Issues:
+- the correct answer was the **first option in 44/75** (30/35 in science), so children could learn "pick the first";
+- one wrong feedback line (q-shapes-3);
+- the Year 7+ cells set was too easy;
+- some distractors no child would pick;
+- "dates" could be read as calendar dates.
+
+**Fixes**
+1. **Shuffle (`radar.ts`: `shuffleChoices`, `seededRandom`)**
+   - Practice: the server shuffles options every time a question is served (`toQuestionPayload`).
+   - Radar: one random seed per radar run, so options don't jump around while answering.
+   - Grading uses choice ids, so order never affects correctness. Authors no longer need to vary positions by hand.
+2. **Per-question changes**
+
+| Id | Change |
+|----|--------|
+| q-shapes-3 | Wrong feedback: "A rectangle has 4 right angles, but its sides do not have to be equal…" (a square is also a rectangle) |
+| q-measure-2 | Crayon from 2 to 9 → 7 cm (reading from 0 was Year 1–2 level) |
+| q-halves-2 / q-mult-2 / q-mult-5 | "date fruits"; shells; stickers (no calendar-date confusion) |
+| q-halves-4 | "Four cakes" → "One third of the cake" |
+| q-mult-1 | Clearer trick: "5, 6, 7, 8 lines up as 56 = 7 × 8" |
+| q-pct-4 | Replaced: battery 75% → 3/4 (was too easy for Year 6) |
+| q-alg-3 | Distractor "n + 25" → "n + 10" (doubling the 5) |
+| q-living-1 | Answer "Water, light and air" (matches the feedback) |
+| q-materials-4 | Separate feedback for 10 °C and 50 °C |
+| q-materials-5 | Distractor "It melts into water" (real misconception) |
+| q-day-4 / q-day-5 | Real misconceptions ("The Sun is further away in the morning", "Only at the North Pole"); clearer correct option |
+| q-habitats-5 | Distractor: "bigger animals would eat seaweed instead" |
+| q-solar-1 | Replaced: why the Sun looks bigger and brighter (it is closer), with misconception distractors |
+| q-solar-4 | Distractor "It is a small star" |
+| q-forces-5 | Replaced: balanced forces (no repeat of friction) |
+| q-cells-1 / 3 / 4 | Year 7+ level: chloroplast, total magnification (10 × 40), single-celled bacterium |
+| q-cells-5 | Distractors Flour / Sugar |
+| q-forces-4 | **Kept:** levers are part of UK Year 5 forces (background knowledge in the research doc, to verify) |
+
+3. The review sheet was regenerated and notes that options are shuffled on screen.
+
+**New tests**
+- `shuffleChoices` keeps all options and varies the order.
+- Over 300 served questions, the correct answer lands in each position more than 50 times (about 100 expected).
+- The listed throwaway distractors (Sand, Plastic, Nowhere, It is on fire…) are banned in Year 5+ items.
+
+**Tested:** `npm run check` → lint ✔, typecheck ✔, **164/164** unit + API ✔, build ✔, **58/58** e2e ✔.
+
+---
+
+### `e1639f5`: School curriculum picker (grade names + AI wording per curriculum)
 
 **Why:** Jorge suggested letting parents choose the curriculum if the curricula differ a lot. The research says they differ mostly in **grade names and ages**: UK Year N ≈ US / IB / UAE Grade N−1 ≈ Indian Class N−1. Content mostly does not differ (all are TIMSS-benchmarked in Dubai). The real risk was a US parent picking "Year 4" for a Grade 4 child, which puts practice one year too high.
 
