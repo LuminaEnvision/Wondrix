@@ -48,6 +48,8 @@ export type ParentProfile = {
   subjects: Array<"math" | "science">;
   oneLiner: string;
   calmMode: boolean;
+  /** App language (UI + Extra answers). Missing = English. */
+  language?: import("./i18n").Lang;
 };
 
 export const PROFILE_CHANGED_EVENT = "wondrix-profile-changed";

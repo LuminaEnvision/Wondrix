@@ -1,8 +1,12 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { useT } from "@/lib/use-client-state";
 
 export default function HomePage() {
+  const tr = useT();
   return (
     <AppShell>
       <section className="flex flex-1 flex-col justify-center gap-6 py-4">
@@ -11,7 +15,7 @@ export default function HomePage() {
             Wondrix
           </h1>
           <p className="text-base font-semibold text-brand sm:text-lg">
-            Your friend on the learning path
+            {tr("home.tagline")}
           </p>
         </div>
 
@@ -19,7 +23,7 @@ export default function HomePage() {
           <div className="relative aspect-[16/10] w-full">
             <Image
               src="/art/mascot-path-hero.jpg"
-              alt="Wondrix choosing between School and Curiosity"
+              alt={tr("home.heroAlt")}
               fill
               className="object-cover object-center"
               sizes="(max-width: 640px) 100vw, 576px"
@@ -43,10 +47,10 @@ export default function HomePage() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-school/95 via-school/55 to-school/20" />
             <div className="relative flex h-full flex-col justify-end px-6 py-7">
-              <p className="text-sm font-bold uppercase tracking-wide opacity-80">Door 1</p>
-              <h2 className="mt-2 font-display text-3xl font-semibold">School</h2>
+              <p className="text-sm font-bold uppercase tracking-wide opacity-80">{tr("home.door1")}</p>
+              <h2 className="mt-2 font-display text-3xl font-semibold">{tr("home.school")}</h2>
               <p className="mt-3 text-base text-white/90">
-                Quizzes and visuals on skills you need in your school program.
+                {tr("home.schoolBlurb")}
               </p>
             </div>
           </Link>
@@ -65,10 +69,10 @@ export default function HomePage() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-extra/95 via-extra/55 to-extra/15" />
             <div className="relative flex h-full flex-col justify-end px-6 py-7">
-              <p className="text-sm font-bold uppercase tracking-wide opacity-80">Door 2</p>
-              <h2 className="mt-2 font-display text-3xl font-semibold">Extra</h2>
+              <p className="text-sm font-bold uppercase tracking-wide opacity-80">{tr("home.door2")}</p>
+              <h2 className="mt-2 font-display text-3xl font-semibold">{tr("home.extra")}</h2>
               <p className="mt-3 text-base text-white/90">
-                Ask anything curious and Wondrix follows up and goes deeper.
+                {tr("home.extraBlurb")}
               </p>
             </div>
           </Link>

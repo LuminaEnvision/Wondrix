@@ -8,10 +8,12 @@ import {
   markSetupSkipped,
   setParentPin,
 } from "@/lib/parent-auth";
-import { useHydrated } from "@/lib/use-client-state";
+import { LanguagePicker } from "@/components/LanguagePicker";
+import { useHydrated, useT } from "@/lib/use-client-state";
 
 export function SetupGate({ children }: { children: React.ReactNode }) {
   const ready = useHydrated();
+  const tr = useT();
   const [closed, setClosed] = useState(false);
   const [pin, setPin] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -21,7 +23,7 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
   if (!ready) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-ink-soft">
-        Loading…
+        {tr("common.loading")}
       </div>
     );
   }
@@ -32,11 +34,11 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
 
   function createPin() {
     if (!/^\d{4}$/.test(pin)) {
-      setError("Use a 4-digit number.");
+      setError(tr("setup.errDigits"));
       return;
     }
     if (pin !== confirm) {
-      setError("Those numbers do not match.");
+      setError(tr("setup.errMatch"));
       return;
     }
     setParentPin(pin);
@@ -61,15 +63,14 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
             priority
           />
         </div>
-        <h1 className="font-display text-3xl font-semibold text-ink">Welcome to Wondrix</h1>
-        <p className="text-ink-soft">
-          Parents can set a 4-digit password for the Parent area. Or skip and explore first.
-        </p>
+        <h1 className="font-display text-3xl font-semibold text-ink">{tr("setup.title")}</h1>
+        <p className="text-ink-soft">{tr("setup.intro")}</p>
       </div>
 
       <div className="space-y-4 rounded-3xl border border-stroke bg-card p-5">
+        <LanguagePicker />
         <label className="block space-y-1">
-          <span className="text-sm font-bold text-ink-soft">Create parent password (4 digits)</span>
+          <span className="text-sm font-bold text-ink-soft">{tr("setup.create")}</span>
           <input
             type="password"
             inputMode="numeric"
@@ -84,7 +85,7 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-sm font-bold text-ink-soft">Confirm password</span>
+          <span className="text-sm font-bold text-ink-soft">{tr("setup.confirm")}</span>
           <input
             type="password"
             inputMode="numeric"
@@ -104,14 +105,14 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
           onClick={createPin}
           className="w-full rounded-full bg-brand py-3 font-bold text-white"
         >
-          Save password
+          {tr("setup.save")}
         </button>
         <button
           type="button"
           onClick={skip}
           className="w-full rounded-full border border-stroke bg-card py-3 font-bold text-ink-soft"
         >
-          Skip for now. Let me explore
+          {tr("setup.skip")}
         </button>
       </div>
     </div>

@@ -6,6 +6,7 @@
 
 import { chatJSON, chatJSONOrText, cleanKidText, type AiMessage } from "./ai";
 import { curriculumPromptLine } from "./curriculum";
+import { asLang, languagePromptLine } from "./i18n";
 import type { AgeBand, ParentProfile } from "./types";
 import { parseVisual, VISUAL_PROMPT, type Visual } from "./visual";
 
@@ -58,6 +59,7 @@ function systemPrompt(profile: ParentProfile | undefined, topicId: string | null
     profile?.gradeLabel ? curriculumPromptLine(profile) : "",
     topic ? `The child picked the interest: ${topic}.` : "",
     calm,
+    languagePromptLine(asLang(profile?.language)),
     "Job: answer the child's question clearly and correctly FIRST. Then ask exactly ONE gentle follow-up question that invites them to think or notice something in real life. followUp is a single sentence that ends with a question mark.",
     "Accuracy first: if you are not sure, say so simply. Do not invent facts or mix up ideas (for example a fridge door is steel that a magnet attracts; it is not a magnet itself).",
     "If the child answers your previous follow-up, react to their idea kindly (even if partly wrong, gently correct) before continuing.",
@@ -141,8 +143,9 @@ export async function aiExtraVisual(input: {
           "You draw simple teaching diagrams for a kids science app. You do not write SVG; you only describe the diagram as JSON.",
           AGE_STYLE[band],
           VISUAL_PROMPT,
+          languagePromptLine(asLang(input.profile?.language)),
           'Reply ONLY as JSON: {"visual": object or null}. The diagram must match the answer exactly; do not add new facts.',
-        ].join("\n"),
+        ].filter(Boolean).join("\n"),
       },
       { role: "user", content: `Child's question: ${input.question}\nAnswer given: ${input.answer}` },
     ],
@@ -161,16 +164,16 @@ export async function aiExtraVisual(input: {
  * Keep everything up to and including the first question.
  */
 export function oneQuestion(text: string): string {
-  const i = text.indexOf("?");
+  const i = text.search(/[?؟]/); // Arabic uses ؟
   return i === -1 ? text : text.slice(0, i + 1).trim();
 }
 
 /** Turn a plain-text reply into { answer, followUp } (the last question, if any). */
 export function splitPlainAnswer(text: string): { answer: string; followUp: string; draw: boolean } {
   const clean = text.replace(/^```\w*|```$/g, "").trim();
-  const sentences = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const sentences = clean.split(/(?<=[.!?؟])\s+/).filter(Boolean);
   const last = sentences.at(-1) ?? "";
-  if (sentences.length > 1 && last.trim().endsWith("?")) {
+  if (sentences.length > 1 && /[?؟]$/.test(last.trim())) {
     return { answer: sentences.slice(0, -1).join(" "), followUp: last, draw: false };
   }
   return { answer: clean, followUp: "", draw: false };

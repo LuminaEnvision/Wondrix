@@ -10,7 +10,7 @@ import { gradeFromLabel } from "@/lib/grades";
 import type { SchoolPlan } from "@/lib/school-agent";
 import { getSkill } from "@/lib/skills";
 import type { SkillId } from "@/lib/types";
-import { useProfileKey } from "@/lib/use-client-state";
+import { useProfileKey, useT } from "@/lib/use-client-state";
 
 type PlanView = {
   /** Profile snapshot this plan belongs to (stale plans are ignored). */
@@ -23,6 +23,7 @@ type PlanView = {
 export default function SchoolHomePage() {
   // Changes when the parent saves the profile (this tab or another tab).
   const profileKey = useProfileKey();
+  const tr = useT();
 
   // Local state of the child, derived during render (no setState in an effect).
   const local = useMemo(() => {
@@ -43,7 +44,9 @@ export default function SchoolHomePage() {
   useEffect(() => {
     if (!local) return;
     const controller = new AbortController();
-    const fallbackNote = `Today: ${local.focusIds.map((id) => getSkill(id).title).join(" · ") || "practice"}.`;
+    const fallbackNote = tr("school.today", {
+      skills: local.focusIds.map((id) => getSkill(id).title).join(" · ") || tr("school.practice"),
+    });
 
     fetch("/api/school/session", {
       method: "POST",
@@ -78,6 +81,8 @@ export default function SchoolHomePage() {
       });
 
     return () => controller.abort();
+    // tr changes with the language; the plan text itself comes from the agent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [local, profileKey]);
 
   const active = plan?.key === profileKey ? plan : null;
@@ -85,7 +90,7 @@ export default function SchoolHomePage() {
   const whyById = active?.why ?? {};
   const coachNote = active?.coachNote ?? "";
   const calm = local?.profile.calmMode ?? false;
-  const nickname = local?.profile.childNickname ?? "friend";
+  const nickname = local?.profile.childNickname || tr("school.friend");
   // Grade shown in the family's curriculum ("Year 4" / "Grade 3" / "Class 3").
   const gradeLabel = local ? gradeName(local.grade.label, local.profile.curriculum) : "Year 3";
   const gradeBlurb = local?.grade.blurb ?? "";
@@ -96,21 +101,19 @@ export default function SchoolHomePage() {
         <div className="flex items-end gap-3 sm:gap-5">
           <div className="relative min-w-0 flex-1 rounded-3xl border border-stroke bg-card px-5 py-5 sm:px-6 sm:py-6">
             <span
-              className="absolute -right-2 bottom-10 hidden h-4 w-4 rotate-45 border-r border-t border-stroke bg-card sm:block"
+              className="absolute -end-2 bottom-10 hidden h-4 w-4 rotate-45 border-r border-t border-stroke bg-card rtl:rotate-[225deg] sm:block"
               aria-hidden
             />
-            <p className="text-sm font-bold uppercase tracking-wide text-school">
-              School agent
-            </p>
+            <p className="text-sm font-bold uppercase tracking-wide text-school">{tr("school.kicker")}</p>
             <h1 className="font-display mt-1 text-3xl font-semibold text-ink">
-              This week for {nickname}
+              {tr("school.weekFor", { name: nickname })}
             </h1>
             <p className="mt-1 text-sm font-semibold text-school">
               {gradeLabel}
               {gradeBlurb ? ` · ${gradeBlurb}` : ""}
             </p>
             <p className="mt-2 text-ink-soft">
-              {coachNote || (calm ? "Soft day. One focus skill." : "Pick a skill to start.")}
+              {coachNote || (calm ? tr("school.softDay") : tr("school.pickSkill"))}
             </p>
           </div>
           <div className="relative h-28 w-24 shrink-0 sm:h-40 sm:w-36">
@@ -126,9 +129,9 @@ export default function SchoolHomePage() {
         </div>
 
         <div className="space-y-3 rounded-3xl border border-stroke bg-card p-5">
-          <p className="text-sm font-bold text-ink-soft">Focus skills for {gradeLabel}</p>
+          <p className="text-sm font-bold text-ink-soft">{tr("school.focusFor", { grade: gradeLabel })}</p>
           {focus.length === 0 ? (
-            <p className="text-ink-soft">Loading…</p>
+            <p className="text-ink-soft">{tr("common.loading")}</p>
           ) : (
             focus.map((id) => {
               const skill = getSkill(id);
@@ -139,7 +142,7 @@ export default function SchoolHomePage() {
                 >
                   <div>
                     <p className="font-semibold text-ink">{skill.title}</p>
-                    <p className="text-sm capitalize text-ink-soft">{skill.subject}</p>
+                    <p className="text-sm text-ink-soft">{tr(skill.subject === "math" ? "subject.math" : "subject.science")}</p>
                     {whyById[id] ? (
                       <p className="mt-1 text-xs text-ink-soft">{whyById[id]}</p>
                     ) : null}
@@ -148,7 +151,7 @@ export default function SchoolHomePage() {
                     href={`/school/practice?skill=${id}`}
                     className="rounded-full bg-school px-4 py-2 text-sm font-bold text-white"
                   >
-                    Start
+                    {tr("school.start")}
                   </Link>
                 </div>
               );
@@ -171,9 +174,9 @@ export default function SchoolHomePage() {
               />
             </div>
             <div className="px-5 py-4">
-              <p className="font-display text-xl font-semibold text-ink">Gap radar</p>
+              <p className="font-display text-xl font-semibold text-ink">{tr("school.radarTitle")}</p>
               <p className="mt-1 text-sm text-ink-soft">
-                Grade-matched checks, including when speaking up feels hard.
+                {tr("school.radarBlurb")}
               </p>
             </div>
           </Link>
@@ -191,9 +194,9 @@ export default function SchoolHomePage() {
               />
             </div>
             <div className="px-5 py-4">
-              <p className="font-display text-xl font-semibold text-ink">Parent note</p>
+              <p className="font-display text-xl font-semibold text-ink">{tr("school.parentNote")}</p>
               <p className="mt-1 text-sm text-ink-soft">
-                Change grade/subjects here. Teacher recommendations and calm mode.
+                {tr("school.parentNoteBlurb")}
               </p>
             </div>
           </Link>

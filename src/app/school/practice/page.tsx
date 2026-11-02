@@ -9,6 +9,7 @@ import { gradeName } from "@/lib/curriculum";
 import { loadMastery, loadProfile, setSkillMastery } from "@/lib/demo-store";
 import type { SchoolGradeResult, SchoolQuestionPayload } from "@/lib/school-agent";
 import type { SkillId } from "@/lib/types";
+import { useT } from "@/lib/use-client-state";
 
 function PracticeInner() {
   const params = useSearchParams();
@@ -36,6 +37,7 @@ async function requestQuestion(skillId: SkillId, avoid: string[]): Promise<Quest
 }
 
 function PracticeSession({ skillId }: { skillId: SkillId }) {
+  const tr = useT();
   const [question, setQuestion] = useState<SchoolQuestionPayload | null>(null);
   const [avoidIds, setAvoidIds] = useState<string[]>([]);
   const [picked, setPicked] = useState<string | null>(null);
@@ -91,7 +93,7 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
     } catch {
       setResult({
         correct: false,
-        explanation: "Something went wrong. Try again in a moment.",
+        explanation: tr("practice.error"),
         mastery: "shaky",
         nextCoach: "",
         nextQuestion: null,
@@ -121,35 +123,35 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
       <div className="space-y-6">
         <div>
           <p className="text-sm font-bold uppercase tracking-wide text-school">
-            School agent · Practice
+            {tr("practice.kicker")}
           </p>
           <h1 className="font-display mt-1 text-3xl font-semibold">
-            {question?.skillTitle ?? "Practice"}
+            {question?.skillTitle ?? tr("practice.title")}
           </h1>
           <p className="mt-2 text-ink-soft">
             {gradeLabel ? `${gradeLabel}. ` : ""}
-            &quot;I don&apos;t know&quot; is ok.
+            {tr("practice.idkOk")}
           </p>
         </div>
 
         {loading ? (
-          <p className="text-ink-soft">School agent is picking a question…</p>
+          <p className="text-ink-soft">{tr("practice.picking")}</p>
         ) : !question ? (
           avoidIds.length ? (
             <div className="space-y-3 rounded-3xl border border-stroke bg-card p-6">
               <p className="font-display text-xl font-semibold text-ink">
-                That&apos;s all the practice for this skill today. Nice work!
+                {tr("practice.allDone")}
               </p>
               <Link
                 href="/school"
                 className="inline-flex font-bold text-school underline-offset-4 hover:underline"
               >
-                Back to this week
+                {tr("practice.backWeek")}
               </Link>
             </div>
           ) : (
             <p className="text-ink-soft">
-              No questions for this skill at your grade yet. Change grade in Parent, or try another focus.
+              {tr("practice.noQuestions")}
             </p>
           )
         ) : (
@@ -174,7 +176,7 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
                     type="button"
                     disabled={Boolean(result) || grading}
                     onClick={() => void choose(choice.id)}
-                    className={`block w-full rounded-2xl border px-4 py-3 text-left font-semibold text-ink ${tone}`}
+                    className={`block w-full rounded-2xl border px-4 py-3 text-start font-semibold text-ink ${tone}`}
                   >
                     {choice.label}
                   </button>
@@ -184,9 +186,9 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
                 type="button"
                 disabled={Boolean(result) || grading}
                 onClick={() => void choose("idk")}
-                className="block w-full rounded-2xl border border-dashed border-stroke px-4 py-3 text-left text-ink-soft"
+                className="block w-full rounded-2xl border border-dashed border-stroke px-4 py-3 text-start text-ink-soft"
               >
-                I don&apos;t know yet
+                {tr("practice.idk")}
               </button>
             </div>
 
@@ -213,13 +215,13 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
                     onClick={nextRound}
                     className="rounded-full bg-school px-4 py-2 text-sm font-bold text-white"
                   >
-                    Next question
+                    {tr("practice.next")}
                   </button>
                   <Link
                     href="/school"
                     className="inline-flex items-center font-bold text-school underline-offset-4 hover:underline"
                   >
-                    Back to this week
+                    {tr("practice.backWeek")}
                   </Link>
                 </div>
               </div>
@@ -232,11 +234,12 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
 }
 
 export default function PracticePage() {
+  const tr = useT();
   return (
     <Suspense
       fallback={
         <AppShell backHref="/school">
-          <p className="text-ink-soft">Loading practice…</p>
+          <p className="text-ink-soft">{tr("practice.loading")}</p>
         </AppShell>
       }
     >

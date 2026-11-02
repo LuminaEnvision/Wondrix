@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { useT } from "@/lib/use-client-state";
 import { getServerSpeech, getSpeech, speak, stopSpeaking, subscribeSpeech } from "@/lib/voice";
 
 /** Animated equalizer bars shown while Wondrix is talking. */
@@ -32,7 +33,7 @@ export function SpeakButton({
   id,
   text,
   tone = "brand",
-  label = "Listen to this answer",
+  label,
 }: {
   id: string;
   text: string;
@@ -40,6 +41,7 @@ export function SpeakButton({
   /** Accessible name of the play button. */
   label?: string;
 }) {
+  const tr = useT();
   const s = useSyncExternalStore(subscribeSpeech, getSpeech, getServerSpeech);
   const mine = "id" in s && s.id === id;
   const color = tone === "extra" ? "text-extra border-extra/30" : "text-brand border-brand/30";
@@ -49,16 +51,16 @@ export function SpeakButton({
       <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
         <span className={`inline-flex items-center gap-1.5 text-xs font-bold ${color.split(" ")[0]}`}>
           {s.state === "preparing" ? <Spinner /> : <Bars />}
-          {s.state === "preparing" ? "Preparing voice…" : "Speaking"}
+          {s.state === "preparing" ? tr("speak.preparing") : tr("speak.speaking")}
         </span>
         <button
           type="button"
           onClick={stopSpeaking}
           className={`inline-flex items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-xs font-bold ${color}`}
-          aria-label="Stop reading"
+          aria-label={tr("speak.stopLabel")}
         >
           <span className="inline-block h-2 w-2 rounded-[2px] bg-current" aria-hidden />
-          Stop
+          {tr("speak.stop")}
         </button>
       </span>
     );
@@ -70,17 +72,17 @@ export function SpeakButton({
         type="button"
         onClick={() => speak(text, { id })}
         className={`inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1 text-xs font-bold ${color}`}
-        aria-label={label}
+        aria-label={label ?? tr("speak.listenAnswer")}
       >
         <span
           className="inline-block h-0 w-0 border-y-[5px] border-l-[8px] border-y-transparent border-l-current"
           aria-hidden
         />
-        Listen
+        {tr("speak.listen")}
       </button>
       {mine && s.state === "unavailable" ? (
         <span className="text-xs text-ink-soft" role="status">
-          No sound available on this device. You can read the answer.
+          {tr("speak.noSound")}
         </span>
       ) : null}
     </span>

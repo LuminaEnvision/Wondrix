@@ -12,7 +12,13 @@
  *               Google, Samantha...). Always the last fallback.
  *
  * Mic input stays on the Web Speech API (Chrome/Edge/Safari).
+ *
+ * Arabic (profile.language = "ar"): Kokoro has no Arabic voice, so the chain is
+ * Azure (ar-AE voice, when configured) then the best installed Arabic browser voice.
+ * The mic listens in ar-AE.
  */
+
+import { currentLang, langInfo, t, type MessageKey } from "./i18n";
 
 type Engine = "kokoro" | "azure" | "browser";
 
@@ -41,6 +47,7 @@ const KOKORO_VOICE = process.env.NEXT_PUBLIC_KOKORO_VOICE || "af_heart";
 
 function engineChain(): Engine[] {
   const primary = (process.env.NEXT_PUBLIC_TTS_ENGINE || "kokoro").toLowerCase() as Engine;
+  if (currentLang() !== "en") return primary === "azure" ? ["azure", "browser"] : ["browser"];
   if (primary === "browser") return ["browser"];
   if (primary === "azure") return ["azure", "kokoro", "browser"];
   return ["kokoro", "browser"];
@@ -106,7 +113,7 @@ export function canListen(): boolean {
 function splitSentences(text: string): string[] {
   return text
     .replace(/\s+/g, " ")
-    .split(/(?<=[.!?])\s+/)
+    .split(/(?<=[.!?؟])\s+/)
     .map((s) => s.trim())
     .filter(Boolean);
 }
@@ -354,7 +361,7 @@ async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise
   const res = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, lang: currentLang() }),
   });
   if (res.status === 501) {
     azureUnavailable = true; // not configured on the server
@@ -380,9 +387,11 @@ async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise
 /* Engine: browser Web Speech (best voice available)                   */
 /* ------------------------------------------------------------------ */
 
-/** Rank voices: neural/natural first, then known good ones, then any English. */
+/** Rank voices for the app language: neural/natural first, then known good ones. */
 function scoreVoice(v: SpeechSynthesisVoice): number {
-  if (!/^en/i.test(v.lang)) return -1;
+  const lang = currentLang();
+  if (!v.lang.toLowerCase().startsWith(lang)) return -1;
+  if (lang === "ar" && /ar[-_]AE/i.test(v.lang)) return 60 + (/natural|neural|google/i.test(v.name) ? 50 : 0);
   let s = 0;
   if (/natural|neural/i.test(v.name)) s += 50; // Edge "Microsoft Aria Online (Natural)"
   if (/google/i.test(v.name)) s += 30; // Chrome "Google US English"
@@ -436,7 +445,7 @@ async function speakBrowser(text: string, opts: SpeakOpts, token: number): Promi
       const u = new SpeechSynthesisUtterance(sentence);
       u.rate = opts.rate ?? 0.95;
       u.pitch = opts.pitch ?? 1.05;
-      u.lang = voice?.lang ?? "en-US";
+      u.lang = voice?.lang ?? langInfo(currentLang()).speech;
       if (voice) {
         try {
           u.voice = voice;
@@ -477,14 +486,12 @@ function getRecognitionCtor(): (new () => SpeechRecognition) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-const MIC_ERRORS: Record<string, string> = {
-  "not-allowed": "Please allow the microphone in the browser.",
-  network:
-    "Voice listening needs internet (Chrome sends audio to a speech service). Check wifi, or type your question.",
-  "service-not-allowed":
-    "This browser blocked speech recognition (Brave does this). Try Chrome, or type instead.",
-  "audio-capture": "No microphone found. Check your device, or type instead.",
-  "language-not-supported": "This language is not supported for voice. Type instead.",
+const MIC_ERRORS: Record<string, MessageKey> = {
+  "not-allowed": "mic.notAllowed",
+  network: "mic.network",
+  "service-not-allowed": "mic.serviceNotAllowed",
+  "audio-capture": "mic.audioCapture",
+  "language-not-supported": "mic.langNotSupported",
 };
 
 export type DictationHandle = {
@@ -510,7 +517,7 @@ export function startDictation(options: {
 }): DictationHandle | null {
   const Ctor = getRecognitionCtor();
   if (!Ctor) {
-    options.onError("Voice input needs Chrome, Edge, or Safari. You can type instead.");
+    options.onError(t("mic.needsBrowser", undefined, currentLang()));
     return null;
   }
 
@@ -525,7 +532,7 @@ export function startDictation(options: {
   const text = () => `${finalText} ${interimText}`.replace(/\s+/g, " ").trim();
 
   const recognition = new Ctor();
-  recognition.lang = options.lang ?? "en-US";
+  recognition.lang = options.lang ?? langInfo(currentLang()).speech;
   recognition.interimResults = true;
   recognition.continuous = true;
   recognition.maxAlternatives = 1;
@@ -546,7 +553,7 @@ export function startDictation(options: {
     if (err === "no-speech" || err === "aborted") return; // silence is fine: keep listening
     active = false;
     cleanupLevel();
-    options.onError(MIC_ERRORS[err] ?? `Mic issue (${err}). You can still type your question.`);
+    options.onError(t(MIC_ERRORS[err] ?? "mic.failed", undefined, currentLang()));
   };
 
   recognition.onend = () => {
@@ -614,7 +621,7 @@ export function startDictation(options: {
   try {
     recognition.start();
   } catch {
-    options.onError("Could not start the microphone.");
+    options.onError(t("mic.failed", undefined, currentLang()));
     return null;
   }
 
