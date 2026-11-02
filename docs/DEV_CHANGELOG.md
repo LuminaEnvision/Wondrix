@@ -39,7 +39,30 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Question bank revised after Anastasia's review
+### Extra chat history (Past chats)
+
+**What:** Anastasia noticed that "New chat" threw the old chat away. Now every Extra chat is saved on the device and can be reopened.
+- "New chat" starts a fresh chat; the old one stays in **Past chats**.
+- **Past chats** button lists saved chats (title = the child's first question, date, number of messages, "open now" on the current one). Tap to reopen; × deletes one.
+- A reopened chat continues **with its context**: its messages are sent as history, so the agent remembers what was said.
+- **Parent** has an "Extra chat history" card with the count and a "Clear chat history" button (asks to confirm).
+
+**How**
+- `src/lib/demo-store.ts`: `listChats`, `loadChat`, `saveChat`, `deleteChat`, `clearAllChats`, `getActiveChatId` / `setActiveChatId`, `chatTitle`, `newChatId`.
+  - Chats live in `localStorage` (`wondrix-extra-chats`), so they survive closing the browser. The open chat id is in `sessionStorage`.
+  - Limits (easy to change, as Jorge suggested): `MAX_SAVED_CHATS = 20` (oldest dropped), `MAX_SAVED_MESSAGES = 30` per chat (oldest dropped). Empty chats are not stored.
+  - The old single-chat format (`wondrix-extra-chat` in sessionStorage) is imported once, so nothing is lost on upgrade.
+- `src/app/extra/page.tsx`: restores the open chat at render time after hydration, saves after each message, `openChat()` stops speech before switching. A chat id is created on the first message.
+- `src/app/parent/page.tsx`: history card with count and clear button.
+
+**Why:** children come back to topics they liked; a parent should be able to see that history exists and wipe it. Everything stays on the device (no server storage yet; Supabase is a later step).
+
+**Tests**
+- `tests/unit/chat-history.test.ts` (6): order and titles, empty chats skipped, 20 chat / 30 message limits, delete and clear, legacy import once, long titles.
+- `tests/e2e/extra.spec.ts`: memory test updated (New chat keeps old chat but starts with empty history); new test: two chats → Past chats lists both → reopen the first → next message carries its 2 history turns → Parent shows "2 chats saved" → Clear → Extra shows "No saved chats yet".
+- Results: Vitest 170/170, Playwright 60/60 (phone + desktop), lint and build clean.
+
+### Question bank revised after Anastasia's review (`f98490a`)
 
 **Review findings:** all 75 marked answers were correct; tone was fine. Issues:
 - the correct answer was the **first option in 44/75** (30/35 in science), so children could learn "pick the first";

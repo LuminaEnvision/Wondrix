@@ -5,11 +5,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import {
-  clearExtraChat,
-  loadExtraChat,
+  deleteChat,
+  getActiveChatId,
+  listChats,
+  loadChat,
+  newChatId,
+  setActiveChatId as storeActiveChatId,
   loadProfile,
   recordSafetyRedirect,
-  saveExtraChat,
+  saveChat,
+  type SavedChat,
   saveExtraTopic,
 } from "@/lib/demo-store";
 import { useHydrated } from "@/lib/use-client-state";
@@ -77,6 +82,11 @@ type Interest = (typeof INTERESTS)[number];
 const OPENING =
   "If you're not sure where to start… why is the sky blue in the day, but black at night?";
 
+/** Saved chat → page messages (no "drawing" flags on restore). */
+function toMsgs(chat: SavedChat): Msg[] {
+  return chat.messages.map((m) => ({ ...m, visual: (m.visual as Visual | null) ?? null }));
+}
+
 function ExtraInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -103,19 +113,34 @@ function ExtraInner() {
   const didGreet = useRef(false);
   const messagesRef = useRef<Msg[]>([]);
 
-  // Restore this visit's conversation after a reload (sessionStorage), so the
-  // agent keeps its short-term context. Render-time adjustment, not an effect.
+  // Chat history: every conversation is saved on the device (localStorage); this tab
+  // remembers which one is open (sessionStorage), so a reload continues it with context.
+  const [activeChatId, setActiveChatIdState] = useState<string | null>(null);
+  const [pastChats, setPastChats] = useState<SavedChat[] | null>(null); // null = panel closed
   const hydrated = useHydrated();
   const [restored, setRestored] = useState(false);
   if (hydrated && !restored) {
+    // Render-time adjustment (not an effect): restore the open chat once after hydration.
     setRestored(true);
-    const saved = loadExtraChat();
-    if (saved.length) setMessages(saved.map((m) => ({ ...m, visual: (m.visual as Visual | null) ?? null })));
+    const active = getActiveChatId();
+    const chat = active ? loadChat(active) : undefined;
+    if (active && chat) {
+      setActiveChatIdState(active);
+      setMessages(toMsgs(chat));
+    }
   }
 
   useEffect(() => {
-    if (restored) saveExtraChat(messages);
-  }, [messages, restored]);
+    if (restored && activeChatId && messages.length) saveChat(activeChatId, messages);
+  }, [messages, restored, activeChatId]);
+
+  function openChat(id: string | null, msgs: Msg[]) {
+    stopSpeaking();
+    setActiveChatIdState(id);
+    storeActiveChatId(id);
+    setMessages(msgs);
+    setPastChats(null);
+  }
 
   const micOk = canListen();
   const speakOk = canSpeak();
@@ -160,6 +185,11 @@ function ExtraInner() {
     setInput("");
 
     const history = messagesRef.current;
+    if (!activeChatId) {
+      const id = newChatId();
+      setActiveChatIdState(id);
+      storeActiveChatId(id);
+    }
     // Ids continue after restored messages (keys + per-message voice state).
     const baseId = history.reduce((max, m) => Math.max(max, m.id), 0);
     const childMsg: Msg = { id: baseId + 1, role: "child", text: trimmed };
@@ -358,18 +388,63 @@ function ExtraInner() {
           {messages.length > 0 ? (
             <button
               type="button"
-              onClick={() => {
-                stopSpeaking();
-                setMessages([]);
-                clearExtraChat();
-              }}
+              onClick={() => openChat(null, [])}
               className="rounded-full border border-stroke bg-card px-4 py-2 text-sm font-bold text-ink-soft"
-              title="Start a fresh conversation"
+              title="Start a fresh conversation (this one stays in Past chats)"
             >
               New chat
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={() => setPastChats(pastChats ? null : listChats())}
+            aria-expanded={Boolean(pastChats)}
+            className="rounded-full border border-stroke bg-card px-4 py-2 text-sm font-bold text-ink-soft"
+          >
+            Past chats
+          </button>
         </div>
+
+        {pastChats ? (
+          <div className="space-y-2 rounded-3xl border border-stroke bg-card p-4" role="region" aria-label="Past chats">
+            <p className="text-sm font-bold text-ink-soft">Your past chats</p>
+            {pastChats.length === 0 ? (
+              <p className="text-sm text-ink-soft">No saved chats yet. Ask a question to start one.</p>
+            ) : (
+              <ul className="space-y-2">
+                {pastChats.map((c) => (
+                  <li key={c.id} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openChat(c.id, toMsgs(c))}
+                      className={`min-w-0 flex-1 rounded-2xl px-3 py-2 text-left ${
+                        c.id === activeChatId ? "bg-extra/10 ring-1 ring-extra/30" : "bg-bg-deep/50"
+                      }`}
+                    >
+                      <span className="block truncate text-sm font-semibold text-ink">{c.title}</span>
+                      <span className="block text-xs text-ink-soft">
+                        {new Date(c.updatedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })} ·{" "}
+                        {c.messages.length} messages{c.id === activeChatId ? " · open now" : ""}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        deleteChat(c.id);
+                        if (c.id === activeChatId) openChat(null, []);
+                        setPastChats(listChats());
+                      }}
+                      className="rounded-full px-2 py-1 text-sm text-ink-soft hover:text-ink"
+                      aria-label={`Delete chat: ${c.title}`}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : null}
 
         <div className="flex min-h-[260px] flex-1 flex-col gap-3 rounded-3xl border border-stroke bg-card p-4">
           {messages.length === 0 ? (

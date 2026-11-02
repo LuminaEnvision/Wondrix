@@ -8,6 +8,8 @@ import {
   buildDaySummary,
   loadExtraTopic,
   loadSafetyRedirects,
+  clearAllChats,
+  listChats,
   loadMastery,
   loadProfile,
   pickFocusSkills,
@@ -56,6 +58,7 @@ function ParentHome() {
   const [pinSet, setPinSet] = useState(() => hasParentPin());
   const [newPin, setNewPin] = useState("");
   const [pinMsg, setPinMsg] = useState("");
+  const [chatCount, setChatCount] = useState(() => listChats().length);
 
   function update<K extends keyof ParentProfile>(key: K, value: ParentProfile[K]) {
     setProfile((prev) => ({ ...prev, [key]: value }));
@@ -191,6 +194,28 @@ function ParentHome() {
               <p className="text-sm font-semibold text-brand">
                 Saved. Open School to see new focus skills for {gradeName(profile.gradeLabel, profile.curriculum)}.
               </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-3 rounded-3xl border border-stroke bg-card p-5">
+            <p className="font-display text-lg font-semibold text-ink">Extra chat history</p>
+            <p className="text-sm text-ink-soft">
+              {chatCount === 0
+                ? "No chats saved on this device."
+                : `${chatCount} chat${chatCount === 1 ? "" : "s"} saved on this device (the 20 most recent are kept).`}
+            </p>
+            {chatCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!window.confirm("Delete all saved Extra chats on this device?")) return;
+                  clearAllChats();
+                  setChatCount(0);
+                }}
+                className="rounded-full border border-stroke bg-card px-4 py-2 text-sm font-bold text-ink-soft"
+              >
+                Clear chat history
+              </button>
             ) : null}
           </div>
 
