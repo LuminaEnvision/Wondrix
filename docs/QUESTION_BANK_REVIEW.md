@@ -1,8 +1,10 @@
-# Question bank review (phase 1 draft)
+# Question bank review (phase 1, revised)
 
-75 new questions, about 5 per skill, written from [CURRICULUM_RESEARCH.md](./CURRICULUM_RESEARCH.md). ✅ marks the correct answer.
+75 questions, about 5 per skill, written from [CURRICULUM_RESEARCH.md](./CURRICULUM_RESEARCH.md). ✅ marks the correct answer.
 
-**How to review:** check that each question is accurate, age-appropriate for its years and kind in tone. Write your notes next to the id (e.g. "q-halves-3: change 20 to 12"), or edit `src/lib/question-bank.ts` directly. Generated from the code, so the code is the source of truth.
+**Revised after Anastasia's review:** every note applied except q-forces-4, which stays because levers are part of UK Year 5 forces (background knowledge, to verify). Details in DEV_CHANGELOG. **Options are shuffled every time a question is shown**, so the order below is only the authoring order.
+
+**How to review:** check that each question is accurate, age-appropriate for its years and kind in tone. Write notes next to the id (e.g. "q-halves-3: change 20 to 12"). Generated from `src/lib/question-bank.ts`, which is the source of truth.
 
 ## Measuring length (math)
 
@@ -19,14 +21,14 @@
 
 **q-measure-2** · Year 3, Year 4
 
-> A crayon starts at 0 and ends at 8 on a ruler. How long is it?
+> A crayon starts at 2 and ends at 9 on a ruler. How long is it?
 
-- ▫️ 7 cm
-- ✅ 8 cm
+- ✅ 7 cm
 - ▫️ 9 cm
+- ▫️ 8 cm
 
-*If right:* From 0 to 8 is 8 centimetres.  
-*If wrong:* Count the spaces from 0, not the lines. From 0 to 8 is 8 cm.
+*If right:* Subtract the start from the end: 9 − 2 = 7 cm.  
+*If wrong:* The crayon does not start at 0, so take away the start: 9 − 2 = 7 cm.
 
 **q-measure-3** · Year 3, Year 4
 
@@ -76,7 +78,7 @@
 
 **q-halves-2** · Year 1–2, Year 3
 
-> What is half of 12 dates?
+> What is half of 12 date fruits?
 
 - ✅ 6
 - ▫️ 4
@@ -102,10 +104,10 @@
 
 - ▫️ One half of the cake
 - ✅ One quarter of the cake
-- ▫️ Four cakes
+- ▫️ One third of the cake
 
 *If right:* 1 out of 4 equal slices is one quarter.  
-*If wrong:* One half would be 2 of the 4 slices. 1 slice out of 4 is one quarter.
+*If wrong:* One third would mean 3 equal slices, and one half would be 2 of the 4 slices. 1 slice out of 4 is one quarter.
 
 **q-halves-5** · Year 3, Year 4
 
@@ -208,7 +210,7 @@
 - ▫️ A triangle
 
 *If right:* A square has 4 equal sides and 4 right angles.  
-*If wrong:* A rectangle has right angles, but its sides are not all equal. A square has both.
+*If wrong:* A rectangle has 4 right angles, but its sides do not have to be equal. A square has 4 equal sides and 4 right angles.
 
 **q-shapes-4** · Year 4, Year 5
 
@@ -242,12 +244,12 @@
 - ✅ 56
 - ▫️ 64
 
-*If right:* 7 × 8 = 56. A trick: 5, 6, 7, 8 → 56 = 7 × 8.  
+*If right:* 7 × 8 = 56. Trick: 5, 6, 7, 8 lines up as 56 = 7 × 8.  
 *If wrong:* 64 is 8 × 8 and 54 is 6 × 9. 7 × 8 is 56.
 
 **q-mult-2** · Year 4
 
-> There are 6 boxes with 4 dates in each box. How many dates are there?
+> There are 6 boxes with 4 shells in each box. How many shells are there?
 
 - ▫️ 10
 - ▫️ 20
@@ -280,7 +282,7 @@
 
 **q-mult-5** · Year 4, Year 5
 
-> 24 dates are shared equally between 4 friends. How many does each friend get?
+> 24 stickers are shared equally between 4 friends. How many does each friend get?
 
 - ▫️ 4
 - ✅ 6
@@ -383,14 +385,14 @@
 
 **q-pct-4** · Year 6
 
-> If you eat 100% of a pizza, how much did you eat?
+> A phone battery shows 75%. Which fraction is that?
 
-- ▫️ Half of it
-- ✅ All of it
-- ▫️ None of it
+- ▫️ 1/4
+- ✅ 3/4
+- ▫️ 7/5
 
-*If right:* 100% means the whole thing.  
-*If wrong:* 50% would be half. 100% means all of it.
+*If right:* 75 out of 100 is three quarters.  
+*If wrong:* 25% is one quarter. 75% is three quarters.
 
 **q-pct-5** · Year 7+
 
@@ -433,10 +435,10 @@
 
 - ✅ 2n + 5
 - ▫️ 2(n + 5)
-- ▫️ n + 25
+- ▫️ n + 10
 
 *If right:* Double n is 2n, then add 5: 2n + 5.  
-*If wrong:* 2(n + 5) adds 5 first and then doubles. Double first: 2n + 5.
+*If wrong:* n + 10 doubles the 5 instead of the number, and 2(n + 5) adds 5 before doubling. Double the number first: 2n + 5.
 
 **q-alg-4** · Year 7+
 
@@ -466,7 +468,7 @@
 
 > Which of these do plants need to grow well?
 
-- ✅ Water and light
+- ✅ Water, light and air
 - ▫️ Only darkness
 - ▫️ Nothing at all
 
@@ -561,7 +563,7 @@
 - ✅ 100 °C
 
 *If right:* Water boils at about 100 °C at sea level.  
-*If wrong:* A hot Dubai day can reach 50 °C, but water boils at about 100 °C.
+*If wrong:* 10 °C is a cold day and 50 °C is a very hot day in Dubai. Water needs about 100 °C to boil.
 
 **q-materials-5** · Year 5, Year 6
 
@@ -569,10 +571,10 @@
 
 - ▫️ It disappears forever
 - ✅ It is still there, in tiny bits
-- ▫️ It turns into salt
+- ▫️ It melts into water
 
 *If right:* The sugar breaks into tiny bits you cannot see. The water tastes sweet.  
-*If wrong:* Dissolved sugar has not vanished. Taste the water: it is sweet, so the sugar is still there.
+*If wrong:* Sugar does not melt in cold water and it does not vanish. Taste the water: it is sweet, so the sugar is still there in tiny bits.
 
 ## Day and night (science)
 
@@ -615,18 +617,18 @@
 
 - ✅ The Sun is low in the sky
 - ▫️ The Sun is closer to us
-- ▫️ Things grow at night
+- ▫️ The Sun is further away in the morning
 
 *If right:* When the Sun is low, light comes from the side and shadows stretch out.  
-*If wrong:* The Sun is not closer in the morning. It is low in the sky, so shadows are long.
+*If wrong:* The Sun is not closer or further away in the morning. It is low in the sky, so its light comes from the side and shadows stretch out.
 
 **q-day-5** · Year 4, Year 5
 
 > When it is daytime in Dubai, where is it night time?
 
-- ✅ Places on the other side of the Earth
+- ✅ Places on the side of the Earth facing away from the Sun
 - ▫️ Every other country
-- ▫️ Nowhere
+- ▫️ Only at the North Pole
 
 *If right:* The side of the Earth facing away from the Sun has night.  
 *If wrong:* Half of the Earth faces the Sun at any time. The far side is in night time.
@@ -683,7 +685,7 @@
 
 - ✅ Animals that eat them would have less food
 - ▫️ Nothing would change
-- ▫️ The sea would turn fresh
+- ▫️ Nothing, because the bigger animals would eat seaweed instead
 
 *If right:* Living things depend on each other. Losing one food source affects the whole food chain.  
 *If wrong:* In a habitat everything is linked. Animals that eat the fish would go hungry.
@@ -736,27 +738,27 @@
 
 **q-forces-5** · Year 6, Year 7+
 
-> A ball rolling on grass slows down and stops. Why?
+> Two children push a box from opposite sides with the same force. What happens?
 
-- ✅ Friction slows it down
-- ▫️ Gravity pushes it backwards
-- ▫️ Balls get tired
+- ▫️ It moves towards the stronger-looking child
+- ✅ It stays still
+- ▫️ It moves up
 
-*If right:* Friction between the ball and the grass works against the motion.  
-*If wrong:* Gravity pulls down, not backwards. Friction with the grass slows the ball.
+*If right:* Equal forces in opposite directions are balanced, so the box does not move.  
+*If wrong:* When two pushes are the same size and opposite, they cancel out. Balanced forces mean no movement.
 
 ## Solar system (science)
 
 **q-solar-1** · Year 5
 
-> Which one of these is a star?
+> Why does the Sun look bigger and brighter than other stars?
 
-- ✅ The Sun
-- ▫️ The Moon
-- ▫️ Mars
+- ▫️ It is the biggest star in space
+- ✅ It is much closer to us
+- ▫️ It is hotter than all other stars
 
-*If right:* The Sun is a star: a huge ball of hot gas that makes its own light.  
-*If wrong:* The Moon and Mars do not make their own light. The Sun is our closest star.
+*If right:* The Sun is a star like the others, but it is much, much closer to Earth.  
+*If wrong:* Many stars are bigger and hotter than the Sun. It looks bigger and brighter because it is so close to us.
 
 **q-solar-2** · Year 5, Year 6
 
@@ -786,10 +788,10 @@
 
 - ✅ It reflects light from the Sun
 - ▫️ It makes its own light
-- ▫️ It is on fire
+- ▫️ It is a small star
 
 *If right:* The Moon has no light of its own. It reflects sunlight, like a mirror.  
-*If wrong:* The Moon is a rocky ball, not a fire. We see it because sunlight bounces off it.
+*If wrong:* The Moon is a rocky ball, not a star. It has no light of its own: sunlight bounces off it.
 
 **q-solar-5** · Year 6, Year 7+
 
@@ -806,14 +808,14 @@
 
 **q-cells-1** · Year 7+
 
-> What are all living things made of?
+> Which part of a plant cell holds chlorophyll for photosynthesis?
 
-- ✅ Cells
-- ▫️ Plastic
-- ▫️ Sand
+- ▫️ Nucleus
+- ▫️ Cell wall
+- ✅ Chloroplast
 
-*If right:* Every living thing is made of one or more cells.  
-*If wrong:* Cells are the building blocks of life. Every plant and animal is made of them.
+*If right:* Chloroplasts contain green chlorophyll, which captures light to make food.  
+*If wrong:* The nucleus controls the cell and the cell wall gives it shape. Photosynthesis happens in the chloroplasts.
 
 **q-cells-2** · Year 7+
 
@@ -828,33 +830,33 @@
 
 **q-cells-3** · Year 7+
 
-> Which tool do scientists use to see cells?
+> A microscope has a x10 eyepiece lens and a x40 objective lens. What is the total magnification?
 
-- ✅ A microscope
-- ▫️ A telescope
-- ▫️ A thermometer
+- ▫️ x50
+- ✅ x400
+- ▫️ x4,000
 
-*If right:* A microscope makes tiny things like cells look big.  
-*If wrong:* A telescope is for faraway things like stars. A microscope is for tiny things.
+*If right:* Total magnification = eyepiece × objective = 10 × 40 = 400.  
+*If wrong:* Multiply the two lenses, do not add them: 10 × 40 = 400.
 
 **q-cells-4** · Year 7+
 
-> Why do we wash our hands with soap?
+> Which of these is made of just one cell?
 
-- ✅ To remove harmful microbes
-- ▫️ To make our hands grow
-- ▫️ To add more cells
+- ▫️ A bee
+- ✅ A bacterium
+- ▫️ A palm tree
 
-*If right:* Soap helps wash away germs (harmful microbes) so we stay healthy.  
-*If wrong:* Hand washing is about germs. Soap lifts microbes off the skin.
+*If right:* A bacterium is a single-celled microbe.  
+*If wrong:* Bees and palm trees are made of millions of cells. A bacterium is just one cell.
 
 **q-cells-5** · Year 7+
 
 > Which tiny living thing helps bread dough rise?
 
+- ▫️ Flour
 - ✅ Yeast
-- ▫️ Salt
-- ▫️ Sand
+- ▫️ Sugar
 
 *If right:* Yeast is a microbe. It makes gas bubbles that make dough rise.  
-*If wrong:* Salt and sand are not alive. Yeast is a living microbe that makes bread rise.
+*If wrong:* Flour and sugar are not alive. Yeast is a living microbe that makes bread rise.
