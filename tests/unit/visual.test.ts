@@ -152,3 +152,51 @@ describe("picture icons", () => {
     for (const name of ICON_NAMES) expect(VISUAL_PROMPT).toContain(name);
   });
 });
+
+describe("ready-made scenes", () => {
+  it("accepts a known scene with one label per part; wrong counts fall back to defaults", async () => {
+    const ok = parseVisual({
+      kind: "scene",
+      title: "Rain",
+      scene: "water-cycle",
+      items: [{ label: "Sun warms sea" }, { label: "Vapour rises" }, { label: "Clouds form" }, { label: "Rain falls" }],
+    });
+    expect(ok).toEqual({
+      kind: "scene",
+      title: "Rain",
+      scene: "water-cycle",
+      items: [{ label: "Sun warms sea" }, { label: "Vapour rises" }, { label: "Clouds form" }, { label: "Rain falls" }],
+    });
+    const short = parseVisual({ kind: "scene", title: "t", scene: "day-night", items: [{ label: "one" }] });
+    expect(short?.kind === "scene" && short.items).toEqual([]);
+    expect(parseVisual({ kind: "scene", title: "t", scene: "volcano", items: [] })).toBeNull();
+  });
+
+  it("every scene has 4 parts with English and Arabic defaults, and the prompt lists them all", async () => {
+    const { SCENE_IDS, SCENES, sceneLabels } = await import("@/lib/scenes");
+    for (const id of SCENE_IDS) {
+      expect(SCENES[id].parts, id).toHaveLength(4);
+      for (const p of SCENES[id].parts) {
+        expect(p.en.length).toBeGreaterThan(3);
+        expect(/[؀-ۿ]/.test(p.ar), `${id}: ${p.ar}`).toBe(true);
+        expect(`${p.en}${p.ar}`).not.toMatch(/[—–]/);
+      }
+      expect(VISUAL_PROMPT).toContain(id);
+    }
+    expect(sceneLabels("moon-phases", [], "ar")[2]).toBe("البدر");
+    expect(sceneLabels("moon-phases", ["a", "b", "c", "d"], "en")).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("offline answers use the scenes for their topics", async () => {
+    const { localExtraReply } = await import("@/lib/extra-reply");
+    const scene = (q: string) => {
+      const v = localExtraReply(q, null, false).visual;
+      return v?.kind === "scene" ? v.scene : null;
+    };
+    expect(scene("why does the moon change shape?")).toBe("moon-phases");
+    expect(scene("how do plants drink water?")).toBe("plant-food");
+    expect(scene("why does it rain?")).toBe("water-cycle");
+    expect(scene("why is there day and night?")).toBe("day-night");
+    expect(scene("why does ice melt?")).toBe("states-of-matter");
+  });
+});

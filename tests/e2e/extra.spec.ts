@@ -14,11 +14,12 @@ test.describe("Extra door", () => {
     await expect(figure).toBeVisible();
     await expect(figure.getByText("Moon phases in a month")).toBeVisible();
     await expect(figure.getByRole("group")).toHaveAttribute("aria-label", /New moon/);
-    // Picture-first: every phase has an icon, and "Show me" walks through them.
-    await expect(figure.locator('svg[data-icon="moon"]').first()).toBeVisible();
+    // A ready-made animated scene; "Show me" walks through its numbered parts.
+    await expect(figure.locator('svg[data-scene="moon-phases"]')).toBeVisible();
     await figure.getByRole("button", { name: "Show me" }).click();
     await expect(figure.getByRole("button", { name: "Stop" })).toBeVisible();
     await expect(figure.locator("button.ring-2")).toHaveCount(1);
+    await expect(figure.locator(".wxs-on")).toHaveCount(1);
     await figure.getByRole("button", { name: "Stop" }).click();
     await expect(figure.getByRole("button", { name: "Show me" })).toBeVisible();
   });

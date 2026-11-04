@@ -39,7 +39,28 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Picture-first diagrams: icons + animation + "Show me" narration
+### Ready-made animated scenes (5 essentials)
+
+**What:** for the most common topics, Extra now shows a hand-drawn animated cartoon instead of a diagram: **water cycle, day and night, moon phases, how a plant makes food, solid/liquid/gas**. Each scene has 4 numbered parts; **Show me** lights up and moves the part being said while the others fade. The full list of 15 planned scenes, the science points to check and the review checklist are in [`docs/SCENES.md`](./SCENES.md).
+
+**How**
+- `src/lib/scenes.ts`: `SCENE_IDS`, 4 parts per scene with English + Arabic default labels, `sceneLabels` (the agent's labels if there is exactly one per part, else the defaults in the app language), `SCENE_PROMPT`.
+- `src/lib/visual.ts`: new kind `scene` (`{scene, items}`); unknown scene ids are rejected; a wrong label count gives `items: []` (defaults). The prompt tells the agent to prefer a scene for these topics.
+- `src/components/ExtraScene.tsx`: five inline-SVG scenes; each part is a `<g>` with a numbered marker. The Earth's continents scroll inside a clip so it spins; a small moon orbits; particles jiggle, flow or fly apart. CSS `wxs-` classes in `globals.css`; parts not being said fade and pause; reduced motion stops everything.
+- `ExtraVisual`: scene + numbered label chips (tap to hear one part); same narration and auto-play as the icon diagrams.
+- Offline answers (`extra-reply.ts`) use the scenes for moon, plants, rain and day/night, plus a new solid/liquid/gas answer.
+
+**Why:** Anastasia asked for visuals that literally show the process for children who cannot read yet. Scenes are drawn by us, so the science is right every time; the agent only chooses one.
+
+**Live check (Z.ai):** rain picked water-cycle, day and night picked day-night, ice melting picked states-of-matter (with its own 4 labels); magnets (no scene) fell back to an icon diagram.
+
+**Tests**
+- `tests/unit/visual.test.ts`: scene parsing (valid, wrong count gives defaults, unknown id rejected); every scene has 4 parts with English and Arabic labels and is in the prompt; offline answers map to the right scenes.
+- `tests/api/routes.test.ts`: the offline moon answer now carries a scene.
+- `tests/e2e/extra.spec.ts`: the moon answer shows the moon-phases scene; Show me lights up exactly one part.
+- Results: Vitest 204/204, Playwright 64/64, lint and build clean. Screenshots checked for all five scenes and in Arabic.
+
+### Picture-first diagrams: icons + animation + "Show me" narration (`3a97b6a`)
 
 **What:** Anastasia's feedback: a diagram of text boxes does not help a child who can barely read ("it should literally show the sun shines, water evaporates"). Now every diagram item has a big hand-drawn, animated picture, and the diagram can **tell itself**:
 - 46 picture icons in the Wondrix style (sun, steam, cloud, rain, root, leaf, moon, earth, magnet, heart, robot, ...), each with a small motion: the sun's rays turn, steam rises, rain falls, plants sway, the heart beats.

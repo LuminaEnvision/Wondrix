@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useId, useRef, useSyncExternalStore } from "react";
+import { ExtraScene } from "@/components/ExtraScene";
 import { VisualIcon } from "@/components/VisualIcon";
-import { useT } from "@/lib/use-client-state";
+import type { Lang } from "@/lib/i18n";
+import { sceneLabels } from "@/lib/scenes";
+import { useLang, useT } from "@/lib/use-client-state";
 import { iconFor, visualText, type IconName, type Visual } from "@/lib/visual";
 import { getServerSpeech, getSpeech, speak, stopSpeaking, subscribeSpeech } from "@/lib/voice";
 
@@ -19,8 +22,10 @@ import { getServerSpeech, getSpeech, speak, stopSpeaking, subscribeSpeech } from
 type Item = { label: string; detail?: string; icon?: IconName };
 
 /** The items in reading/speaking order, with what to say for each. */
-function itemsOf(v: Visual): Item[] {
+function itemsOf(v: Visual, lang: Lang): Item[] {
   switch (v.kind) {
+    case "scene":
+      return sceneLabels(v.scene, v.items.map((i) => i.label), lang).map((label) => ({ label }));
     case "steps":
       return v.items.map((i) => ({ label: i.label, detail: i.note, icon: iconFor(`${i.label} ${i.note ?? ""}`, i.icon) }));
     case "cycle":
@@ -105,7 +110,8 @@ function Arrow({ down = false }: { down?: boolean }) {
 export function ExtraVisual({ visual, autoPlay = false }: { visual: Visual; autoPlay?: boolean }) {
   const tr = useT();
   const prefix = `vis-${useId().replace(/:/g, "")}-`;
-  const items = itemsOf(visual);
+  const lang = useLang();
+  const items = itemsOf(visual, lang);
   const speech = useSyncExternalStore(subscribeSpeech, getSpeech, getServerSpeech);
 
   // Which item is being said now comes straight from the voice state (id "vis-…-<n>").
@@ -161,7 +167,29 @@ export function ExtraVisual({ visual, autoPlay = false }: { visual: Visual; auto
         </button>
       </div>
 
-      <div role="group" aria-label={visualText(visual)} data-kind={visual.kind}>
+      <div
+        role="group"
+        aria-label={visual.kind === "scene" ? [visual.title, ...items.map((it, i) => `${i + 1}. ${it.label}`)].filter(Boolean).join(". ") : visualText(visual)}
+        data-kind={visual.kind}
+      >
+        {visual.kind === "scene" ? (
+          <div className="space-y-2">
+            <ExtraScene scene={visual.scene} stateOf={stateOf} />
+            <ol className="grid grid-cols-2 gap-1.5">
+              {items.map((item, i) => (
+                <li key={i}>
+                  <button type="button" onClick={() => tap(i)} className={`${itemClass(stateOf(i))} w-full gap-2 px-2 py-1.5`} style={delay(i)}>
+                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-extra text-[11px] font-bold text-white">
+                      {i + 1}
+                    </span>
+                    <span className="text-xs font-semibold leading-tight text-ink">{item.label}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : null}
+
         {visual.kind === "steps" ? (
           <ol className="flex flex-col items-stretch gap-1">
             {items.map((item, i) => (

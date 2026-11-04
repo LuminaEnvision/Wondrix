@@ -135,3 +135,47 @@ html[data-skin="studio"] {
   .wx-pop, .wx-grow, .wx-ring,
   .wx-ico-on, .wx-ico-on .wx-ico-part, .wx-ico-on.wx-spin > .wx-ico-part { animation: none !important; }
 }
+
+/* ---------- Extra scenes (ready-made animated cartoons) ---------- */
+.wxs-part { transition: opacity 0.35s ease; }
+.wxs-dim { opacity: 0.18; }
+.wxs-dim * { animation-play-state: paused !important; }
+.wxs-on { filter: drop-shadow(0 0 6px rgba(255, 220, 120, 0.9)); }
+.wxs-on .wxs-num circle { animation: wx-beat 0.9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
+.wxs-spin { animation: wx-spin 10s linear infinite; }
+.wxs-pulse { animation: wx-glow-strong 1.6s ease-in-out infinite; }
+.wxs-twinkle { animation: wx-twinkle 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.wxs-rise { animation: wxs-rise 2.2s ease-in infinite; }
+.wxs-fall { animation: wxs-fall 1.2s linear infinite; }
+.wxs-drift { animation: wx-drift 3s ease-in-out infinite; }
+.wxs-drift-slow { animation: wx-drift 6s ease-in-out infinite; }
+.wxs-flow { animation: wx-dash 1.2s linear infinite; }
+.wxs-flow-back { animation: wx-dash 1.4s linear infinite; }
+.wxs-scroll { animation: wxs-scroll 12s linear infinite; }
+.wxs-orbit { animation: wxs-orbit 14s linear infinite; }
+.wxs-sway { animation: wxs-sway 4s ease-in-out infinite; }
+.wxs-climb { animation: wxs-climb 1.2s linear infinite; }
+.wxs-toward { animation: wxs-toward 2.4s ease-in infinite; }
+.wxs-bubble { animation: wxs-rise 3s ease-out infinite; }
+.wxs-flicker { animation: wx-flicker 0.6s ease-in-out infinite; }
+.wxs-wave { animation: wx-drift 2.4s ease-in-out infinite; }
+.wxs-jiggle { animation: wxs-jiggle 0.35s ease-in-out infinite alternate; }
+.wxs-wobble { animation: wxs-wobble 1.1s ease-in-out infinite alternate; }
+.wxs-zoom { animation: wxs-zoom 2.2s ease-in-out infinite alternate; }
+
+@keyframes wx-glow-strong { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+@keyframes wxs-rise { 0% { transform: translateY(8px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(-26px); opacity: 0; } }
+@keyframes wxs-fall { 0% { transform: translateY(-6px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(46px); opacity: 0; } }
+@keyframes wxs-scroll { from { transform: translateX(0); } to { transform: translateX(124px); } }
+@keyframes wxs-orbit { to { transform: rotate(-360deg); } }
+@keyframes wxs-sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+@keyframes wxs-climb { to { stroke-dashoffset: 24; } }
+@keyframes wxs-toward { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(0.3); opacity: 0; } }
+@keyframes wxs-jiggle { from { transform: translate(-0.6px, 0); } to { transform: translate(0.6px, 0.4px); } }
+@keyframes wxs-wobble { from { transform: translate(-2px, 1px); } to { transform: translate(2px, -1px); } }
+@keyframes wxs-zoom { from { transform: translate(-6px, 4px); } to { transform: translate(6px, -5px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-scene] * { animation: none !important; }
+}

@@ -9,7 +9,9 @@
  * Shared by server (validation of model output) and client (rendering).
  */
 
-export type VisualKind = "steps" | "cycle" | "compare" | "scale" | "web";
+import { asSceneId, SCENE_PROMPT, SCENES, type SceneId } from "./scenes";
+
+export type VisualKind = "steps" | "cycle" | "compare" | "scale" | "web" | "scene";
 
 /**
  * Picture words the agent may attach to any item. Each one is a hand-drawn,
@@ -32,7 +34,9 @@ export type Visual =
   | { kind: "cycle"; title: string; items: { label: string; icon?: IconName }[] }
   | { kind: "compare"; title: string; columns: { label: string; points: string[]; icon?: IconName }[] }
   | { kind: "scale"; title: string; unit?: string; items: { label: string; value: number; icon?: IconName }[] }
-  | { kind: "web"; title: string; center: string; centerIcon?: IconName; items: { label: string; icon?: IconName }[] };
+  | { kind: "web"; title: string; center: string; centerIcon?: IconName; items: { label: string; icon?: IconName }[] }
+  /** Ready-made animated cartoon (src/lib/scenes.ts); items = one label per part, or [] for the defaults. */
+  | { kind: "scene"; title: string; scene: SceneId; items: { label: string }[] };
 
 /** Compact schema text for the agent prompt (keep in sync with parseVisual). */
 export const VISUAL_PROMPT = [
@@ -43,7 +47,8 @@ export const VISUAL_PROMPT = [
   '- compare: two or three things side by side. {"kind":"compare","title":string,"columns":[{"label":string,"points":[string]}]} 2 to 3 columns, 1 to 3 points each.',
   '- scale: sizes or amounts. {"kind":"scale","title":string,"unit":string,"items":[{"label":string,"value":number}]} 2 to 6 items, real approximate values.',
   '- web: parts of one thing. {"kind":"web","title":string,"center":string,"items":[{"label":string}]} 3 to 6 items.',
-  "Labels max 4 words, notes and points max 8 words, title max 6 words. Facts must match your answer. No emojis.",
+  SCENE_PROMPT,
+  "Labels max 4 words (scene labels max 7 words), notes and points max 8 words, title max 6 words. Facts must match your answer. No emojis.",
   `Pictures: young children may not read yet, so give EVERY item (and each compare column, and the web center as "centerIcon") an "icon" that shows it, chosen from: ${ICON_NAMES.join(", ")}. Example water cycle: sun, steam, cloud, rain. Pick the closest picture; use the same icon twice only if it is really the same thing.`,
 ].join("\n");
 
@@ -135,6 +140,15 @@ export function parseVisual(raw: unknown): Visual | null {
       const centerIcon = icon(v.centerIcon);
       return centerIcon ? { kind: "web", title, center, centerIcon, items } : { kind: "web", title, center, items };
     }
+    case "scene": {
+      const scene = asSceneId(v.scene);
+      if (!scene) return null;
+      const labels = arr(v.items)
+        .map((i) => ({ label: clean(obj(i).label, MAX_NOTE) }))
+        .filter((i) => i.label);
+      const items = labels.length === SCENES[scene].parts.length ? labels : [];
+      return { kind: "scene", title, scene, items };
+    }
     default:
       return null;
   }
@@ -148,6 +162,7 @@ export function visualText(v: Visual): string {
   if (v.kind === "compare") v.columns.forEach((c) => parts.push(`${c.label}: ${c.points.join("; ")}`));
   if (v.kind === "scale") v.items.forEach((i) => parts.push(`${i.label}: ${i.value}${v.unit ? ` ${v.unit}` : ""}`));
   if (v.kind === "web") parts.push(`${v.center}: ${v.items.map((i) => i.label).join(", ")}`);
+  if (v.kind === "scene") v.items.forEach((i, n) => parts.push(`${n + 1}. ${i.label}`));
   return parts.filter(Boolean).join(". ");
 }
 
