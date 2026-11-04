@@ -39,7 +39,52 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Question bank revised after Anastasia's review
+### Languages: English + Arabic base (RTL)
+
+**What:** the app can switch between English and Arabic. Arabic flips the layout right to left, the mic listens in Arabic, and Extra answers in Arabic. The Arabic text is an AI-written draft for a native speaker to review. Full status table: [`docs/I18N.md`](./I18N.md).
+
+**How**
+- `src/lib/i18n/`: `en.ts` (source, ~170 keys), `ar.ts` (draft; typed `Record<MessageKey, string>` so a missing key fails the build), `index.ts` (`t`, `asLang`, `LANGUAGES`, `currentLang`, `languagePromptLine`).
+- The language is stored in the profile (`profile.language`), so all API calls already carry it. `useLang` / `useT` / `saveLanguage` in `use-client-state.ts` (useSyncExternalStore; English on the server and during hydration, so no mismatch).
+- `LangSync` sets `<html lang dir>`. `LanguagePicker` (radio buttons) is in the first-run setup and in Parent, and applies at once.
+- Every screen and shared component uses `tr(...)`. RTL-safe classes: `ms-auto`, `text-start`, `-end-2`, `start-/end-`, speech-bubble tail `rtl:rotate-[225deg]`; chat text `dir="auto"`; English selects and diagrams `dir="ltr"`.
+- Agents: `languagePromptLine` is added to the Extra chat and visual prompts (Arabic, Western digits, Arabic question mark ؟). `curriculumPromptLine` drops the English-spelling rule in Arabic. `oneQuestion` / `splitPlainAnswer` understand ؟.
+- Voice: in Arabic the chain is Azure (`AZURE_SPEECH_VOICE_AR`, default `ar-AE-FatimaNeural`) when configured, else the best Arabic browser voice (Kokoro has no Arabic). The voice-download bubble is hidden in Arabic. Mic uses `ar-AE`; mic error messages are translated.
+
+**Not translated yet (on purpose):** School questions and skill names (the bank needs a reviewed translation), local fallback replies, the day summary. The safety keyword gate is English only, so Arabic input relies on the AI safety check (layer 2). This is noted in `docs/I18N.md`.
+
+**Why:** Dubai families (and UAE MoE Cycle 1, taught in Arabic) need Arabic. Doing the base now means new screens are written translatable from the start, instead of a big rewrite later.
+
+**Tests**
+- `tests/unit/i18n.test.ts`: Arabic has every key, no empty values, same `{placeholders}`, all values contain Arabic letters, no em dashes, `t()` fills values, Arabic question mark rules, and a **guard that fails on hard-coded English text** in any screen or component (checked: adding "Back home" makes it fail).
+- `tests/unit/agents.test.ts`: Arabic profile adds the Arabic line and drops "British English"; English has no language line.
+- `tests/e2e/i18n.spec.ts`: setup picker → Arabic heading, `dir=rtl`, `lang=ar`, remembered after reload; Parent switch → Extra sends `profile.language = "ar"` → back to English restores LTR.
+- Results: Vitest 196/196, Playwright 64/64 (phone + desktop), lint and build clean. RTL screenshots checked on phone width.
+
+### Extra chat history (Past chats) (`7b8024c`)
+
+**What:** Anastasia noticed that "New chat" threw the old chat away. Now every Extra chat is saved on the device and can be reopened.
+- "New chat" starts a fresh chat; the old one stays in **Past chats**.
+- **Past chats** button lists saved chats (title = the child's first question, date, number of messages, "open now" on the current one). Tap to reopen; × deletes one.
+- A reopened chat continues **with its context**: its messages are sent as history, so the agent remembers what was said.
+- **Parent** has an "Extra chat history" card with the count and a "Clear chat history" button (asks to confirm).
+
+**How**
+- `src/lib/demo-store.ts`: `listChats`, `loadChat`, `saveChat`, `deleteChat`, `clearAllChats`, `getActiveChatId` / `setActiveChatId`, `chatTitle`, `newChatId`.
+  - Chats live in `localStorage` (`wondrix-extra-chats`), so they survive closing the browser. The open chat id is in `sessionStorage`.
+  - Limits (easy to change, as Jorge suggested): `MAX_SAVED_CHATS = 20` (oldest dropped), `MAX_SAVED_MESSAGES = 30` per chat (oldest dropped). Empty chats are not stored.
+  - The old single-chat format (`wondrix-extra-chat` in sessionStorage) is imported once, so nothing is lost on upgrade.
+- `src/app/extra/page.tsx`: restores the open chat at render time after hydration, saves after each message, `openChat()` stops speech before switching. A chat id is created on the first message.
+- `src/app/parent/page.tsx`: history card with count and clear button.
+
+**Why:** children come back to topics they liked; a parent should be able to see that history exists and wipe it. Everything stays on the device (no server storage yet; Supabase is a later step).
+
+**Tests**
+- `tests/unit/chat-history.test.ts` (6): order and titles, empty chats skipped, 20 chat / 30 message limits, delete and clear, legacy import once, long titles.
+- `tests/e2e/extra.spec.ts`: memory test updated (New chat keeps old chat but starts with empty history); new test: two chats → Past chats lists both → reopen the first → next message carries its 2 history turns → Parent shows "2 chats saved" → Clear → Extra shows "No saved chats yet".
+- Results: Vitest 170/170, Playwright 60/60 (phone + desktop), lint and build clean.
+
+### Question bank revised after Anastasia's review (`f98490a`)
 
 **Review findings:** all 75 marked answers were correct; tone was fine. Issues:
 - the correct answer was the **first option in 44/75** (30/35 in science), so children could learn "pick the first";

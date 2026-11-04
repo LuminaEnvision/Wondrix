@@ -5,6 +5,7 @@
  *   AZURE_SPEECH_KEY, AZURE_SPEECH_REGION (e.g. westeurope, uaenorth)
  *   NEXT_PUBLIC_TTS_ENGINE=azure   (client uses this route first)
  * Optional: AZURE_SPEECH_VOICE (default en-US-AnaNeural, a child voice),
+ * AZURE_SPEECH_VOICE_AR for Arabic (default ar-AE-FatimaNeural),
  *           AZURE_SPEECH_RATE (e.g. "-5%").
  *
  * Without a key the route answers 501 and the client falls back to
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Server TTS not configured" }, { status: 501 });
   }
 
-  let body: { text?: string };
+  let body: { text?: string; lang?: string };
   try {
     body = await request.json();
   } catch {
@@ -43,7 +44,10 @@ export async function POST(request: Request) {
   // This route only voices app text; refuse obviously unsafe input so it cannot be abused.
   if (!safetyCheck(text).ok) return NextResponse.json({ error: "Refused" }, { status: 400 });
 
-  const voice = process.env.AZURE_SPEECH_VOICE || "en-US-AnaNeural";
+  const voice =
+    body.lang === "ar"
+      ? process.env.AZURE_SPEECH_VOICE_AR || "ar-AE-FatimaNeural"
+      : process.env.AZURE_SPEECH_VOICE || "en-US-AnaNeural";
   const rate = process.env.AZURE_SPEECH_RATE || "-5%";
   const lang = voice.split("-").slice(0, 2).join("-");
   const ssml = `<speak version="1.0" xml:lang="${lang}"><voice name="${escapeXml(voice)}"><prosody rate="${escapeXml(rate)}">${escapeXml(text)}</prosody></voice></speak>`;

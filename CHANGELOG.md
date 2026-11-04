@@ -41,8 +41,12 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
   - Gap analysis of the Wondrix skill map, and writing rules.
 - **Question bank phase 1 (draft for review):** 75 new questions (5 per skill) in `src/lib/question-bank.ts`. Metric units, AED, Dubai + global contexts, misconception-based wrong answers. The bank grows from 20 to 95 items. Review sheet: `docs/QUESTION_BANK_REVIEW.md`.
 
+### Added (languages)
+- **English + Arabic switch** in setup and Parent. Arabic turns the app right to left, the mic listens in Arabic (ar-AE), and Extra answers in Arabic. Arabic text is an AI draft for native review; School questions stay English for now. See [docs/I18N.md](./docs/I18N.md).
+
 ### Added (conversation memory)
-- **Extra remembers the conversation for this visit:** saved in `sessionStorage` (survives reload, cleared when the tab closes) with a **New chat** button. The agent gets the last 12 turns (trimmed to 400 chars each) plus memory rules: short replies like "yes" answer its last question, don't repeat, remind in one sentence and add one new detail.
+- **Extra chat history:** chats are saved on the device; "New chat" keeps the old one in **Past chats**, which reopens a chat with its context. Keeps the 20 newest chats, 30 messages each. Parent can clear the history.
+- **Extra remembers the conversation for this visit:** kept on reload, with a **New chat** button (now saved in Past chats, see above). The agent gets the last 12 turns (trimmed to 400 chars each) plus memory rules: short replies like "yes" answer its last question, don't repeat, remind in one sentence and add one new detail.
 - If the model drifts out of JSON in long chats, its plain-text answer is kept (follow-up split off) instead of falling back.
 - If the live agent is unavailable mid-chat and the child replies briefly, the local reply keeps the thread honestly instead of jumping to a random topic.
 

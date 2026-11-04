@@ -39,6 +39,21 @@ describe("Extra agent prompt", () => {
     expect(sys).toContain("American English");
   });
 
+  it("Arabic profile: the agent is told to answer in Arabic (and no English spelling rule)", async () => {
+    const { calls } = fakeFetch(() => chatResponse('{"answer":"أ.","followUp":"ب؟","topic":"t"}'));
+    const reply = await aiExtraReply({ message: "لماذا السماء زرقاء؟", topicId: null, history: [], profile: profile({ language: "ar" }) });
+    const sys = systemPrompt(calls[0]);
+    expect(sys).toMatch(/Modern Standard Arabic/);
+    expect(sys).not.toContain("British English");
+    expect(reply?.followUp).toBe("ب؟");
+  });
+
+  it("English profile: no language line", async () => {
+    const { calls } = fakeFetch(() => chatResponse('{"answer":"A.","followUp":"B?","topic":"t"}'));
+    await aiExtraReply({ message: "why?", topicId: null, history: [], profile: profile() });
+    expect(systemPrompt(calls[0])).not.toMatch(/Arabic/);
+  });
+
   it("includes grade, picked interest and calm mode", async () => {
     const { calls } = fakeFetch(() => chatResponse('{"answer":"A.","followUp":"B?","topic":"t"}'));
     await aiExtraReply({ message: "why?", topicId: "sky", history: [], profile: profile({ calmMode: true }) });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/use-client-state";
 import { subscribeVoiceStatus, type VoiceStatus } from "@/lib/voice";
 
 const READY_ONCE_KEY = "wondrix-voice-ready-once";
@@ -34,6 +35,7 @@ function markReady() {
  * being prepared, so a first-time model download never looks like a frozen app.
  */
 export function VoiceLoadingBubble({ enabled }: { enabled: boolean }) {
+  const tr = useT();
   const [view, setView] = useState<View>({ kind: "hidden" });
   const shownRef = useRef(false);
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -110,7 +112,7 @@ export function VoiceLoadingBubble({ enabled }: { enabled: boolean }) {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-sm rounded-2xl border border-stroke bg-card px-4 py-3 shadow-lg sm:left-auto sm:right-4 sm:mx-0"
+      className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-sm rounded-2xl border border-stroke bg-card px-4 py-3 shadow-lg sm:start-auto sm:end-4 sm:mx-0"
     >
       <div className="flex items-start gap-3">
         <span
@@ -127,33 +129,33 @@ export function VoiceLoadingBubble({ enabled }: { enabled: boolean }) {
           {view.kind === "loading" ? (
             <>
               <p className="text-sm font-bold text-ink">
-                {view.firstTime ? "Getting Wondrix's voice ready…" : "Waking up Wondrix's voice…"}
+                {view.firstTime ? tr("voiceBubble.firstTitle") : tr("voiceBubble.wakeTitle")}
               </p>
               <p className="mt-0.5 text-xs text-ink-soft">
                 {view.firstTime
-                  ? "First time only: downloading the natural voice (about 80 MB). Keep chatting! A simple voice reads answers until it is ready."
-                  : "Just a moment. A simple voice reads answers until it is ready."}
+                  ? tr("voiceBubble.firstBody")
+                  : tr("voiceBubble.wakeBody")}
               </p>
               <div
                 className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-bg-deep"
-                aria-label={`Voice loading ${view.progress}%`}
+                aria-label={tr("voiceBubble.progress", { p: view.progress })}
               >
                 <div
                   className="h-full rounded-full bg-brand transition-[width] duration-300"
                   style={{ width: `${Math.max(4, view.progress)}%` }}
                 />
               </div>
-              <p className="mt-1 text-right text-[11px] font-semibold text-ink-soft">
+              <p className="mt-1 text-end text-[11px] font-semibold text-ink-soft">
                 {view.progress}%
               </p>
             </>
           ) : view.kind === "ready" ? (
-            <p className="text-sm font-bold text-ink">Natural voice ready!</p>
+            <p className="text-sm font-bold text-ink">{tr("voiceBubble.ready")}</p>
           ) : (
             <>
-              <p className="text-sm font-bold text-ink">Natural voice not available here</p>
+              <p className="text-sm font-bold text-ink">{tr("voiceBubble.unavailTitle")}</p>
               <p className="mt-0.5 text-xs text-ink-soft">
-                This device or network can&apos;t load it, so Wondrix uses the simple voice.
+                {tr("voiceBubble.unavailBody")}
               </p>
             </>
           )}
@@ -161,8 +163,8 @@ export function VoiceLoadingBubble({ enabled }: { enabled: boolean }) {
         <button
           type="button"
           onClick={dismiss}
-          className="-mr-1 -mt-1 rounded-full px-2 py-1 text-sm text-ink-soft hover:text-ink"
-          aria-label="Hide voice message"
+          className="-me-1 -mt-1 rounded-full px-2 py-1 text-sm text-ink-soft hover:text-ink"
+          aria-label={tr("voiceBubble.hide")}
         >
           ×
         </button>

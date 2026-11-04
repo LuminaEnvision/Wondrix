@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import { visualText, type Visual } from "@/lib/visual";
+import { useT } from "@/lib/use-client-state";
 
 /**
  * Draws an agent "visual spec" as an on-brand SVG diagram.
@@ -279,19 +280,21 @@ function Web({ v }: { v: Extract<Visual, { kind: "web" }> }) {
 export function ExtraVisual({ visual }: { visual: Visual }) {
   const arrow = `arrow-${useId().replace(/:/g, "")}`;
   const label = visualText(visual);
+  const tr = useT();
   return (
     <figure className="overflow-hidden rounded-2xl border border-stroke bg-bg/60 p-3">
       {visual.title ? (
         <figcaption className="mb-2 text-xs font-bold uppercase tracking-wide text-extra">{visual.title}</figcaption>
       ) : null}
-      <div role="img" aria-label={label} className="w-full [&>svg]:h-auto [&>svg]:w-full">
+      {/* Diagrams are laid out left to right; Arabic labels still render right to left inside each box. */}
+      <div role="img" aria-label={label} dir="ltr" className="w-full [&>svg]:h-auto [&>svg]:w-full">
         {visual.kind === "steps" ? <Steps v={visual} arrow={arrow} /> : null}
         {visual.kind === "cycle" ? <Cycle v={visual} arrow={arrow} /> : null}
         {visual.kind === "compare" ? <Compare v={visual} /> : null}
         {visual.kind === "scale" ? <Scale v={visual} /> : null}
         {visual.kind === "web" ? <Web v={visual} /> : null}
       </div>
-      <p className="mt-1 text-[11px] text-ink-soft">Drawn by Wondrix for your question</p>
+      <p className="mt-1 text-[11px] text-ink-soft">{tr("extra.drawnBy")}</p>
     </figure>
   );
 }

@@ -3,11 +3,15 @@
 import Image from "next/image";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { LanguagePicker } from "@/components/LanguagePicker";
 import { ParentLock } from "@/components/ParentLock";
 import {
   buildDaySummary,
   loadExtraTopic,
   loadSafetyRedirects,
+  clearAllChats,
+  listChats,
+  MAX_SAVED_CHATS,
   loadMastery,
   loadProfile,
   pickFocusSkills,
@@ -22,7 +26,7 @@ import {
 } from "@/lib/parent-auth";
 import { asCurriculum, CURRICULA, gradeName, gradeNameWithAge, type Curriculum } from "@/lib/curriculum";
 import type { ParentProfile } from "@/lib/types";
-import { useHydrated } from "@/lib/use-client-state";
+import { useHydrated, useT } from "@/lib/use-client-state";
 
 function daySummaryFor(p: ParentProfile): string {
   return buildDaySummary({
@@ -38,10 +42,11 @@ function daySummaryFor(p: ParentProfile): string {
 /** Parent settings read localStorage, so the form only mounts after hydration. */
 export default function ParentPage() {
   const hydrated = useHydrated();
+  const tr = useT();
   if (!hydrated) {
     return (
       <AppShell backHref="/">
-        <p className="text-ink-soft">Loading…</p>
+        <p className="text-ink-soft">{tr("common.loading")}</p>
       </AppShell>
     );
   }
@@ -56,6 +61,8 @@ function ParentHome() {
   const [pinSet, setPinSet] = useState(() => hasParentPin());
   const [newPin, setNewPin] = useState("");
   const [pinMsg, setPinMsg] = useState("");
+  const [chatCount, setChatCount] = useState(() => listChats().length);
+  const tr = useT();
 
   function update<K extends keyof ParentProfile>(key: K, value: ParentProfile[K]) {
     setProfile((prev) => ({ ...prev, [key]: value }));
@@ -73,17 +80,18 @@ function ParentHome() {
       <ParentLock>
         <div className="space-y-6">
           <div>
-            <p className="text-sm font-bold uppercase tracking-wide text-brand">Parent</p>
-            <h1 className="font-display mt-1 text-3xl font-semibold">Home controls</h1>
+            <p className="text-sm font-bold uppercase tracking-wide text-brand">{tr("parent.kicker")}</p>
+            <h1 className="font-display mt-1 text-3xl font-semibold">{tr("parent.title")}</h1>
             <p className="mt-2 text-ink-soft">
-              Grade changes what School practices. Save so {profile.childNickname || "your child"}{" "}
-              sees the update.
+              {tr("parent.intro", { name: profile.childNickname || tr("parent.yourChild") })}
             </p>
           </div>
 
           <div className="space-y-4 rounded-3xl border border-stroke bg-card p-5">
+            <LanguagePicker />
+
             <label className="block space-y-1">
-              <span className="text-sm font-bold text-ink-soft">Child nickname</span>
+              <span className="text-sm font-bold text-ink-soft">{tr("parent.nickname")}</span>
               <input
                 value={profile.childNickname}
                 onChange={(e) => update("childNickname", e.target.value)}
@@ -92,9 +100,10 @@ function ParentHome() {
             </label>
 
             <label className="block space-y-1">
-              <span className="text-sm font-bold text-ink-soft">School curriculum</span>
+              <span className="text-sm font-bold text-ink-soft">{tr("parent.curriculum")}</span>
               <select
                 name="curriculum"
+                dir="ltr"
                 value={asCurriculum(profile.curriculum)}
                 onChange={(e) => update("curriculum", e.target.value as Curriculum)}
                 className="w-full rounded-2xl border border-stroke bg-bg/40 px-4 py-3 outline-none focus:border-brand/40"
@@ -106,14 +115,15 @@ function ParentHome() {
                 ))}
               </select>
               <p className="text-xs text-ink-soft">
-                Shows grades the way your school names them. Practice stays matched to your child&apos;s age.
+                {tr("parent.curriculumHelp")}
               </p>
             </label>
 
             <label className="block space-y-1">
-              <span className="text-sm font-bold text-ink-soft">Grade / year</span>
+              <span className="text-sm font-bold text-ink-soft">{tr("parent.grade")}</span>
               <select
                 name="grade"
+                dir="ltr"
                 value={profile.gradeLabel}
                 onChange={(e) => update("gradeLabel", e.target.value)}
                 className="w-full rounded-2xl border border-stroke bg-bg/40 px-4 py-3 outline-none focus:border-brand/40"
@@ -125,14 +135,14 @@ function ParentHome() {
                 ))}
               </select>
               <p className="text-xs text-ink-soft">
-                Changing grade updates School focus skills after you Save.
+                {tr("parent.gradeHelp")}
               </p>
             </label>
 
             <fieldset className="space-y-2">
-              <legend className="text-sm font-bold text-ink-soft">Subjects</legend>
+              <legend className="text-sm font-bold text-ink-soft">{tr("parent.subjects")}</legend>
               {(["math", "science"] as const).map((subject) => (
-                <label key={subject} className="flex items-center gap-3 capitalize">
+                <label key={subject} className="flex items-center gap-3">
                   <input
                     type="checkbox"
                     checked={profile.subjects.includes(subject)}
@@ -147,22 +157,18 @@ function ParentHome() {
                     }}
                     className="size-4"
                   />
-                  {subject}
+                  {tr(subject === "math" ? "subject.math" : "subject.science")}
                 </label>
               ))}
             </fieldset>
 
             <label className="block space-y-1">
-              <span className="text-sm font-bold text-ink-soft">
-                Teacher recommendations
-              </span>
-              <p className="text-xs text-ink-soft">
-                Fill each time you receive recommendations from teachers.
-              </p>
+              <span className="text-sm font-bold text-ink-soft">{tr("parent.teacher")}</span>
+              <p className="text-xs text-ink-soft">{tr("parent.teacherHelp")}</p>
               <textarea
                 value={profile.oneLiner}
                 onChange={(e) => update("oneLiner", e.target.value)}
-                placeholder="e.g. Practice fractions this week / Measuring length is shaky"
+                placeholder={tr("parent.teacherPlaceholder")}
                 rows={3}
                 className="w-full rounded-2xl border border-stroke bg-bg/40 px-4 py-3 outline-none focus:border-brand/40"
               />
@@ -175,9 +181,7 @@ function ParentHome() {
                 onChange={(e) => update("calmMode", e.target.checked)}
                 className="size-4"
               />
-              <span className="font-semibold text-ink">
-                Calm mode (one focus skill, gentler sessions)
-              </span>
+              <span className="font-semibold text-ink">{tr("parent.calm")}</span>
             </label>
 
             <button
@@ -185,38 +189,58 @@ function ParentHome() {
               onClick={onSave}
               className="rounded-full bg-brand px-5 py-2.5 font-bold text-white"
             >
-              Save
+              {tr("parent.save")}
             </button>
             {saved ? (
               <p className="text-sm font-semibold text-brand">
-                Saved. Open School to see new focus skills for {gradeName(profile.gradeLabel, profile.curriculum)}.
+                {tr("parent.saved", { grade: gradeName(profile.gradeLabel, profile.curriculum) })}
               </p>
             ) : null}
           </div>
 
           <div className="space-y-3 rounded-3xl border border-stroke bg-card p-5">
-            <p className="font-display text-lg font-semibold text-ink">Parent password</p>
+            <p className="font-display text-lg font-semibold text-ink">{tr("parent.historyTitle")}</p>
+            <p className="text-sm text-ink-soft">
+              {chatCount === 0
+                ? tr("parent.historyNone")
+                : tr(chatCount === 1 ? "parent.historyOne" : "parent.historyMany", { n: chatCount, max: MAX_SAVED_CHATS })}
+            </p>
+            {chatCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!window.confirm(tr("parent.historyConfirm"))) return;
+                  clearAllChats();
+                  setChatCount(0);
+                }}
+                className="rounded-full border border-stroke bg-card px-4 py-2 text-sm font-bold text-ink-soft"
+              >
+                {tr("parent.historyClear")}
+              </button>
+            ) : null}
+          </div>
+
+          <div className="space-y-3 rounded-3xl border border-stroke bg-card p-5">
+            <p className="font-display text-lg font-semibold text-ink">{tr("parent.pinTitle")}</p>
             {pinSet ? (
               <>
-                <p className="text-sm text-ink-soft">A password is set on this device.</p>
+                <p className="text-sm text-ink-soft">{tr("parent.pinIsSet")}</p>
                 <button
                   type="button"
                   onClick={() => {
                     clearParentPin();
                     lockParentSession();
                     setPinSet(false);
-                    setPinMsg("Password removed. Anyone can open Parent until you set a new one.");
+                    setPinMsg(tr("parent.pinRemoved"));
                   }}
                   className="rounded-full border border-stroke px-4 py-2 text-sm font-bold text-ink-soft"
                 >
-                  Remove password
+                  {tr("parent.pinRemove")}
                 </button>
               </>
             ) : (
               <>
-                <p className="text-sm text-ink-soft">
-                  Optional. Set a 4-digit password if you skipped setup earlier.
-                </p>
+                <p className="text-sm text-ink-soft">{tr("parent.pinOptional")}</p>
                 <input
                   type="password"
                   inputMode="numeric"
@@ -230,17 +254,17 @@ function ParentHome() {
                   type="button"
                   onClick={() => {
                     if (!/^\d{4}$/.test(newPin)) {
-                      setPinMsg("Use 4 digits.");
+                      setPinMsg(tr("parent.pinUse4"));
                       return;
                     }
                     setParentPin(newPin);
                     setPinSet(true);
                     setNewPin("");
-                    setPinMsg("Password saved.");
+                    setPinMsg(tr("parent.pinSaved"));
                   }}
                   className="rounded-full bg-brand px-4 py-2 text-sm font-bold text-white"
                 >
-                  Set password
+                  {tr("parent.pinSet")}
                 </button>
               </>
             )}
@@ -259,7 +283,7 @@ function ParentHome() {
             </div>
             <div>
               <p className="text-sm font-bold uppercase tracking-wide text-ink-soft">
-                Today&apos;s phone summary (preview)
+                {tr("parent.summaryTitle")}
               </p>
               <p className="mt-3 leading-relaxed text-ink">{summary}</p>
             </div>
@@ -276,11 +300,8 @@ function ParentHome() {
               />
             </div>
             <div>
-              <p className="font-display text-lg font-semibold text-ink">Safety & visibility</p>
-              <p className="mt-1 text-sm text-ink-soft">
-                Daily summary keeps Extra chat educational. Parents can pause topics and use calm
-                mode after a hard school day.
-              </p>
+              <p className="font-display text-lg font-semibold text-ink">{tr("parent.safetyTitle")}</p>
+              <p className="mt-1 text-sm text-ink-soft">{tr("parent.safetyBody")}</p>
             </div>
           </div>
         </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/lib/use-client-state";
+
 /**
  * What the child sees while the mic is on:
  * a live volume meter (proof the mic hears them), the words so far,
@@ -23,13 +25,14 @@ export function DictationPanel({
   onDone: () => void;
   onCancel: () => void;
 }) {
+  const tr = useT();
   const mm = Math.floor(seconds / 60);
   const ss = String(seconds % 60).padStart(2, "0");
   return (
     <div
       className="space-y-3 rounded-3xl border-2 border-extra/40 bg-card p-4"
       role="region"
-      aria-label="Voice question recording"
+      aria-label={tr("dict.region")}
     >
       <div className="flex items-center justify-between gap-3">
         <p className="flex items-center gap-2 font-bold text-extra" role="status" aria-live="polite">
@@ -37,9 +40,9 @@ export function DictationPanel({
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-extra opacity-60" />
             <span className="relative inline-flex h-3 w-3 rounded-full bg-extra" />
           </span>
-          Listening…
+          {tr("dict.listening")}
         </p>
-        <span className="font-mono text-sm text-ink-soft" aria-label="Recording time">
+        <span className="font-mono text-sm text-ink-soft" aria-label={tr("dict.time")} dir="ltr">
           {mm}:{ss}
         </span>
       </div>
@@ -56,13 +59,13 @@ export function DictationPanel({
       </div>
 
       <p className="min-h-[1.5rem] text-center text-ink" data-testid="dictation-text">
-        {text ? `“${text}”` : <span className="text-ink-soft">Ask your question out loud…</span>}
+        {text ? `“${text}”` : <span className="text-ink-soft">{tr("dict.prompt")}</span>}
       </p>
 
       <p className="text-center text-xs text-ink-soft">
         {quiet
-          ? "I'm still listening. Take your time, then tap Done."
-          : "Take your time. Tap Done when you finish."}
+          ? tr("dict.quietHint")
+          : tr("dict.hint")}
       </p>
 
       <div className="flex gap-2">
@@ -71,14 +74,14 @@ export function DictationPanel({
           onClick={onCancel}
           className="flex-1 rounded-full border border-stroke bg-card py-3 font-bold text-ink-soft"
         >
-          ✕ Cancel
+          {tr("dict.cancel")}
         </button>
         <button
           type="button"
           onClick={onDone}
           className="flex-[2] rounded-full bg-extra py-3 font-bold text-white"
         >
-          ✓ Done, send my question
+          {tr("dict.done")}
         </button>
       </div>
     </div>

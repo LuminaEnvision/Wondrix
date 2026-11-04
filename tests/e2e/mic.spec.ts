@@ -74,11 +74,11 @@ test.describe("tap-to-talk mic", () => {
     await page.waitForTimeout(1500);
     expect(await page.evaluate(() => (window as unknown as { __recStarts: number }).__recStarts)).toBeGreaterThanOrEqual(2);
     await expect(panel).toBeVisible();
-    await expect(page.locator(".ml-auto.bg-extra", { hasText: "how do plants drink water" })).toHaveCount(0);
+    await expect(page.locator(".ms-auto.bg-extra", { hasText: "how do plants drink water" })).toHaveCount(0);
 
     await panel.getByRole("button", { name: /Done, send my question/ }).click();
     await expect(panel).toHaveCount(0);
-    await expect(page.locator(".ml-auto.bg-extra", { hasText: "how do plants drink water" })).toBeVisible();
+    await expect(page.locator(".ms-auto.bg-extra", { hasText: "how do plants drink water" })).toBeVisible();
     await expect(page.getByText(/Roots drink water from the soil/)).toBeVisible();
   });
 
@@ -89,6 +89,6 @@ test.describe("tap-to-talk mic", () => {
     await expect(page.getByTestId("dictation-text")).toContainText("how do plants");
     await page.getByRole("button", { name: /Cancel/ }).click();
     await expect(page.getByRole("region", { name: "Voice question recording" })).toHaveCount(0);
-    await expect(page.locator(".ml-auto.bg-extra")).toHaveCount(0);
+    await expect(page.locator(".ms-auto.bg-extra")).toHaveCount(0);
   });
 });

@@ -5,14 +5,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import {
-  clearExtraChat,
-  loadExtraChat,
+  deleteChat,
+  getActiveChatId,
+  listChats,
+  loadChat,
+  newChatId,
+  setActiveChatId as storeActiveChatId,
   loadProfile,
   recordSafetyRedirect,
-  saveExtraChat,
+  saveChat,
+  type SavedChat,
   saveExtraTopic,
 } from "@/lib/demo-store";
-import { useHydrated } from "@/lib/use-client-state";
+import { langInfo, type MessageKey } from "@/lib/i18n";
+import { useHydrated, useLang, useT } from "@/lib/use-client-state";
 import { localExtraReply } from "@/lib/extra-reply";
 import { safetyCheck } from "@/lib/safety";
 import {
@@ -40,42 +46,19 @@ type Msg = {
 };
 
 const INTERESTS = [
-  {
-    id: "physics",
-    label: "Physics",
-    seed: "Why is the Earth moving?",
-    art: "/art/topic-physics.jpg",
-  },
-  {
-    id: "robots",
-    label: "Robots",
-    seed: "How does a robot know where to go?",
-    art: "/art/topic-robots.jpg",
-  },
-  {
-    id: "sky",
-    label: "Astronomy",
-    seed: "Why does the Moon change shape?",
-    art: "/art/topic-astronomy.jpg",
-  },
-  {
-    id: "life",
-    label: "Living things",
-    seed: "How do plants drink water?",
-    art: "/art/topic-living.jpg",
-  },
-  {
-    id: "chemistry",
-    label: "Chemistry",
-    seed: "What is a molecule?",
-    art: "/art/topic-physics.jpg",
-  },
-] as const;
+  { id: "physics", label: "interest.physics", seed: "interest.physics.seed", art: "/art/topic-physics.jpg" },
+  { id: "robots", label: "interest.robots", seed: "interest.robots.seed", art: "/art/topic-robots.jpg" },
+  { id: "sky", label: "interest.sky", seed: "interest.sky.seed", art: "/art/topic-astronomy.jpg" },
+  { id: "life", label: "interest.life", seed: "interest.life.seed", art: "/art/topic-living.jpg" },
+  { id: "chemistry", label: "interest.chemistry", seed: "interest.chemistry.seed", art: "/art/topic-physics.jpg" },
+] as const satisfies readonly { id: string; label: MessageKey; seed: MessageKey; art: string }[];
 
 type Interest = (typeof INTERESTS)[number];
 
-const OPENING =
-  "If you're not sure where to start… why is the sky blue in the day, but black at night?";
+/** Saved chat → page messages (no "drawing" flags on restore). */
+function toMsgs(chat: SavedChat): Msg[] {
+  return chat.messages.map((m) => ({ ...m, visual: (m.visual as Visual | null) ?? null }));
+}
 
 function ExtraInner() {
   const router = useRouter();
@@ -86,6 +69,9 @@ function ExtraInner() {
     [topicId],
   );
 
+  const tr = useT();
+  const lang = useLang();
+  const opening = tr("extra.opening");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
@@ -103,19 +89,34 @@ function ExtraInner() {
   const didGreet = useRef(false);
   const messagesRef = useRef<Msg[]>([]);
 
-  // Restore this visit's conversation after a reload (sessionStorage), so the
-  // agent keeps its short-term context. Render-time adjustment, not an effect.
+  // Chat history: every conversation is saved on the device (localStorage); this tab
+  // remembers which one is open (sessionStorage), so a reload continues it with context.
+  const [activeChatId, setActiveChatIdState] = useState<string | null>(null);
+  const [pastChats, setPastChats] = useState<SavedChat[] | null>(null); // null = panel closed
   const hydrated = useHydrated();
   const [restored, setRestored] = useState(false);
   if (hydrated && !restored) {
+    // Render-time adjustment (not an effect): restore the open chat once after hydration.
     setRestored(true);
-    const saved = loadExtraChat();
-    if (saved.length) setMessages(saved.map((m) => ({ ...m, visual: (m.visual as Visual | null) ?? null })));
+    const active = getActiveChatId();
+    const chat = active ? loadChat(active) : undefined;
+    if (active && chat) {
+      setActiveChatIdState(active);
+      setMessages(toMsgs(chat));
+    }
   }
 
   useEffect(() => {
-    if (restored) saveExtraChat(messages);
-  }, [messages, restored]);
+    if (restored && activeChatId && messages.length) saveChat(activeChatId, messages);
+  }, [messages, restored, activeChatId]);
+
+  function openChat(id: string | null, msgs: Msg[]) {
+    stopSpeaking();
+    setActiveChatIdState(id);
+    storeActiveChatId(id);
+    setMessages(msgs);
+    setPastChats(null);
+  }
 
   const micOk = canListen();
   const speakOk = canSpeak();
@@ -137,15 +138,15 @@ function ExtraInner() {
   useEffect(() => {
     if (didGreet.current) return;
     didGreet.current = true;
-    if (voiceOn && speakOk) speak(OPENING, { id: "opening" });
-  }, [voiceOn, speakOk]);
+    if (voiceOn && speakOk) speak(opening, { id: "opening" });
+  }, [voiceOn, speakOk, opening]);
 
   // When the ?topic= changes, prefill its starter question (React's
   // "adjust state when a prop changes" pattern, instead of an effect).
   const [seededTopicId, setSeededTopicId] = useState<string | null>(null);
   if (topic && topic.id !== seededTopicId) {
     setSeededTopicId(topic.id);
-    setInput(topic.seed);
+    setInput(tr(topic.seed));
   }
 
   function say(text: string, id?: string) {
@@ -160,13 +161,18 @@ function ExtraInner() {
     setInput("");
 
     const history = messagesRef.current;
+    if (!activeChatId) {
+      const id = newChatId();
+      setActiveChatIdState(id);
+      storeActiveChatId(id);
+    }
     // Ids continue after restored messages (keys + per-message voice state).
     const baseId = history.reduce((max, m) => Math.max(max, m.id), 0);
     const childMsg: Msg = { id: baseId + 1, role: "child", text: trimmed };
     setMessages((m) => [...m, childMsg]);
 
     let reply = localExtraReply(trimmed, topic?.id ?? null, history.length > 0);
-    let topicLabel = topic?.label ?? trimmed.slice(0, 40);
+    let topicLabel = topic ? tr(topic.label) : trimmed.slice(0, 40);
     let drawFor: string | null = null;
     let redirected = safetyCheck(trimmed).ok === false;
 
@@ -237,9 +243,9 @@ function ExtraInner() {
 
   function pickSuggestion(item: Interest) {
     router.replace(`/extra?topic=${item.id}`);
-    setInput(item.seed);
-    saveExtraTopic(item.label);
-    say(`How about this: ${item.seed}`);
+    setInput(tr(item.seed));
+    saveExtraTopic(tr(item.label));
+    say(tr("extra.howAbout", { seed: tr(item.seed) }));
   }
 
   function stopDictationUi() {
@@ -253,7 +259,7 @@ function ExtraInner() {
   function startMic() {
     if (listening || busy) return;
     if (!micOk) {
-      setVoiceHint("Voice input needs Chrome or Edge with mic permission. You can still type below.");
+      setVoiceHint(tr("extra.micNeeds"));
       return;
     }
     stopSpeaking();
@@ -265,6 +271,7 @@ function ExtraInner() {
     lastSoundAt.current = Date.now();
 
     const handle = startDictation({
+      lang: langInfo(lang).speech,
       onText: (t) => {
         lastSoundAt.current = Date.now();
         setDictText(t);
@@ -277,7 +284,7 @@ function ExtraInner() {
         stopDictationUi();
         const question = t.trim();
         if (!question) {
-          setVoiceHint("I didn't catch that. Tap Mic to try again, or type your question.");
+          setVoiceHint(tr("extra.micNoCatch"));
           return;
         }
         setInput(question);
@@ -310,21 +317,21 @@ function ExtraInner() {
 
   return (
     <AppShell backHref="/">
-      <VoiceLoadingBubble enabled={voiceOn} />
+      <VoiceLoadingBubble enabled={voiceOn && lang === "en"} />
       <div className="flex flex-1 flex-col gap-5">
         <div className="flex items-end gap-3 sm:gap-5">
           <div className="relative min-w-0 flex-1 rounded-3xl border border-stroke bg-card px-5 py-5 sm:px-6 sm:py-6">
             <span
-              className="absolute -right-2 bottom-10 hidden h-4 w-4 rotate-45 border-r border-t border-stroke bg-card sm:block"
+              className="absolute -end-2 bottom-10 hidden h-4 w-4 rotate-45 border-r border-t border-stroke bg-card rtl:rotate-[225deg] sm:block"
               aria-hidden
             />
-            <p className="text-sm font-bold uppercase tracking-wide text-extra">Extra</p>
+            <p className="text-sm font-bold uppercase tracking-wide text-extra">{tr("extra.kicker")}</p>
             <h1 className="font-display mt-1 text-3xl font-semibold text-ink">
-              {topic ? topic.label : "Let's wonder"}
+              {topic ? tr(topic.label) : tr("extra.letsWonder")}
             </h1>
-            <p className="mt-2 text-ink-soft">{OPENING}</p>
+            <p className="mt-2 text-ink-soft">{opening}</p>
             <div className="mt-2">
-              <SpeakButton id="opening" text={OPENING} tone="extra" label="Listen to the starter question" />
+              <SpeakButton id="opening" text={opening} tone="extra" label={tr("extra.listenStarter")} />
             </div>
           </div>
           <div className="relative h-28 w-24 shrink-0 sm:h-40 sm:w-36">
@@ -353,29 +360,75 @@ function ExtraInner() {
                 : "border-stroke bg-card text-ink-soft"
             }`}
           >
-            {voiceOn ? "Voice answers on" : "Voice answers off"}
+            {voiceOn ? tr("extra.voiceOn") : tr("extra.voiceOff")}
           </button>
           {messages.length > 0 ? (
             <button
               type="button"
-              onClick={() => {
-                stopSpeaking();
-                setMessages([]);
-                clearExtraChat();
-              }}
+              onClick={() => openChat(null, [])}
               className="rounded-full border border-stroke bg-card px-4 py-2 text-sm font-bold text-ink-soft"
-              title="Start a fresh conversation"
+              title={tr("extra.newChatTitle")}
             >
-              New chat
+              {tr("extra.newChat")}
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={() => setPastChats(pastChats ? null : listChats())}
+            aria-expanded={Boolean(pastChats)}
+            className="rounded-full border border-stroke bg-card px-4 py-2 text-sm font-bold text-ink-soft"
+          >
+            {tr("extra.pastChats")}
+          </button>
         </div>
+
+        {pastChats ? (
+          <div className="space-y-2 rounded-3xl border border-stroke bg-card p-4" role="region" aria-label={tr("extra.pastChats")}>
+            <p className="text-sm font-bold text-ink-soft">{tr("extra.yourPastChats")}</p>
+            {pastChats.length === 0 ? (
+              <p className="text-sm text-ink-soft">{tr("extra.noPastChats")}</p>
+            ) : (
+              <ul className="space-y-2">
+                {pastChats.map((c) => (
+                  <li key={c.id} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openChat(c.id, toMsgs(c))}
+                      className={`min-w-0 flex-1 rounded-2xl px-3 py-2 text-start ${
+                        c.id === activeChatId ? "bg-extra/10 ring-1 ring-extra/30" : "bg-bg-deep/50"
+                      }`}
+                    >
+                      <span className="block truncate text-sm font-semibold text-ink">{c.title}</span>
+                      <span className="block text-xs text-ink-soft">
+                        {new Date(c.updatedAt).toLocaleDateString(lang === "ar" ? "ar-AE-u-nu-latn" : undefined, { day: "numeric", month: "short" })} ·{" "}
+                        {tr("extra.messages", { n: c.messages.length })}
+                        {c.id === activeChatId ? ` · ${tr("extra.openNow")}` : ""}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        deleteChat(c.id);
+                        if (c.id === activeChatId) openChat(null, []);
+                        setPastChats(listChats());
+                      }}
+                      className="rounded-full px-2 py-1 text-sm text-ink-soft hover:text-ink"
+                      aria-label={tr("extra.deleteChat", { title: c.title })}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : null}
 
         <div className="flex min-h-[260px] flex-1 flex-col gap-3 rounded-3xl border border-stroke bg-card p-4">
           {messages.length === 0 ? (
             <div className="flex flex-1 flex-col justify-center gap-2 text-ink-soft">
-              <p>Wondrix is ready. Ask anything with the mic, or type below.</p>
-              <p className="text-sm">Or tap a topic idea under the chat if you want a starter.</p>
+              <p>{tr("extra.ready")}</p>
+              <p className="text-sm">{tr("extra.readyHint")}</p>
             </div>
           ) : (
             messages.map((msg) => (
@@ -383,23 +436,23 @@ function ExtraInner() {
                 key={msg.id}
                 className={`max-w-[90%] space-y-2 rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === "child"
-                    ? "ml-auto bg-extra text-white"
+                    ? "ms-auto bg-extra text-white"
                     : "bg-bg-deep text-ink"
                 }`}
               >
-                <p>{msg.text}</p>
+                <p dir="auto">{msg.text}</p>
                 {msg.role === "agent" && msg.visual ? <ExtraVisual visual={msg.visual} /> : null}
                 {msg.role === "agent" && msg.drawing ? (
                   <p className="flex items-center gap-2 text-xs font-semibold text-extra" role="status">
                     <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-extra" aria-hidden />
-                    Wondrix is drawing it for you…
+                    {tr("extra.drawing")}
                   </p>
                 ) : null}
                 {msg.role === "agent" ? <SpeakButton id={`msg-${msg.id}`} text={msg.text} /> : null}
               </div>
             ))
           )}
-          {busy ? <p className="text-sm text-ink-soft">Wondrix is thinking…</p> : null}
+          {busy ? <p className="text-sm text-ink-soft">{tr("extra.thinking")}</p> : null}
         </div>
 
         {voiceHint ? <p className="text-sm font-semibold text-extra">{voiceHint}</p> : null}
@@ -430,25 +483,26 @@ function ExtraInner() {
             className={`rounded-full px-4 py-3 font-bold text-white disabled:opacity-60 ${
               listening ? "bg-extra" : "bg-ink"
             }`}
-            title="Tap once and ask with your voice"
-            aria-label="Ask with your voice"
+            title={tr("extra.micTitle")}
+            aria-label={tr("extra.micLabel")}
           >
             <span className="inline-flex items-center gap-1.5">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                 <rect x="9" y="3" width="6" height="11" rx="3" />
                 <path d="M5 11a7 7 0 0 0 14 0M12 18v3" strokeLinecap="round" />
               </svg>
-              {listening ? "Recording" : "Mic"}
+              {listening ? tr("extra.recording") : tr("extra.mic")}
             </span>
           </button>
           <input
             id="extra-question"
             name="question"
-            aria-label="Your question for Wondrix"
+            aria-label={tr("extra.inputLabel")}
             autoComplete="off"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask anything curious…"
+            placeholder={tr("extra.placeholder")}
+            dir="auto"
             disabled={busy}
             className="min-w-0 flex-1 rounded-full border border-stroke bg-card px-4 py-3 text-ink outline-none focus:border-extra/50 disabled:opacity-60"
           />
@@ -457,12 +511,12 @@ function ExtraInner() {
             disabled={busy}
             className="rounded-full bg-extra px-5 py-3 font-bold text-white disabled:opacity-60"
           >
-            Send
+            {tr("extra.send")}
           </button>
         </form>
 
         <div className="space-y-3">
-          <p className="text-sm font-bold text-ink-soft">Topic ideas</p>
+          <p className="text-sm font-bold text-ink-soft">{tr("extra.topicIdeas")}</p>
           <div className="grid gap-3 sm:grid-cols-2">
             {INTERESTS.map((item) => {
               const active = topic?.id === item.id;
@@ -471,7 +525,7 @@ function ExtraInner() {
                   key={item.id}
                   type="button"
                   onClick={() => pickSuggestion(item)}
-                  className={`overflow-hidden rounded-3xl border bg-card text-left transition ${
+                  className={`overflow-hidden rounded-3xl border bg-card text-start transition ${
                     active
                       ? "border-extra ring-2 ring-extra/30"
                       : "border-stroke hover:border-extra/40"
@@ -487,8 +541,8 @@ function ExtraInner() {
                     />
                   </div>
                   <div className="px-4 py-3">
-                    <p className="font-display text-lg font-semibold text-ink">{item.label}</p>
-                    <p className="mt-0.5 text-sm text-ink-soft">{item.seed}</p>
+                    <p className="font-display text-lg font-semibold text-ink">{tr(item.label)}</p>
+                    <p className="mt-0.5 text-sm text-ink-soft">{tr(item.seed)}</p>
                   </div>
                 </button>
               );
@@ -501,11 +555,12 @@ function ExtraInner() {
 }
 
 export default function ExtraPage() {
+  const tr = useT();
   return (
     <Suspense
       fallback={
         <AppShell backHref="/">
-          <p className="text-ink-soft">Loading Extra…</p>
+          <p className="text-ink-soft">{tr("extra.loadingPage")}</p>
         </AppShell>
       }
     >

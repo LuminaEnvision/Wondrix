@@ -151,12 +151,12 @@ test.describe("voice controls", () => {
   });
 });
 
-test.describe("conversation memory (this visit)", () => {
+test.describe("conversation memory + chat history", () => {
   test.beforeEach(async ({ page }) => {
     await skipSetup(page);
   });
 
-  test("history is sent with each message, survives a reload, and New chat clears it", async ({ page }) => {
+  test("history is sent with each message, survives a reload, and New chat starts fresh", async ({ page }) => {
     const histories: number[] = [];
     await page.route("**/api/extra/chat", async (route) => {
       const body = JSON.parse(route.request().postData() || "{}") as { message: string; history: unknown[] };
@@ -176,19 +176,57 @@ test.describe("conversation memory (this visit)", () => {
     await ask("yes");
     expect(histories).toEqual([0, 2]);
 
-    // Reload: the conversation (and so the agent's context) is still there.
     await page.reload();
     await expect(page.getByText("Reply to: yes.", { exact: false })).toBeVisible();
     await page.getByRole("button", { name: "Voice answers on" }).click();
     await ask("what about sunsets?");
     expect(histories).toEqual([0, 2, 4]);
 
-    // New chat starts fresh.
     await page.getByRole("button", { name: "New chat" }).click();
     await expect(page.getByText("Reply to: yes.", { exact: false })).toHaveCount(0);
-    await page.reload();
-    await expect(page.getByText("Wondrix is ready.", { exact: false })).toBeVisible();
     await ask("hello again");
     expect(histories.at(-1)).toBe(0);
+  });
+
+  test("Past chats: an old chat can be reopened and continued with its context; Parent can clear history", async ({ page }) => {
+    const histories: number[] = [];
+    await page.route("**/api/extra/chat", async (route) => {
+      const body = JSON.parse(route.request().postData() || "{}") as { message: string; history: unknown[] };
+      histories.push(body.history.length);
+      await route.fulfill({ json: { text: `Reply to: ${body.message}.`, answer: `Reply to: ${body.message}.`, topic: "t", source: "zai" } });
+    });
+    await page.goto("/extra");
+    await page.getByRole("button", { name: "Voice answers on" }).click();
+    const ask = async (q: string) => {
+      await page.getByPlaceholder("Ask anything curious…").fill(q);
+      await page.getByRole("button", { name: "Send" }).click();
+      await expect(page.getByText(`Reply to: ${q}.`, { exact: false })).toBeVisible();
+    };
+    await ask("how do volcanoes erupt?");
+    await page.getByRole("button", { name: "New chat" }).click();
+    await ask("why do cats purr?");
+
+    // Both chats are listed, newest first; the open one is marked.
+    await page.getByRole("button", { name: "Past chats" }).click();
+    const panel = page.getByRole("region", { name: "Past chats" });
+    await expect(panel.getByText("why do cats purr?")).toBeVisible();
+    await expect(panel.getByText("open now")).toBeVisible();
+    await panel.getByText("how do volcanoes erupt?").click();
+
+    // Reopened with its messages; the next question carries that chat's context.
+    await expect(page.getByText("Reply to: how do volcanoes erupt?.")).toBeVisible();
+    await expect(page.getByText("Reply to: why do cats purr?.")).toHaveCount(0);
+    await ask("and lava?");
+    expect(histories.at(-1)).toBe(2);
+
+    // Parent can see and clear the history.
+    await page.goto("/parent");
+    await expect(page.getByText(/2 chats saved on this device/)).toBeVisible();
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "Clear chat history" }).click();
+    await expect(page.getByText("No chats saved on this device.")).toBeVisible();
+    await page.goto("/extra");
+    await page.getByRole("button", { name: "Past chats" }).click();
+    await expect(page.getByText("No saved chats yet.", { exact: false })).toBeVisible();
   });
 });

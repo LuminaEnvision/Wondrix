@@ -167,11 +167,16 @@ export function loadSafetyRedirects(): number {
 }
 
 /* ------------------------------------------------------------------ */
-/* Extra chat memory for the current visit (sessionStorage)            */
+/* Extra chat history (localStorage) + active chat per tab (sessionStorage) */
 /* ------------------------------------------------------------------ */
 
-const EXTRA_CHAT_KEY = "wondrix-extra-chat";
-const MAX_SAVED_MESSAGES = 30;
+const CHATS_KEY = "wondrix-extra-chats";
+const ACTIVE_CHAT_KEY = "wondrix-extra-active";
+const LEGACY_CHAT_KEY = "wondrix-extra-chat"; // single-chat format before history existed
+
+/** Kept on the device: the 20 most recent chats, 30 messages each (browser storage is small). */
+export const MAX_SAVED_CHATS = 20;
+export const MAX_SAVED_MESSAGES = 30;
 
 export type SavedChatMessage = {
   id: number;
@@ -180,38 +185,134 @@ export type SavedChatMessage = {
   visual?: unknown;
 };
 
-/**
- * The Extra conversation survives a reload in the same tab (so the agent keeps its
- * context), and is cleared when the tab closes or the child taps "New chat".
- */
-export function saveExtraChat(messages: SavedChatMessage[]) {
-  if (typeof window === "undefined") return;
-  try {
-    const slim = messages.slice(-MAX_SAVED_MESSAGES).map(({ id, role, text, visual }) => ({ id, role, text, visual: visual ?? null }));
-    sessionStorage.setItem(EXTRA_CHAT_KEY, JSON.stringify(slim));
-  } catch {
-    /* storage full or unavailable */
-  }
+export type SavedChat = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: SavedChatMessage[];
+};
+
+function isMessage(m: unknown): m is SavedChatMessage {
+  const x = m as SavedChatMessage;
+  return Boolean(x) && typeof x.id === "number" && (x.role === "child" || x.role === "agent") && typeof x.text === "string";
 }
 
-export function loadExtraChat(): SavedChatMessage[] {
-  if (typeof window === "undefined") return [];
+function readChats(): SavedChat[] {
   try {
-    const raw = JSON.parse(sessionStorage.getItem(EXTRA_CHAT_KEY) || "[]") as unknown;
+    const raw = JSON.parse(localStorage.getItem(CHATS_KEY) || "[]") as unknown;
     if (!Array.isArray(raw)) return [];
-    return raw.filter(
-      (m): m is SavedChatMessage =>
-        Boolean(m) && typeof m.id === "number" && (m.role === "child" || m.role === "agent") && typeof m.text === "string",
-    );
+    return raw
+      .filter((c): c is SavedChat => Boolean(c) && typeof c.id === "string" && Array.isArray(c.messages))
+      .map((c) => ({ ...c, messages: c.messages.filter(isMessage) }));
   } catch {
     return [];
   }
 }
 
-export function clearExtraChat() {
+function writeChats(chats: SavedChat[]) {
+  try {
+    localStorage.setItem(CHATS_KEY, JSON.stringify(chats));
+  } catch {
+    /* storage full: drop the oldest chat and retry once */
+    try {
+      localStorage.setItem(CHATS_KEY, JSON.stringify(chats.slice(0, -1)));
+    } catch {
+      /* give up silently; the current chat still works in memory */
+    }
+  }
+}
+
+/** Title shown in "Past chats": the child's first question. */
+export function chatTitle(messages: SavedChatMessage[]): string {
+  const first = messages.find((m) => m.role === "child")?.text.trim() ?? "New chat";
+  return first.length > 60 ? `${first.slice(0, 57)}…` : first;
+}
+
+export function newChatId(): string {
+  return `c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/** All saved chats, most recent first. */
+export function listChats(): SavedChat[] {
+  if (typeof window === "undefined") return [];
+  migrateLegacyChat();
+  return readChats().sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+export function loadChat(id: string): SavedChat | undefined {
+  return listChats().find((c) => c.id === id);
+}
+
+/** Create or update a chat. Empty chats are not stored. Keeps the newest MAX_SAVED_CHATS. */
+export function saveChat(id: string, messages: SavedChatMessage[]) {
+  if (typeof window === "undefined" || !messages.length) return;
+  const slim = messages
+    .slice(-MAX_SAVED_MESSAGES)
+    .map(({ id: mid, role, text, visual }) => ({ id: mid, role, text, visual: visual ?? null }));
+  const now = Date.now();
+  const chats = listChats();
+  const existing = chats.find((c) => c.id === id);
+  const updated: SavedChat = {
+    id,
+    title: chatTitle(slim),
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+    messages: slim,
+  };
+  const rest = chats.filter((c) => c.id !== id);
+  writeChats([updated, ...rest].slice(0, MAX_SAVED_CHATS));
+}
+
+export function deleteChat(id: string) {
+  if (typeof window === "undefined") return;
+  writeChats(listChats().filter((c) => c.id !== id));
+}
+
+/** Parent control: remove every saved chat on this device. */
+export function clearAllChats() {
   if (typeof window === "undefined") return;
   try {
-    sessionStorage.removeItem(EXTRA_CHAT_KEY);
+    localStorage.removeItem(CHATS_KEY);
+    sessionStorage.removeItem(ACTIVE_CHAT_KEY);
+    sessionStorage.removeItem(LEGACY_CHAT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** The chat open in this tab (so a reload continues it). */
+export function getActiveChatId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return sessionStorage.getItem(ACTIVE_CHAT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setActiveChatId(id: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (id) sessionStorage.setItem(ACTIVE_CHAT_KEY, id);
+    else sessionStorage.removeItem(ACTIVE_CHAT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** One-time import of the old single-chat (sessionStorage) format into the history. */
+function migrateLegacyChat() {
+  try {
+    const raw = sessionStorage.getItem(LEGACY_CHAT_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(LEGACY_CHAT_KEY);
+    const msgs = (JSON.parse(raw) as unknown[]).filter(isMessage);
+    if (!msgs.length) return;
+    const id = newChatId();
+    const now = Date.now();
+    writeChats([{ id, title: chatTitle(msgs), createdAt: now, updatedAt: now, messages: msgs }, ...readChats()].slice(0, MAX_SAVED_CHATS));
+    if (!sessionStorage.getItem(ACTIVE_CHAT_KEY)) sessionStorage.setItem(ACTIVE_CHAT_KEY, id);
   } catch {
     /* ignore */
   }

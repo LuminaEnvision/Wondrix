@@ -9,7 +9,8 @@
 
 import { useSyncExternalStore } from "react";
 import { gradeName } from "./curriculum";
-import { loadProfile, MASTERY_KEY, PROFILE_KEY } from "./demo-store";
+import { asLang, t, type Lang, type MessageKey } from "./i18n";
+import { loadProfile, MASTERY_KEY, PROFILE_KEY, saveProfile } from "./demo-store";
 import { PROFILE_CHANGED_EVENT } from "./types";
 
 const noopSubscribe = () => () => {};
@@ -67,4 +68,24 @@ function readGradeName(): string {
 /** The saved grade in the family's curriculum ("Grade 3"...); empty string before hydration. */
 export function useProfileGradeName(): string {
   return useSyncExternalStore(subscribeProfile, readGradeName, () => "");
+}
+
+function readLang(): Lang {
+  return asLang(loadProfile().language);
+}
+
+/** Saved app language; "en" on the server and during hydration. */
+export function useLang(): Lang {
+  return useSyncExternalStore(subscribeProfile, readLang, () => "en");
+}
+
+/** Translator bound to the saved language: `const tr = useT(); tr("extra.send")`. */
+export function useT(): (key: MessageKey, vars?: Record<string, string | number>) => string {
+  const lang = useLang();
+  return (key, vars) => t(key, vars, lang);
+}
+
+/** Save only the language (applies at once, without the Parent form's Save button). */
+export function saveLanguage(lang: Lang) {
+  saveProfile({ ...loadProfile(), language: lang });
 }

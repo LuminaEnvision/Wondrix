@@ -67,11 +67,13 @@ export function gradeNameWithAge(gradeLabelOrId: string, curriculum?: Curriculum
 }
 
 /** One line for the AI prompts: grade name, curriculum, spelling. */
-export function curriculumPromptLine(profile: { gradeLabel: string; curriculum?: Curriculum }): string {
+export function curriculumPromptLine(profile: { gradeLabel: string; curriculum?: Curriculum; language?: string }): string {
   const c = asCurriculum(profile.curriculum);
   const name = gradeName(profile.gradeLabel, c);
   const uk = gradeName(profile.gradeLabel, "uk");
   const english = c === "us" ? "American English (math, color)" : "British English (maths, colour)";
   const same = name === uk ? "" : ` (same level as UK ${uk})`;
-  return `School level: ${name}${same}, ${curriculumLabel(c)} curriculum. Call the level "${name}" and use ${english}.`;
+  // In Arabic the language line (i18n) decides the wording; no English spelling rule.
+  const spelling = profile.language === "ar" ? "" : ` and use ${english}`;
+  return `School level: ${name}${same}, ${curriculumLabel(c)} curriculum. Call the level "${name}"${spelling}.`;
 }
