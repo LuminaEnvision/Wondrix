@@ -11,12 +11,28 @@
 
 export type VisualKind = "steps" | "cycle" | "compare" | "scale" | "web";
 
+/**
+ * Picture words the agent may attach to any item. Each one is a hand-drawn,
+ * animated icon in ExtraVisual, so children who cannot read yet still SEE
+ * "sun shines → water rises → cloud → rain".
+ */
+export const ICON_NAMES = [
+  "sun", "moon", "star", "earth", "planet", "rocket",
+  "cloud", "rain", "drop", "steam", "ice", "wind", "fire", "thermometer", "lightning",
+  "plant", "seed", "leaf", "flower", "root", "tree", "apple",
+  "fish", "bird", "animal", "bug", "person", "heart", "bone", "eye", "ear", "food",
+  "magnet", "bulb", "battery", "gear", "robot", "atom", "cell",
+  "rock", "mountain", "ocean", "ruler", "clock", "balance", "wheel",
+] as const;
+export type IconName = (typeof ICON_NAMES)[number];
+const ICON_SET = new Set<string>(ICON_NAMES);
+
 export type Visual =
-  | { kind: "steps"; title: string; items: { label: string; note?: string }[] }
-  | { kind: "cycle"; title: string; items: { label: string }[] }
-  | { kind: "compare"; title: string; columns: { label: string; points: string[] }[] }
-  | { kind: "scale"; title: string; unit?: string; items: { label: string; value: number }[] }
-  | { kind: "web"; title: string; center: string; items: { label: string }[] };
+  | { kind: "steps"; title: string; items: { label: string; note?: string; icon?: IconName }[] }
+  | { kind: "cycle"; title: string; items: { label: string; icon?: IconName }[] }
+  | { kind: "compare"; title: string; columns: { label: string; points: string[]; icon?: IconName }[] }
+  | { kind: "scale"; title: string; unit?: string; items: { label: string; value: number; icon?: IconName }[] }
+  | { kind: "web"; title: string; center: string; centerIcon?: IconName; items: { label: string; icon?: IconName }[] };
 
 /** Compact schema text for the agent prompt (keep in sync with parseVisual). */
 export const VISUAL_PROMPT = [
@@ -28,6 +44,7 @@ export const VISUAL_PROMPT = [
   '- scale: sizes or amounts. {"kind":"scale","title":string,"unit":string,"items":[{"label":string,"value":number}]} 2 to 6 items, real approximate values.',
   '- web: parts of one thing. {"kind":"web","title":string,"center":string,"items":[{"label":string}]} 3 to 6 items.',
   "Labels max 4 words, notes and points max 8 words, title max 6 words. Facts must match your answer. No emojis.",
+  `Pictures: young children may not read yet, so give EVERY item (and each compare column, and the web center as "centerIcon") an "icon" that shows it, chosen from: ${ICON_NAMES.join(", ")}. Example water cycle: sun, steam, cloud, rain. Pick the closest picture; use the same icon twice only if it is really the same thing.`,
 ].join("\n");
 
 const MAX_LABEL = 32;
@@ -41,6 +58,17 @@ function clean(value: unknown, max: number): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, max);
+}
+
+function icon(value: unknown): IconName | undefined {
+  const name = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return ICON_SET.has(name) ? (name as IconName) : undefined;
+}
+
+/** Add `icon` only when it is a known picture (keeps specs without icons unchanged). */
+function withIcon<T extends object>(item: T, raw: unknown): T & { icon?: IconName } {
+  const i = icon(obj(raw).icon);
+  return i ? { ...item, icon: i } : item;
 }
 
 function arr(value: unknown): unknown[] {
@@ -61,35 +89,36 @@ export function parseVisual(raw: unknown): Visual | null {
   switch (v.kind) {
     case "steps": {
       const items = arr(v.items)
-        .map((i) => ({ label: clean(obj(i).label, MAX_LABEL), note: clean(obj(i).note, MAX_NOTE) }))
+        .map((i) => ({ raw: i, label: clean(obj(i).label, MAX_LABEL), note: clean(obj(i).note, MAX_NOTE) }))
         .filter((i) => i.label)
         .slice(0, 5)
-        .map((i) => (i.note ? i : { label: i.label }));
+        .map((i) => withIcon(i.note ? { label: i.label, note: i.note } : { label: i.label }, i.raw));
       return items.length >= 2 ? { kind: "steps", title, items } : null;
     }
     case "cycle": {
       const items = arr(v.items)
-        .map((i) => ({ label: clean(obj(i).label, MAX_LABEL) }))
+        .map((i) => withIcon({ label: clean(obj(i).label, MAX_LABEL) }, i))
         .filter((i) => i.label)
         .slice(0, 6);
       return items.length >= 3 ? { kind: "cycle", title, items } : null;
     }
     case "compare": {
       const columns = arr(v.columns)
-        .map((c) => ({
+        .map((c) =>
+          withIcon({
           label: clean(obj(c).label, MAX_LABEL),
           points: arr(obj(c).points)
             .map((p) => clean(p, MAX_NOTE))
             .filter(Boolean)
             .slice(0, 3),
-        }))
+        }, c))
         .filter((c) => c.label && c.points.length)
         .slice(0, 3);
       return columns.length >= 2 ? { kind: "compare", title, columns } : null;
     }
     case "scale": {
       const items = arr(v.items)
-        .map((i) => ({ label: clean(obj(i).label, MAX_LABEL), value: Number(obj(i).value) }))
+        .map((i) => withIcon({ label: clean(obj(i).label, MAX_LABEL), value: Number(obj(i).value) }, i))
         .filter((i) => i.label && Number.isFinite(i.value) && i.value >= 0)
         .slice(0, 6);
       if (items.length < 2 || !items.some((i) => i.value > 0)) return null;
@@ -99,10 +128,12 @@ export function parseVisual(raw: unknown): Visual | null {
     case "web": {
       const center = clean(v.center, MAX_LABEL);
       const items = arr(v.items)
-        .map((i) => ({ label: clean(obj(i).label, MAX_LABEL) }))
+        .map((i) => withIcon({ label: clean(obj(i).label, MAX_LABEL) }, i))
         .filter((i) => i.label)
         .slice(0, 6);
-      return center && items.length >= 3 ? { kind: "web", title, center, items } : null;
+      if (!center || items.length < 3) return null;
+      const centerIcon = icon(v.centerIcon);
+      return centerIcon ? { kind: "web", title, center, centerIcon, items } : { kind: "web", title, center, items };
     }
     default:
       return null;
@@ -118,4 +149,60 @@ export function visualText(v: Visual): string {
   if (v.kind === "scale") v.items.forEach((i) => parts.push(`${i.label}: ${i.value}${v.unit ? ` ${v.unit}` : ""}`));
   if (v.kind === "web") parts.push(`${v.center}: ${v.items.map((i) => i.label).join(", ")}`);
   return parts.filter(Boolean).join(". ");
+}
+
+/** Keyword hints (English + a few Arabic) when the agent gave no icon. Order matters: first match wins. */
+const ICON_HINTS: [RegExp, IconName][] = [
+  [/evaporat|vapou?r|steam|rises|بخار|يتبخر/i, "steam"],
+  [/rain|shower|falls? down|drizzle|مطر/i, "rain"],
+  [/cloud|سحاب|غيم/i, "cloud"],
+  [/sun|sunlight|daylight|\bday\b|شمس|نهار/i, "sun"],
+  [/moon|crescent|قمر|هلال/i, "moon"],
+  [/\bstars?\b|نجم/i, "star"],
+  [/earth|world|globe|أرض/i, "earth"],
+  [/planet|mars|jupiter|saturn|كوكب/i, "planet"],
+  [/rocket|space ?ship|صاروخ/i, "rocket"],
+  [/lightning|thunder|spark|برق/i, "lightning"],
+  [/\bice\b|frozen|freez|snow|solid|ثلج|جليد/i, "ice"],
+  [/water|liquid|drop|river|ماء|قطر/i, "drop"],
+  [/sea|ocean|wave|بحر|محيط/i, "ocean"],
+  [/wind|\bair\b|blow|breath|gas\b|رياح|هواء/i, "wind"],
+  [/fire|burn|flame|\bhot\b|heat|نار|حرار/i, "fire"],
+  [/temperature|degrees|°c|thermometer|حرارة/i, "thermometer"],
+  [/root|جذر/i, "root"],
+  [/seed|بذر/i, "seed"],
+  [/leaf|leaves|ورق/i, "leaf"],
+  [/flower|petal|bloom|زهر|ورد/i, "flower"],
+  [/tree|forest|شجر/i, "tree"],
+  [/plant|grow|stem|sprout|نبات/i, "plant"],
+  [/fruit|apple|تفاح|فاكه/i, "apple"],
+  [/food|\beat|meal|stomach|digest|طعام|أكل/i, "food"],
+  [/fish|سمك/i, "fish"],
+  [/bird|feather|wing|طائر|عصفور/i, "bird"],
+  [/insect|bug|\bbees?\b|\bants?\b|butterfl|حشر|نحل/i, "bug"],
+  [/animal|mammal|\bpets?\b|camel|\bcats?\b|\bdogs?\b|حيوان|جمل/i, "animal"],
+  [/heart|blood|قلب|دم/i, "heart"],
+  [/bone|skeleton|عظم|هيكل/i, "bone"],
+  [/eye|see|sight|light|عين|يرى/i, "eye"],
+  [/\bears?\b|hear|sound|أذن|صوت/i, "ear"],
+  [/person|people|human|body|\byou\b|child|إنسان|جسم/i, "person"],
+  [/magnet|مغناطيس/i, "magnet"],
+  [/bulb|lamp|lights? up|مصباح/i, "bulb"],
+  [/battery|electric|circuit|power|بطارية|كهرب/i, "battery"],
+  [/gear|machine|motor|engine|ترس|محرك/i, "gear"],
+  [/robot|sensor|روبوت/i, "robot"],
+  [/atom|molecule|particle|ذرة|جزيء/i, "atom"],
+  [/\bcells?\b|germ|microb|bacteri|خلية|جرثوم/i, "cell"],
+  [/rock|stone|sand|soil|fossil|صخر|حجر|رمل/i, "rock"],
+  [/mountain|hill|volcano|جبل|بركان/i, "mountain"],
+  [/length|long|tall|metre|meter|\bcm\b|ruler|طول|متر/i, "ruler"],
+  [/time|hour|minute|clock|year|month|وقت|ساعة/i, "clock"],
+  [/weigh|mass|heavy|kg\b|gram|balance|وزن|ثقيل/i, "balance"],
+  [/wheel|roll|\bcars?\b|bike|عجل|سيارة/i, "wheel"],
+];
+
+/** The icon to draw for an item: the agent's choice, else a keyword guess, else none. */
+export function iconFor(label: string, given?: IconName): IconName | undefined {
+  if (given) return given;
+  return ICON_HINTS.find(([re]) => re.test(label))?.[1];
 }

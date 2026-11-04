@@ -39,7 +39,33 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Languages: English + Arabic base (RTL)
+### Picture-first diagrams: icons + animation + "Show me" narration
+
+**What:** Anastasia's feedback: a diagram of text boxes does not help a child who can barely read ("it should literally show the sun shines, water evaporates"). Now every diagram item has a big hand-drawn, animated picture, and the diagram can **tell itself**:
+- 46 picture icons in the Wondrix style (sun, steam, cloud, rain, root, leaf, moon, earth, magnet, heart, robot, ...), each with a small motion: the sun's rays turn, steam rises, rain falls, plants sway, the heart beats.
+- **Show me**: each item lights up and moves while Wondrix says it, one after another. Tap any item to hear just that one. Stop any time.
+- **Auto-play**: the newest diagram walks through by itself right after the spoken answer ends (only when voice answers are on; never over the answer; not for reopened chats).
+- New layouts: steps as a top-to-bottom picture path, cycle and web as items around a circle (arrows for cycles), compare as picture columns, scale as picture rows with growing bars. Items pop in one by one.
+
+**How**
+- `src/lib/visual.ts`: `ICON_NAMES`, optional `icon` on every item (`centerIcon` for web); unknown names are dropped, so old specs stay valid. `VISUAL_PROMPT` asks the agent for an icon on EVERY item from the list. `iconFor(label, icon)` guesses from keywords (English + some Arabic) when the agent gave none, so the offline diagrams get pictures too.
+- `src/components/VisualIcon.tsx`: the icons (inline SVG, no images, no model-written markup). Motion is CSS in `globals.css`, off under `prefers-reduced-motion`.
+- `src/components/ExtraVisual.tsx`: rewritten in HTML + SVG icons (RTL friendly). The highlighted item is derived from the voice state (speech id `vis-…-<n>`), so there is no extra React state.
+- `src/lib/voice.ts`: `speak(text, { onEnd })` fires once when the text finished or could not play (not when stopped or replaced). Without sound each item still shows for at least 1.4 s.
+- Extra page passes `autoPlay` for the newest diagram only.
+
+**Why:** pictures + voice + motion explain the idea without reading. It works for every question (the agent picks the pictures), costs no extra AI call and keeps the safety model (we draw, the model only names icons).
+
+**Live check (Z.ai):** "How does rain happen?" → sun, steam, cloud, drop. "How do plants drink?" → root, plant, leaf.
+
+**Tests**
+- `tests/unit/visual.test.ts`: icons kept / unknown dropped / `centerIcon`; keyword guesses (incl. Arabic, and no false matches like "Today" → day); the prompt lists every icon.
+- `tests/e2e/extra.spec.ts`: the moon diagram shows moon icons; Show me → one item highlighted → Stop.
+- Results: Vitest 200/200, Playwright 64/64, lint and build clean. Screenshots checked for all five kinds and in Arabic.
+
+**Next (needs a go):** ready-made animated scenes for the most common topics (water cycle, day and night, moon phases, plant drinking, states of matter).
+
+### Languages: English + Arabic base (RTL) (`ccc0363`, merged in PR #7)
 
 **What:** the app can switch between English and Arabic. Arabic flips the layout right to left, the mic listens in Arabic, and Extra answers in Arabic. The Arabic text is an AI-written draft for a native speaker to review. Full status table: [`docs/I18N.md`](./I18N.md).
 

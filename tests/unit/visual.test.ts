@@ -117,3 +117,38 @@ describe("VISUAL_PROMPT", () => {
     }
   });
 });
+
+describe("picture icons", () => {
+  it("keeps known icons, drops unknown ones (specs without icons stay unchanged)", async () => {
+    const v = parseVisual({
+      kind: "cycle",
+      title: "Water cycle",
+      items: [{ label: "Sun heats", icon: "SUN" }, { label: "Vapour rises", icon: "steam" }, { label: "Rain", icon: "unicorn" }],
+    });
+    expect(v?.kind === "cycle" && v.items).toEqual([
+      { label: "Sun heats", icon: "sun" },
+      { label: "Vapour rises", icon: "steam" },
+      { label: "Rain" },
+    ]);
+    const web = parseVisual({ kind: "web", title: "t", center: "Plant", centerIcon: "plant", items: [{ label: "a" }, { label: "b" }, { label: "c" }] });
+    expect(web?.kind === "web" && web.centerIcon).toBe("plant");
+  });
+
+  it("guesses a picture from the words when the agent gave none", async () => {
+    const { iconFor } = await import("@/lib/visual");
+    expect(iconFor("Water evaporates")).toBe("steam");
+    expect(iconFor("Clouds form")).toBe("cloud");
+    expect(iconFor("Rain falls")).toBe("rain");
+    expect(iconFor("The Sun shines")).toBe("sun");
+    expect(iconFor("Roots drink")).toBe("root");
+    expect(iconFor("مطر")).toBe("rain");
+    expect(iconFor("Today we start")).toBeUndefined(); // no false "day"/"star" matches
+    expect(iconFor("anything", "magnet")).toBe("magnet");
+  });
+
+  it("the prompt asks for an icon on every item and lists all icons", async () => {
+    const { ICON_NAMES } = await import("@/lib/visual");
+    expect(VISUAL_PROMPT).toMatch(/EVERY item/);
+    for (const name of ICON_NAMES) expect(VISUAL_PROMPT).toContain(name);
+  });
+});

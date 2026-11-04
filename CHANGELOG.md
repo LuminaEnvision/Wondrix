@@ -41,6 +41,9 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
   - Gap analysis of the Wondrix skill map, and writing rules.
 - **Question bank phase 1 (draft for review):** 75 new questions (5 per skill) in `src/lib/question-bank.ts`. Metric units, AED, Dubai + global contexts, misconception-based wrong answers. The bank grows from 20 to 95 items. Review sheet: `docs/QUESTION_BANK_REVIEW.md`.
 
+### Added (picture-first diagrams)
+- **Extra diagrams for children who can't read yet:** every item has a big animated picture (46 hand-drawn icons: sun, steam, cloud, rain, root, ...). **Show me** lights up each item while Wondrix says it; the newest diagram plays itself after the spoken answer. Tap an item to hear it.
+
 ### Added (languages)
 - **English + Arabic switch** in setup and Parent. Arabic turns the app right to left, the mic listens in Arabic (ar-AE), and Extra answers in Arabic. Arabic text is an AI draft for native review; School questions stay English for now. See [docs/I18N.md](./docs/I18N.md).
 
