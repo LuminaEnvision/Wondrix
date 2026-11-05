@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
-import { Fraunces, Nunito } from "next/font/google";
+import localFont from "next/font/local";
 import { AppProviders } from "@/components/AppProviders";
 import "./globals.css";
 
-const display = Fraunces({
+// Self-hosted so CI does not fetch Google Fonts. next/font/google builds fail
+// when Google returns extensionless kit URLs (vercel/next.js#99114).
+const display = localFont({
+  src: "./fonts/fraunces.woff2",
   variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: "500 700",
+  display: "swap",
 });
 
-const body = Nunito({
+const body = localFont({
+  src: "./fonts/nunito.woff2",
   variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "600", "700", "800"],
+  weight: "400 800",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
