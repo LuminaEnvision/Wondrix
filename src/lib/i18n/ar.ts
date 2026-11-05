@@ -104,6 +104,8 @@ export const ar: Record<MessageKey, string> = {
   "extra.howAbout": "ما رأيك بهذا: {seed}",
   "extra.loadingPage": "جارٍ تحميل إضافي…",
   "extra.drawnBy": "رسمه ووندريكس لسؤالك",
+  "visual.play": "أرني",
+  "visual.stop": "أوقف",
 
   "interest.physics": "الفيزياء",
   "interest.physics.seed": "لماذا تتحرك الأرض؟",

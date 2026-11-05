@@ -80,24 +80,21 @@ export function localExtraReply(
   if (/earth|spin|rotat|moving|day and night|day.?night/.test(t)) {
     return {
       text: "Earth is always spinning, like a top that never stops. That spin is why we get day and night. What do you think would happen if Earth stopped spinning?",
+      visual: { kind: "scene", title: "Day and night", scene: "day-night", items: [] },
+    };
+  }
+
+  if (/\b(ice|melt|melts|melting|boil|boils|steam|solid|liquid|gas|freez\w*)\b/.test(t)) {
+    return {
+      text: "Ice, water and steam are the same stuff in three forms. Ice is a solid and keeps its shape. Heat melts it into liquid water, and more heat turns water into steam, a gas. Cooling turns it back again. Want to know why ice floats?",
+      visual: { kind: "scene", title: "Solid, liquid, gas", scene: "states-of-matter", items: [] },
     };
   }
 
   if (/moon|phase|crescent|shape/.test(t)) {
     return {
       text: "The Moon doesn't really change shape. Sunlight hits different parts as it goes around Earth, so we see a crescent, a half, or a full circle. Want to know what a new moon is?",
-      visual: {
-        kind: "cycle",
-        title: "Moon phases in a month",
-        items: [
-          { label: "New moon" },
-          { label: "Crescent" },
-          { label: "Half moon" },
-          { label: "Full moon" },
-          { label: "Half again" },
-          { label: "Crescent again" },
-        ],
-      },
+      visual: { kind: "scene", title: "Moon phases in a month", scene: "moon-phases", items: [] },
     };
   }
 
@@ -110,15 +107,7 @@ export function localExtraReply(
   if (/plant|root|drink|water|living/.test(t) || topicId === "life") {
     return {
       text: "Roots drink water from the soil and send it up the stem to the leaves. The plant uses water, air, and light to make food. Want to know what leaves do with sunlight?",
-      visual: {
-        kind: "steps",
-        title: "How a plant drinks",
-        items: [
-          { label: "Roots soak up water", note: "From wet soil" },
-          { label: "Stem carries it up", note: "Through tiny tubes" },
-          { label: "Leaves use it", note: "With air and light to make food" },
-        ],
-      },
+      visual: { kind: "scene", title: "How a plant drinks and makes food", scene: "plant-food", items: [] },
     };
   }
 
@@ -131,16 +120,7 @@ export function localExtraReply(
   if (/rain|cloud|thunder|lightning|weather/.test(t)) {
     return {
       text: "Clouds are made of tiny water drops. When drops join and get heavy, they fall as rain. Lightning is a giant spark of electricity in the cloud. Want to know why thunder comes after lightning?",
-      visual: {
-        kind: "cycle",
-        title: "The water cycle",
-        items: [
-          { label: "Sun warms water" },
-          { label: "Vapor rises" },
-          { label: "Clouds form" },
-          { label: "Rain falls" },
-        ],
-      },
+      visual: { kind: "scene", title: "The water cycle", scene: "water-cycle", items: [] },
     };
   }
 

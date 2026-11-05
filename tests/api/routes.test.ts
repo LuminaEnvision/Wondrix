@@ -67,7 +67,7 @@ describe("POST /api/extra/chat", () => {
     const { data } = await json(await extraChat(req({ message: "why does the moon change shape?" })));
     expect(data.source).toBe("local");
     expect(data.text).toMatch(/Moon/);
-    expect((data.visual as { kind: string }).kind).toBe("cycle");
+    expect((data.visual as { kind: string }).kind).toBe("scene");
   });
 
   it("keyword gate runs first, even with AI (no model call)", async () => {

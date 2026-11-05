@@ -92,6 +92,8 @@ function ExtraInner() {
   // Chat history: every conversation is saved on the device (localStorage); this tab
   // remembers which one is open (sessionStorage), so a reload continues it with context.
   const [activeChatId, setActiveChatIdState] = useState<string | null>(null);
+  // The newest diagram walks itself through (with voice) once the answer is spoken.
+  const [autoVisualId, setAutoVisualId] = useState<number | null>(null);
   const [pastChats, setPastChats] = useState<SavedChat[] | null>(null); // null = panel closed
   const hydrated = useHydrated();
   const [restored, setRestored] = useState(false);
@@ -216,6 +218,7 @@ function ExtraInner() {
       drawing: Boolean(drawFor),
     };
     setMessages((m) => [...m, agentMsg]);
+    if (agentMsg.visual) setAutoVisualId(agentMsg.id);
     // A redirected question is not an "explored topic": only count it for the parent.
     if (redirected) recordSafetyRedirect();
     else saveExtraTopic(topicLabel);
@@ -239,6 +242,7 @@ function ExtraInner() {
       // no drawing this time; the text answer is already shown
     }
     setMessages((m) => m.map((msg) => (msg.id === msgId ? { ...msg, visual, drawing: false } : msg)));
+    if (visual) setAutoVisualId(msgId);
   }
 
   function pickSuggestion(item: Interest) {
@@ -441,7 +445,7 @@ function ExtraInner() {
                 }`}
               >
                 <p dir="auto">{msg.text}</p>
-                {msg.role === "agent" && msg.visual ? <ExtraVisual visual={msg.visual} /> : null}
+                {msg.role === "agent" && msg.visual ? <ExtraVisual visual={msg.visual} autoPlay={voiceOn && speakOk && msg.id === autoVisualId} /> : null}
                 {msg.role === "agent" && msg.drawing ? (
                   <p className="flex items-center gap-2 text-xs font-semibold text-extra" role="status">
                     <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-extra" aria-hidden />

@@ -31,7 +31,12 @@ type SpeakOpts = {
   pitch?: number;
   /** Which message is being read (lets the UI show a per-message play state). */
   id?: string;
+  /** Called once when this text finished playing, or could not play (not when stopped or replaced). */
+  onEnd?: () => void;
 };
+
+/** onEnd of the text playing now (cleared when something else starts or it is stopped). */
+let pendingOnEnd: { token: number; fn: () => void } | null = null;
 
 /** What the voice is doing right now (for play buttons and "speaking" indicators). */
 export type SpeechState =
@@ -156,6 +161,7 @@ export function speak(text: string, opts?: SpeakOpts) {
   stopSpeaking();
   const token = playToken;
   const id = opts?.id;
+  pendingOnEnd = opts?.onEnd ? { token, fn: opts.onEnd } : null;
   setSpeech({ state: "preparing", id });
   const started = Date.now();
   void (async () => {
@@ -174,6 +180,7 @@ export function speak(text: string, opts?: SpeakOpts) {
     if (token === playToken) {
       console.warn("[voice] no voice could play on this device");
       setSpeech({ state: "unavailable", id });
+      finishOnEnd(token);
     }
   })();
 }
@@ -185,6 +192,14 @@ function markSpeaking(token: number, engine: Engine, id?: string) {
 
 function markDone(token: number) {
   if (token === playToken) setSpeech(IDLE);
+  finishOnEnd(token);
+}
+
+function finishOnEnd(token: number) {
+  if (pendingOnEnd?.token !== token || token !== playToken) return;
+  const fn = pendingOnEnd.fn;
+  pendingOnEnd = null;
+  fn();
 }
 
 /** Start loading the natural voice early (call when a voice screen opens). */

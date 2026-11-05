@@ -101,6 +101,8 @@ export const en = {
   "extra.howAbout": "How about this: {seed}",
   "extra.loadingPage": "Loading Extra…",
   "extra.drawnBy": "Drawn by Wondrix for your question",
+  "visual.play": "Show me",
+  "visual.stop": "Stop",
 
   "interest.physics": "Physics",
   "interest.physics.seed": "Why is the Earth moving?",
