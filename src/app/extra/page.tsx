@@ -18,7 +18,9 @@ import {
   saveExtraTopic,
 } from "@/lib/demo-store";
 import { langInfo, type MessageKey } from "@/lib/i18n";
+import { nextExtraVisit, startersForVisit } from "@/lib/starters";
 import { useHydrated, useLang, useT } from "@/lib/use-client-state";
+import { Mascot } from "@/components/Mascot";
 import { localExtraReply } from "@/lib/extra-reply";
 import { safetyCheck } from "@/lib/safety";
 import {
@@ -43,7 +45,15 @@ type Msg = {
   visual?: Visual | null;
   /** The agent is drawing a diagram for this answer. */
   drawing?: boolean;
+  /** Short questions the child can tap next (shown under the newest answer). */
+  suggestions?: string[];
 };
+
+/** "Thursday 22:47": lets Wondrix say good night at bedtime. */
+function localTimeLabel(d = new Date()): string {
+  const day = d.toLocaleDateString("en-US", { weekday: "long" });
+  return `${day} ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
 
 const INTERESTS = [
   { id: "physics", label: "interest.physics", seed: "interest.physics.seed", art: "/art/topic-physics.jpg" },
@@ -54,6 +64,28 @@ const INTERESTS = [
 ] as const satisfies readonly { id: string; label: MessageKey; seed: MessageKey; art: string }[];
 
 type Interest = (typeof INTERESTS)[number];
+
+/** Tap-able questions: the child can start or continue without typing or reading much. */
+function IdeaChips({ ideas, onPick, disabled, big = false }: { ideas: string[]; onPick: (q: string) => void; disabled?: boolean; big?: boolean }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {ideas.map((q) => (
+        <button
+          key={q}
+          type="button"
+          disabled={disabled}
+          onClick={() => onPick(q)}
+          dir="auto"
+          className={`rounded-full border border-extra/40 bg-card text-start font-semibold text-ink hover:border-extra disabled:opacity-60 ${
+            big ? "px-4 py-2.5 text-sm" : "px-3 py-1.5 text-xs"
+          }`}
+        >
+          {q}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** Saved chat → page messages (no "drawing" flags on restore). */
 function toMsgs(chat: SavedChat): Msg[] {
@@ -71,7 +103,11 @@ function ExtraInner() {
 
   const tr = useT();
   const lang = useLang();
-  const opening = tr("extra.opening");
+  // A different opening line and starter ideas on every visit (per age band and language).
+  const [visit] = useState(() => nextExtraVisit());
+  const [ageBand] = useState(() => loadProfile().ageBand);
+  const starters = startersForVisit(ageBand, lang, visit, 4);
+  const opening = tr("extra.opening", { q: starters[0] });
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
@@ -187,6 +223,7 @@ function ExtraInner() {
           topicId: topic?.id ?? null,
           history,
           profile: loadProfile(),
+          localTime: localTimeLabel(),
         }),
       });
       if (res.ok) {
@@ -197,11 +234,12 @@ function ExtraInner() {
           draw?: boolean;
           visual?: Visual | null;
           source?: string;
+          suggestions?: string[];
         };
         if (data.source === "safety") redirected = true;
         if (data.text) {
           // Local replies may carry a ready-made visual; live ones draw in a second step.
-          reply = { text: data.text, visual: data.visual ?? undefined };
+          reply = { text: data.text, visual: data.visual ?? undefined, suggestions: data.suggestions };
           if (data.draw) drawFor = data.answer || data.text;
         }
         if (data.topic) topicLabel = data.topic;
@@ -216,6 +254,7 @@ function ExtraInner() {
       text: reply.text,
       visual: reply.visual ?? null,
       drawing: Boolean(drawFor),
+      suggestions: reply.suggestions?.length ? reply.suggestions : undefined,
     };
     setMessages((m) => [...m, agentMsg]);
     if (agentMsg.visual) setAutoVisualId(agentMsg.id);
@@ -338,16 +377,7 @@ function ExtraInner() {
               <SpeakButton id="opening" text={opening} tone="extra" label={tr("extra.listenStarter")} />
             </div>
           </div>
-          <div className="relative h-28 w-24 shrink-0 sm:h-40 sm:w-36">
-            <Image
-              src="/art/mascot-hero.png"
-              alt="Wondrix"
-              fill
-              className="object-contain object-bottom"
-              sizes="144px"
-              priority
-            />
-          </div>
+          <Mascot busy={busy} listening={listening} />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -430,9 +460,10 @@ function ExtraInner() {
 
         <div className="flex min-h-[260px] flex-1 flex-col gap-3 rounded-3xl border border-stroke bg-card p-4">
           {messages.length === 0 ? (
-            <div className="flex flex-1 flex-col justify-center gap-2 text-ink-soft">
+            <div className="flex flex-1 flex-col justify-center gap-3 text-ink-soft">
               <p>{tr("extra.ready")}</p>
-              <p className="text-sm">{tr("extra.readyHint")}</p>
+              <p className="text-sm font-bold">{tr("extra.tryOne")}</p>
+              <IdeaChips ideas={starters.slice(1)} onPick={(q) => void send(q)} disabled={busy} big />
             </div>
           ) : (
             messages.map((msg) => (
@@ -453,6 +484,9 @@ function ExtraInner() {
                   </p>
                 ) : null}
                 {msg.role === "agent" ? <SpeakButton id={`msg-${msg.id}`} text={msg.text} /> : null}
+                {msg.role === "agent" && msg.suggestions?.length && msg.id === messages.at(-1)?.id && !busy ? (
+                  <IdeaChips ideas={msg.suggestions} onPick={(q) => void send(q)} disabled={busy} />
+                ) : null}
               </div>
             ))
           )}

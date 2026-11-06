@@ -10,7 +10,16 @@ import type { Visual } from "./visual";
 export type ExtraReply = {
   text: string;
   visual?: Visual;
+  /** Short questions the child can tap next. */
+  suggestions?: string[];
 };
+
+const IDEAS = ["Why is the sky blue?", "How do magnets work?", "Where does rain come from?"];
+
+/** The child wants to stop (bed, food, bye): agree warmly, no question that keeps them talking. */
+export function isGoodbye(text: string): boolean {
+  return /\b(bye|goodbye|good ?night|see you|gotta go|have to go|i('m| am) (tired|sleepy|going)|go(ing)? to (bed|sleep)|time (to|for) (bed|sleep|dinner|lunch)|bed ?time|stop now|i want to stop)\b/i.test(text);
+}
 
 /** True for short replies that only make sense as an answer to the previous turn. */
 export function isShortReply(text: string): boolean {
@@ -31,6 +40,28 @@ export function localExtraReply(
 
   const t = childText.toLowerCase().trim();
 
+  if (isGoodbye(t)) {
+    return {
+      text: /night|bed|sleep|tired|sleepy/.test(t)
+        ? "You're right, it's time to rest. Sleep gives your brain and body energy for tomorrow. Good night, sweet dreams!"
+        : "Okay, see you soon! I'll keep collecting cool questions for next time.",
+    };
+  }
+
+  if (/\b(your name|who are you|what are you|are you (a )?(robot|real|human|person|alive))\b/.test(t)) {
+    return {
+      text: "I'm Wondrix! A little explorer who collects big questions in my bag, and yours are my favourite. What are you curious about today?",
+      suggestions: IDEAS,
+    };
+  }
+
+  if (/\b(don'?t know what to (ask|say)|what (should|can|do) i ask|i'?m bored|no idea)\b/.test(t)) {
+    return {
+      text: "That's okay, even explorers need a map! Pick one of these, or ask anything you wonder about.",
+      suggestions: IDEAS,
+    };
+  }
+
   // Mid-chat short answer while the live agent is unavailable: don't jump to a random
   // topic (it feels like Wondrix forgot); be honest and keep the thread.
   if (midConversation && isShortReply(t) && !/^(hi|hello|hey|hola)\b/.test(t)) {
@@ -41,7 +72,8 @@ export function localExtraReply(
 
   if (!t || /^(hi|hello|hey|hola)\b/.test(t)) {
     return {
-      text: "Hi. Ask me anything you're curious about. For example: why are wheels round, or why is the sky blue?",
+      text: "Hi, I'm Wondrix! Ask me anything you're curious about, or tap an idea.",
+      suggestions: IDEAS,
     };
   }
 
@@ -155,6 +187,7 @@ export function localExtraReply(
     // Generic fallback (unknown question, or the live agent timed out). It must not
     // echo the question back or promise to "explore" it: the question was not checked
     // by the AI safety layer, so stay neutral and steer to safe curiosity.
-    text: "I couldn't think that one through just now. Try asking again in a moment, or ask me a why or how question about stars, robots, plants, or how something works. What are you curious about?",
+    text: "Oops, my thinking got a bit tangled! Tap one of these ideas, or can you ask me again in a moment?",
+    suggestions: IDEAS,
   };
 }

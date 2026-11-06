@@ -46,6 +46,17 @@ describe("generic fallback", () => {
   });
 });
 
+describe("social turns work offline too", () => {
+  it("knows its name, says good night without keeping the child talking, helps when stuck", () => {
+    expect(localExtraReply("what is your name?").text).toMatch(/I'm Wondrix/);
+    const night = localExtraReply("it's time to sleep, bye", null, true);
+    expect(night.text).toMatch(/Good night/);
+    expect(night.text).not.toMatch(/\?/);
+    expect(localExtraReply("ok bye", null, true).text).not.toMatch(/\?/);
+    expect(localExtraReply("I don't know what to ask").suggestions).toHaveLength(3);
+  });
+});
+
 describe("mid-conversation fallback (live agent unavailable)", () => {
   it("short replies are recognised", () => {
     for (const t of ["yes", "Yeah!", "no", "ok", "why?", "tell me more", "the roots"]) expect(isShortReply(t), t).toBe(true);
