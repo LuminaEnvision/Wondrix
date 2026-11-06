@@ -183,7 +183,7 @@ describe("ready-made scenes", () => {
       }
       expect(VISUAL_PROMPT).toContain(id);
     }
-    expect(sceneLabels("moon-phases", [], "ar")[2]).toBe("البدر");
+    expect(sceneLabels("moon-phases", [], "ar")[2]).toBe("بدر");
     expect(sceneLabels("moon-phases", ["a", "b", "c", "d"], "en")).toEqual(["a", "b", "c", "d"]);
   });
 
@@ -198,5 +198,32 @@ describe("ready-made scenes", () => {
     expect(scene("why does it rain?")).toBe("water-cycle");
     expect(scene("why is there day and night?")).toBe("day-night");
     expect(scene("why does ice melt?")).toBe("states-of-matter");
+    expect(scene("why is the sky blue?")).toBe("sky-colours");
+    expect(scene("why is the sky blue in the day but black at night?")).toBe("sky-colours");
+    expect(scene("how do magnets work?")).toBe("magnets");
+  });
+
+  it("quality gate: text-only diagrams are not shown, picture diagrams and scenes are", async () => {
+    const { isUsefulVisual } = await import("@/lib/visual");
+    // The real "What is a molecule?" reply Anastasia saw: two text columns, one picture.
+    const molecule = parseVisual({
+      kind: "compare",
+      title: "Molecules",
+      columns: [
+        { label: "Building Blocks", points: ["Tiny pieces", "Stick together", "Make bigger things"] },
+        { label: "Water Molecules", points: ["Tiny water pieces", "Stick together", "Make water"], icon: "drop" },
+      ],
+    })!;
+    expect(isUsefulVisual(molecule)).toBe(false);
+    // Same picture everywhere does not explain anything either.
+    const same = parseVisual({ kind: "compare", title: "t", columns: [{ label: "A", points: ["x"], icon: "atom" }, { label: "B", points: ["y"], icon: "atom" }] })!;
+    expect(isUsefulVisual(same)).toBe(false);
+    const rain = parseVisual({
+      kind: "steps",
+      title: "Rain",
+      items: [{ label: "Sun shines", icon: "sun" }, { label: "Water rises", icon: "steam" }, { label: "Clouds form", icon: "cloud" }, { label: "Rain falls", icon: "rain" }],
+    })!;
+    expect(isUsefulVisual(rain)).toBe(true);
+    expect(isUsefulVisual({ kind: "scene", title: "", scene: "magnets", items: [] })).toBe(true);
   });
 });

@@ -8,7 +8,7 @@ import { chatJSON, chatJSONOrText, cleanKidText, type AiMessage } from "./ai";
 import { curriculumPromptLine } from "./curriculum";
 import { asLang, languagePromptLine } from "./i18n";
 import type { AgeBand, ParentProfile } from "./types";
-import { parseVisual, VISUAL_PROMPT, type Visual } from "./visual";
+import { isUsefulVisual, parseVisual, VISUAL_PROMPT, type Visual } from "./visual";
 
 export type ExtraChatMessage = { role: "child" | "agent"; text: string };
 
@@ -66,7 +66,7 @@ function systemPrompt(profile: ParentProfile | undefined, topicId: string | null
     "Conversation memory: this is one ongoing chat. Short replies like yes, no, ok, sure, why, or a single word answer YOUR last follow-up question, so continue that thread. Do not repeat facts you already explained; build on them and go one step deeper. If the child asks about something you already covered, remind them in ONE short sentence (for example: like we said, the light travels through more air) and then add ONE new detail they have not heard yet.",
     "Rules: no em dashes, no markdown, no lists, no emojis. Never scold. Never promise images or links. Do not ask for personal details (name, school, address, photos).",
     "Safety: only educational, age-appropriate content. If the topic is unsafe (violence, self-harm, sexual, drugs, hate, relationships), do not engage: kindly steer to a safe science question instead.",
-    'Reply ONLY as JSON: {"unsafe": boolean, "answer": string, "followUp": string, "topic": string, "draw": boolean}. "unsafe" is true only if the child\'s latest message asks about an unsafe topic (then answer with the kind redirect). "topic" is a 2 to 5 word label of what was explored, for the parent summary. "draw" is true when a simple diagram would help the child see the idea: a process or cycle (how rain happens, how plants drink, moon phases), a comparison (solid vs liquid vs gas), sizes or amounts (Sun vs Earth), or parts of a thing (parts of a flower or robot). "draw" is false for greetings, opinions, small talk and yes/no facts.',
+    'Reply ONLY as JSON: {"unsafe": boolean, "answer": string, "followUp": string, "topic": string, "draw": boolean}. "unsafe" is true only if the child\'s latest message asks about an unsafe topic (then answer with the kind redirect). "topic" is a 2 to 5 word label of what was explored, for the parent summary. "draw" is true only when a picture would SHOW the child something words cannot: a process or cycle with visible stages (how rain happens, how plants drink, moon phases, day and night), why the sky is blue, how magnets push and pull, a comparison of things you can see (solid vs liquid vs gas), sizes (Sun vs Earth), or the parts of a real object (parts of a flower). "draw" is false for definitions and abstract ideas ("what is a molecule", "what is energy"), greetings, opinions, small talk and yes/no facts.',
   ]
     .filter(Boolean)
     .join("\n");
@@ -155,6 +155,11 @@ export async function aiExtraVisual(input: {
   const visual = parseVisual(raw.visual);
   if (!visual && raw.visual) {
     console.warn(`[ai] extra.visual invalid spec dropped · ${JSON.stringify(raw.visual).slice(0, 160)}`);
+  }
+  // A diagram that only adds text (no real pictures) is worse than none.
+  if (visual && !isUsefulVisual(visual)) {
+    console.info(`[ai] extra.visual not picture-like, not shown · ${JSON.stringify(visual).slice(0, 160)}`);
+    return null;
   }
   return visual;
 }

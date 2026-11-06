@@ -179,3 +179,15 @@ html[data-skin="studio"] {
 @media (prefers-reduced-motion: reduce) {
   [data-scene] * { animation: none !important; }
 }
+.wxs-scatter { animation: wxs-scatter 1.6s ease-out infinite; }
+.wxs-pull { animation: wxs-pull 2.2s ease-in-out infinite; }
+.wxs-push-l { animation: wxs-push-l 2s ease-in-out infinite; }
+.wxs-push-r { animation: wxs-push-r 2s ease-in-out infinite; }
+.wxs-pull-l { animation: wxs-pull-l 2s ease-in-out infinite; }
+.wxs-pull-r { animation: wxs-pull-r 2s ease-in-out infinite; }
+@keyframes wxs-scatter { 0% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
+@keyframes wxs-pull { 0%, 100% { transform: translateX(6px); } 50% { transform: translateX(-10px); } }
+@keyframes wxs-push-l { 0%, 100% { transform: translateX(6px); } 50% { transform: translateX(-4px); } }
+@keyframes wxs-push-r { 0%, 100% { transform: translateX(-6px); } 50% { transform: translateX(4px); } }
+@keyframes wxs-pull-l { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-16px); } }
+@keyframes wxs-pull-r { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(16px); } }

@@ -46,7 +46,8 @@ export type SpeechState =
   | { state: "unavailable"; id?: string };
 
 /** Max wait for Kokoro's first sentence before the browser voice takes over. */
-const KOKORO_FIRST_CHUNK_MS = 8000;
+// Past this the browser voice speaks instead (slow laptops made children wait too long at 8 s).
+const KOKORO_FIRST_CHUNK_MS = 5000;
 
 const KOKORO_VOICE = process.env.NEXT_PUBLIC_KOKORO_VOICE || "af_heart";
 

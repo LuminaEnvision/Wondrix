@@ -423,12 +423,180 @@ function StatesOfMatter({ st }: { st: (i: number) => PartState }) {
   );
 }
 
+/* ---------------- 6. Why the sky is blue (and sunsets orange) ---------------- */
+
+const RAINBOW = ["#E0525B", "#F29B4B", "#F5D33D", "#4CAF7A", "#4BA3E3", "#8C7AE6"];
+
+/** A child on the ground looking up. */
+function Kid({ x, y }: { x: number; y: number }) {
+  return (
+    <g>
+      <circle cx={x} cy={y - 16} r="6" fill="#E7B48A" />
+      <path d={`M${x - 7} ${y} q0 -10 7 -10 q7 0 7 10 z`} fill="#8C7AE6" />
+      <circle cx={x + 2} cy={y - 18} r="1.1" fill="#3A4750" />
+    </g>
+  );
+}
+
+function SkyColours({ st }: { st: (i: number) => PartState }) {
+  return (
+    <>
+      {/* left: daytime, right: sunset */}
+      <defs>
+        <linearGradient id="wxs-sunset" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#5C6FA8" />
+          <stop offset="0.55" stopColor="#F29B4B" />
+          <stop offset="1" stopColor="#F5D33D" />
+        </linearGradient>
+      </defs>
+      <rect width="158" height="200" fill="#EEF4F8" />
+      <rect x="162" width="158" height="200" fill="url(#wxs-sunset)" />
+      <rect y="170" width="320" height="30" fill="#C9A66B" />
+      <rect x="158" width="4" height="200" fill="#fff" />
+
+      <g className={partClass(st(2))}>
+        {/* the sky we see is blue */}
+        <rect x="0" y="0" width="158" height="170" fill="#7CC3EE" opacity="0.55" />
+        <Kid x={110} y={170} />
+        <path d="M112 146 L98 100" stroke="#fff" strokeWidth="1.5" strokeDasharray="3 3" />
+        <Num n={3} x={130} y={150} />
+      </g>
+
+      <g className={partClass(st(0))}>
+        <Sun x={24} y={24} r={14} />
+        {/* white sunlight = all colours together */}
+        <g className="wxs-pulse">
+          {RAINBOW.map((c, i) => (
+            <line key={c} x1={34 + i * 2.4} y1={30 + i * 2.4 - 6} x2={86 + i * 2.4} y2={82 + i * 2.4 - 6} stroke={c} strokeWidth="3" />
+          ))}
+        </g>
+        <Num n={1} x={50} y={18} />
+      </g>
+
+
+      <g className={partClass(st(1))}>
+        {/* blue bounces off the air in every direction */}
+        {[
+          [-26, -18], [24, -22], [30, 14], [-6, 30], [-30, 8], [8, -30],
+        ].map(([dx, dy], i) => (
+          <g key={i} className="wxs-scatter" style={{ animationDelay: `${i * 0.2}s`, ["--dx" as string]: `${dx}px`, ["--dy" as string]: `${dy}px` }}>
+            <circle cx="96" cy="94" r="3.2" fill="#2F7FC0" />
+          </g>
+        ))}
+        <circle cx="96" cy="94" r="5" fill="#fff" stroke="#2F7FC0" strokeWidth="1.5" />
+        <Num n={2} x={70} y={112} />
+      </g>
+
+      <g className={partClass(st(3))}>
+        {/* low Sun: light crosses much more air; the blue is scattered away on the way */}
+        <circle cx="300" cy="166" r="14" fill="#F06A3B" />
+        {RAINBOW.map((c, i) => {
+          const keep = i <= 1; // only red and orange are left near the end
+          return (
+            <line
+              key={c}
+              x1="290"
+              y1={146 + i * 2.6}
+              x2={keep ? 206 : 290 - 18 - i * 10}
+              y2={146 + i * 2.6}
+              stroke={c}
+              strokeWidth="3"
+              className={keep ? "wxs-pulse" : ""}
+            />
+          );
+        })}
+        <Kid x={196} y={170} />
+        <Num n={4} x={250} y={130} />
+      </g>
+    </>
+  );
+}
+
+/* ---------------- 7. Magnets ---------------- */
+
+function BarMagnet({ x, y, flip = false, w = 56 }: { x: number; y: number; flip?: boolean; w?: number }) {
+  const left = flip ? "S" : "N";
+  const right = flip ? "N" : "S";
+  const color = (p: string) => (p === "N" ? "#E0525B" : "#4BA3E3");
+  return (
+    <g>
+      <rect x={x} y={y} width={w / 2} height="18" rx="3" fill={color(left)} />
+      <rect x={x + w / 2} y={y} width={w / 2} height="18" rx="3" fill={color(right)} />
+      <text x={x + w / 4} y={y + 13} textAnchor="middle" fontSize="11" fontWeight="800" fill="#fff">
+        {left}
+      </text>
+      <text x={x + (3 * w) / 4} y={y + 13} textAnchor="middle" fontSize="11" fontWeight="800" fill="#fff">
+        {right}
+      </text>
+    </g>
+  );
+}
+
+function Magnets({ st }: { st: (i: number) => PartState }) {
+  return (
+    <>
+      <rect width="320" height="200" fill="#F4F1EA" />
+      <path d="M160 6 V194 M6 100 H314" stroke="#E2DACB" strokeWidth="2" />
+
+      <g className={partClass(st(0))}>
+        {/* horseshoe magnet pulls the paper clip and nail; the wooden block stays */}
+        <path d="M18 22 h14 v26 a10 10 0 0 0 20 0 v-26 h14 v26 a24 24 0 0 1 -48 0 z" fill="#E0525B" />
+        <rect x="18" y="22" width="14" height="8" fill="#B9C4CF" />
+        <rect x="52" y="22" width="14" height="8" fill="#B9C4CF" />
+        <g className="wxs-pull">
+          <path d="M90 34 h18 a4 4 0 0 1 0 8 h-14 a3 3 0 0 1 0 -6 h11" stroke="#8A96A3" strokeWidth="2" fill="none" />
+          <path d="M88 56 h26 l4 2 -4 2 h-26 z" fill="#6E7A86" />
+        </g>
+        <rect x="118" y="72" width="22" height="16" rx="2" fill="#C9965A" />
+        <path d="M122 76 h14 M122 82 h10" stroke="#A0703C" strokeWidth="1.2" />
+        <Num n={1} x={14} y={14} />
+      </g>
+
+      <g className={partClass(st(1))}>
+        <BarMagnet x={212} y={42} w={64} />
+        <g fill="none" stroke="#8A96A3" strokeWidth="1.3" strokeDasharray="3 3" className="wxs-flow">
+          <path d="M212 46 C190 16 298 16 276 46" />
+          <path d="M212 56 C196 88 292 88 276 56" />
+          <path d="M210 50 C176 4 312 4 278 50" />
+        </g>
+        <Num n={2} x={300} y={14} />
+      </g>
+
+      <g className={partClass(st(2))}>
+        {/* N faces N: they push apart */}
+        <g className="wxs-push-l">
+          <BarMagnet x={20} y={140} flip w={52} />
+        </g>
+        <g className="wxs-push-r">
+          <BarMagnet x={88} y={140} w={52} />
+        </g>
+        <path d="M76 132 l-10 0 m0 0 l4 -3 m-4 3 l4 3 M84 132 l10 0 m0 0 l-4 -3 m4 3 l-4 3" stroke="#E0525B" strokeWidth="2" strokeLinecap="round" />
+        <Num n={3} x={14} y={118} />
+      </g>
+
+      <g className={partClass(st(3))}>
+        {/* N faces S: they pull together */}
+        <g className="wxs-pull-r">
+          <BarMagnet x={176} y={140} w={52} />
+        </g>
+        <g className="wxs-pull-l">
+          <BarMagnet x={248} y={140} w={52} />
+        </g>
+        <path d="M232 132 l8 0 m0 0 l-4 -3 m4 3 l-4 3 M248 132 l-8 0 m0 0 l4 -3 m-4 3 l4 3" stroke="#4CAF7A" strokeWidth="2" strokeLinecap="round" />
+        <Num n={4} x={306} y={118} />
+      </g>
+    </>
+  );
+}
+
 const SCENE_ART: Record<SceneId, (p: { st: (i: number) => PartState }) => React.ReactNode> = {
   "water-cycle": WaterCycle,
   "day-night": DayNight,
   "moon-phases": MoonPhases,
   "plant-food": PlantFood,
   "states-of-matter": StatesOfMatter,
+  "sky-colours": SkyColours,
+  magnets: Magnets,
 };
 
 export function ExtraScene({ scene, stateOf }: { scene: SceneId; stateOf: (i: number) => PartState }) {
