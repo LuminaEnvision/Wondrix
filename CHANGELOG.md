@@ -41,6 +41,11 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
   - Gap analysis of the Wondrix skill map, and writing rules.
 - **Question bank phase 1 (draft for review):** 75 new questions (5 per skill) in `src/lib/question-bank.ts`. Metric units, AED, Dubai + global contexts, misconception-based wrong answers. The bank grows from 20 to 95 items. Review sheet: `docs/QUESTION_BANK_REVIEW.md`.
 
+### Added (Wondrix as a friend)
+- **Personality and intents:** Wondrix knows its name, is playful and varied, says good night without keeping the child talking, and helps a stuck child with ideas. It knows the child's local time.
+- **Tap-able ideas:** starter questions on an empty chat and next ideas under answers, rotating per visit, age band and language.
+- **Animated Wondrix:** breathes, listens, thinks and talks with the conversation.
+
 ### Added (picture-first diagrams)
 - Scenes for **why the sky is blue** and **magnets** (7 scenes now). Diagrams that only add text (no real pictures) are no longer shown. Arabic moon labels in child words. Saudi curriculum in the picker. Natural voice waits at most 5 s before the browser voice speaks.
 - **Animated scenes** for the 5 most common topics (water cycle, day and night, moon phases, how plants make food, solid/liquid/gas). Show me lights up each numbered part while Wondrix says it. Full list of 15 and review checklist: [docs/SCENES.md](./docs/SCENES.md).

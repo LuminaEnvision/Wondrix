@@ -78,3 +78,16 @@ describe("no hardcoded UI text in screens", () => {
     expect(problems).toEqual([]);
   });
 });
+
+describe("Extra starters", () => {
+  it("every age band has the same number of English and Arabic starters, and visits rotate", async () => {
+    const { STARTERS, startersForVisit } = await import("@/lib/starters");
+    for (const band of ["young", "middle", "teen"] as const) {
+      expect(STARTERS[band].ar.length, band).toBe(STARTERS[band].en.length);
+      for (const q of STARTERS[band].ar) expect(/[؀-ۿ]/.test(q)).toBe(true);
+      for (const q of [...STARTERS[band].en, ...STARTERS[band].ar]) expect(q).not.toMatch(/[—–]/);
+      expect(startersForVisit(band, "en", 0)[0]).not.toBe(startersForVisit(band, "en", 1)[0]);
+    }
+    expect(startersForVisit("young", "en", 0)).not.toEqual(startersForVisit("middle", "en", 0));
+  });
+});

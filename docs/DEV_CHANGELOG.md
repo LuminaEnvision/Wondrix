@@ -39,7 +39,23 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Review round: sky + magnet scenes, no useless diagrams, speed, Saudi curriculum
+### Wondrix as a friend: personality, intents, tap-able ideas, animated mascot
+
+**What (from Anastasia's home test with her children):** the child did not know what to ask first; Wondrix could not say its own name and felt "boring"; when the child said it was time to sleep, Wondrix kept the chat going; once "the machine broke".
+- **Personality:** Wondrix is a small, curious explorer friend with a bag for collecting ideas. It knows its name, is playful (light jokes, varied wording) and uses the child's nickname now and then.
+- **Intents:** the agent first decides what the child wants: a curiosity *question* (answer + one follow-up, as before), *social* (hello, who are you, a joke: short friendly reply, no lesson), *goodbye* (bed, food, bye: it agrees and supports it, with **no** question and no ideas), or *stuck* (doesn't know what to ask: encouragement + 3 ideas). The child's local weekday and time are sent, so at 22:47 it can say it is late.
+- **Tap-able ideas:** the empty chat shows 3 big starter questions; replies can carry up to 3 next ideas under the newest answer. Starters and the opening line rotate every visit, per age band (young / middle / teen) and language (English + Arabic draft), from a written list (`src/lib/starters.ts`), with no model call (notes 11 and 12 of the technical note, first part).
+- **Variety:** the agent sees its last follow-ups and is told to ask differently; it is told never to open with "Have you ever noticed", and since the model still does it, `varyFollowUp` swaps that opener. Temperature 0.6 to 0.75.
+- **Offline too:** name, good night / bye (no question) and "I don't know what to ask" work without the AI. The generic fallback is friendlier ("Oops, my thinking got a bit tangled!") and offers ideas.
+- **Animated mascot (`Mascot`):** breathes when idle, leans in and glows while the mic listens, tilts with thinking dots while the answer comes, bobs with sound waves while it speaks. CSS on the existing art, driven by the voice state; stops under reduced motion. Next step needs art: mouth frames for real lip movement.
+
+**Safety:** suggestions go through the same output check as the answer, plus the keyword gate. A goodbye never draws. The output classifier now times out after 4 s instead of 6 s, as before failing open; the keyword gate and the agent's own unsafe flag still apply.
+
+**Live check (Z.ai, Nov 6):** name gave "I'm Wondrix, your curious explorer friend…"; "time to sleep" at 22:47 gave "You are right, Rayan! Sleep is super important for your brain…" with no question; bye, no question; stuck gave 3 ideas; a joke gave a skeleton joke. Eval `--only=social`: 4/5 cases, the joke case timed out. **Speed:** Z.ai free tier was slow during this check: chat 2.3 to 8.3 s and even the 10-token safety check 1.3 to 6 s, so replies took 4 to 15 s. That is most likely what "the machine broke" was (a timeout leads to the local reply). The fix for the demo is a faster plan or provider (configuration only).
+
+**Tests:** prompt has persona, intents, local time, nickname, recent follow-ups; goodbye strips follow-up, ideas and drawing; stuck keeps at most 3 ideas; follow-up opener swap; offline name / good night / stuck; starters per band are the same length in both languages and rotate; e2e: idea chips on an empty chat, tap sends that question with the local time, the mascot shows "thinking", and a reply's idea is tap-able. Eval: new `social` group and the molecule `draw: false` case. Vitest 212/212, Playwright 66/66, lint and build clean.
+
+### Review round: sky + magnet scenes, no useless diagrams, speed, Saudi curriculum (`c91d82f`)
 
 **What (from Anastasia's review)**
 1. **Two new scenes:** *why the sky is blue (and sunsets orange)*, the opening question of Extra, and *magnets*, where the live check had fallen back to an icon diagram. Now 7 scenes; the rest waits for the test families' questions (docs/SCENES.md).

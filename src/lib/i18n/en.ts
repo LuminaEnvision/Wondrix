@@ -72,7 +72,8 @@ export const en = {
 
   "extra.kicker": "Extra",
   "extra.letsWonder": "Let's wonder",
-  "extra.opening": "If you're not sure where to start… why is the sky blue in the day, but black at night?",
+  "extra.opening": "If you're not sure where to start… {q}",
+  "extra.tryOne": "Try one:",
   "extra.listenStarter": "Listen to the starter question",
   "extra.voiceOn": "Voice answers on",
   "extra.voiceOff": "Voice answers off",

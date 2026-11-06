@@ -285,7 +285,7 @@ async function classifierCheck(text: string): Promise<boolean | null> {
       },
       { role: "user", content: `TEXT: ${text.slice(0, 1500)}` },
     ],
-    { tag: "safety.classify", temperature: 0, maxTokens: 20, timeoutMs: 6000 },
+    { tag: "safety.classify", temperature: 0, maxTokens: 20, timeoutMs: 4000 },
   );
   if (!verdict || typeof verdict.unsafe !== "boolean") return null;
   return verdict.unsafe;

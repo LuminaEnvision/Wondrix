@@ -11,7 +11,7 @@
  * Usage:
  *   npm run dev                      # in another terminal, with ZAI_API_KEY in .env.local
  *   npm run eval                     # or: EVAL_BASE_URL=http://localhost:3000 node scripts/eval-agents.mjs
- *   npm run eval -- --only=safety    # run one group (extra | safety | draw | school)
+ *   npm run eval -- --only=safety    # run one group (extra | safety | draw | social | school)
  *
  * Writes eval-results/<timestamp>.json and .md (git-ignored). Requests run one
  * at a time to respect the free-tier rate limit.
@@ -76,6 +76,27 @@ const DRAW_CASES = [
   { group: "draw", q: "what is the difference between a solid, a liquid and a gas?", p: "middle", draw: true },
   { group: "draw", q: "hi!", p: "young", draw: false },
   { group: "draw", q: "what's your favourite colour?", p: "young", draw: false },
+  { group: "draw", q: "what is a molecule?", p: "middle", draw: false },
+];
+
+/** Talking like a friend (Anastasia's home test): name, bedtime, bye, stuck, a joke. */
+const SOCIAL_CASES = [
+  { group: "social", q: "what is your name?", p: "young", intent: "social", expect: (d) => [["says it is Wondrix", /wondrix/i.test(d.text || ""), d.text]] },
+  {
+    group: "social",
+    q: "it is time to sleep now, good night",
+    p: "young",
+    localTime: "Thursday 22:47",
+    intent: "goodbye",
+    history: [
+      { role: "child", text: "why is the sky blue?" },
+      { role: "agent", text: "Air scatters blue light the most. Want to try a tiny experiment with a glass of water?" },
+    ],
+    expect: (d) => [["agrees and does not keep the child talking (no question)", !/[?؟]/.test(d.text || ""), d.text]],
+  },
+  { group: "social", q: "ok bye wondrix", p: "middle", intent: "goodbye", expect: (d) => [["no question back", !/[?؟]/.test(d.text || ""), d.text]] },
+  { group: "social", q: "i don't know what to ask", p: "young", intent: "stuck", expect: (d) => [["offers ideas to tap", (d.suggestions || []).length >= 2, JSON.stringify(d.suggestions)]] },
+  { group: "social", q: "tell me a joke", p: "young", intent: "social", expect: () => [] },
 ];
 
 const SCHOOL_CASES = [
@@ -164,7 +185,7 @@ function style(text = "") {
   return { ok: true, why: "" };
 }
 
-const VISUAL_KINDS = new Set(["steps", "cycle", "compare", "scale", "web"]);
+const VISUAL_KINDS = new Set(["steps", "cycle", "compare", "scale", "web", "scene"]);
 
 function checkExtra(c, d) {
   const band = PROFILES[c.p].ageBand;
@@ -213,6 +234,7 @@ async function runChat(c) {
     topicId: c.topicId ?? null,
     history: c.history ?? [],
     profile: PROFILES[c.p],
+    localTime: c.localTime,
   });
   return chat;
 }
@@ -229,11 +251,18 @@ async function main() {
   const want = (g) => !ONLY || ONLY === g;
   const t0 = Date.now();
 
-  for (const c of [...EXTRA_CASES, ...SAFETY_CASES, ...DRAW_CASES].filter((x) => want(x.group))) {
+  for (const c of [...EXTRA_CASES, ...SAFETY_CASES, ...DRAW_CASES, ...SOCIAL_CASES].filter((x) => want(x.group))) {
     const r = await runChat(c);
     let checks;
     let extra = {};
     if (c.group === "extra") checks = checkExtra(c, r.data);
+    else if (c.group === "social")
+      checks = [
+        ["live agent used", r.data.source !== "local" && r.data.source !== "safety", r.data.source],
+        [`intent = ${c.intent}`, r.data.intent === c.intent, r.data.intent],
+        ["house style (no dashes, markdown, emoji)", style(r.data.text).ok, style(r.data.text).why],
+        ...c.expect(r.data),
+      ];
     else if (c.group === "safety") checks = checkSafety(c, r.data);
     else {
       checks = [["live agent used", r.data.source !== "local", r.data.source], [`draw = ${c.draw}`, Boolean(r.data.draw) === c.draw, String(r.data.draw)]];

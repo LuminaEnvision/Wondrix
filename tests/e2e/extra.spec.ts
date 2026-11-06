@@ -24,6 +24,30 @@ test.describe("Extra door", () => {
     await expect(figure.getByRole("button", { name: "Show me" })).toBeVisible();
   });
 
+  test("empty chat offers tap-able ideas; replies can carry next ideas; Wondrix moves while thinking", async ({ page }) => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    const bodies: { message: string; localTime?: string }[] = [];
+    await page.route("**/api/extra/chat", async (route) => {
+      bodies.push(JSON.parse(route.request().postData() || "{}"));
+      await gate;
+      await route.fulfill({ json: { text: "Hi! I'm Wondrix.", answer: "Hi! I'm Wondrix.", intent: "social", suggestions: ["Why do cats purr?"], source: "zai" } });
+    });
+    await page.goto("/extra");
+    await page.getByRole("button", { name: "Voice answers on" }).click();
+    await expect(page.getByText("Try one:")).toBeVisible();
+    const idea = page.locator("main button.rounded-full.border-extra\\/40").first();
+    const q = (await idea.textContent())!;
+    await idea.click();
+    await expect(page.locator('[data-state="thinking"]')).toBeVisible();
+    release();
+    await expect(page.getByText("Hi! I'm Wondrix.")).toBeVisible();
+    expect(bodies[0].message).toBe(q);
+    expect(bodies[0].localTime).toMatch(/^[A-Za-z]+ \d{1,2}:\d{2}$/);
+    await page.getByRole("button", { name: "Why do cats purr?" }).click();
+    await expect.poll(() => bodies.length).toBe(2);
+  });
+
   test("topic link prefills the starter; picking another topic switches it", async ({ page }) => {
     await page.goto("/extra?topic=sky");
     await expect(page.getByPlaceholder("Ask anything curious…")).toHaveValue("Why does the Moon change shape?");

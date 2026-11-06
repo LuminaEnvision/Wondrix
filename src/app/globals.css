@@ -191,3 +191,30 @@ html[data-skin="studio"] {
 @keyframes wxs-push-r { 0%, 100% { transform: translateX(-6px); } 50% { transform: translateX(4px); } }
 @keyframes wxs-pull-l { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-16px); } }
 @keyframes wxs-pull-r { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(16px); } }
+
+/* ---------- Wondrix mascot: alive with the conversation ---------- */
+.wx-mascot-body { transform-origin: 50% 100%; animation: wxm-breathe 4s ease-in-out infinite; }
+.wx-mascot-glow { opacity: 0; background: radial-gradient(closest-side, color-mix(in oklab, var(--extra) 35%, transparent), transparent); transition: opacity 0.3s; }
+.wx-mascot-speaking .wx-mascot-body { animation: wxm-talk 0.42s ease-in-out infinite alternate; }
+.wx-mascot-speaking .wx-mascot-glow { opacity: 1; animation: wx-glow-strong 1.2s ease-in-out infinite; }
+.wx-mascot-thinking .wx-mascot-body { animation: wxm-think 2.4s ease-in-out infinite; }
+.wx-mascot-listening .wx-mascot-body { animation: wxm-listen 1.1s ease-in-out infinite; }
+.wx-mascot-listening .wx-mascot-glow { opacity: 0.7; }
+.wx-mascot-dots span { width: 6px; height: 6px; border-radius: 9999px; background: var(--extra); animation: wxm-dot 1s ease-in-out infinite; }
+.wx-mascot-dots span:nth-child(2) { animation-delay: 0.15s; }
+.wx-mascot-dots span:nth-child(3) { animation-delay: 0.3s; }
+.wx-mascot-waves path { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; animation: wxm-wave 1.1s ease-out infinite; }
+.wx-mascot-waves path:nth-child(2) { animation-delay: 0.18s; }
+.wx-mascot-waves path:nth-child(3) { animation-delay: 0.36s; }
+[dir="rtl"] .wx-mascot-waves { transform: scaleX(-1); }
+
+@keyframes wxm-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.015, 0.985); } }
+@keyframes wxm-talk { from { transform: translateY(0) rotate(-1.5deg) scale(1, 1); } to { transform: translateY(-4px) rotate(1.5deg) scale(1.02, 0.98); } }
+@keyframes wxm-think { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(3deg) translateY(-2px); } }
+@keyframes wxm-listen { 0%, 100% { transform: scale(1.04); } 50% { transform: scale(1.08) translateY(-2px); } }
+@keyframes wxm-dot { 0%, 100% { transform: translateY(0); opacity: 0.4; } 50% { transform: translateY(-4px); opacity: 1; } }
+@keyframes wxm-wave { 0% { opacity: 0; transform: translateX(-3px); } 40% { opacity: 1; } 100% { opacity: 0; transform: translateX(3px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .wx-mascot-body, .wx-mascot-glow, .wx-mascot-dots span, .wx-mascot-waves path { animation: none !important; }
+}
