@@ -13,7 +13,7 @@
 
 import { gradeFromLabel } from "./grades";
 
-export type Curriculum = "uk" | "us" | "indian" | "ib" | "uae" | "other";
+export type Curriculum = "uk" | "us" | "indian" | "ib" | "uae" | "saudi" | "other";
 
 export const DEFAULT_CURRICULUM: Curriculum = "uk";
 
@@ -23,6 +23,7 @@ export const CURRICULA: { id: Curriculum; label: string }[] = [
   { id: "indian", label: "Indian (CBSE / ICSE)" },
   { id: "ib", label: "International Baccalaureate (IB PYP / MYP)" },
   { id: "uae", label: "UAE Ministry of Education" },
+  { id: "saudi", label: "Saudi Ministry of Education" },
   { id: "other", label: "Other / not sure" },
 ];
 
@@ -34,6 +35,7 @@ const NAMES: Record<Curriculum, Record<GradeId, string>> = {
   us: { "y1-2": "Kindergarten–Grade 1", y3: "Grade 2", y4: "Grade 3", y5: "Grade 4", y6: "Grade 5", "y7+": "Grade 6+" },
   ib: { "y1-2": "Kindergarten–Grade 1", y3: "Grade 2", y4: "Grade 3", y5: "Grade 4", y6: "Grade 5", "y7+": "Grade 6+" },
   indian: { "y1-2": "UKG–Class 1", y3: "Class 2", y4: "Class 3", y5: "Class 4", y6: "Class 5", "y7+": "Class 6+" },
+  saudi: { "y1-2": "KG3–Grade 1", y3: "Grade 2", y4: "Grade 3", y5: "Grade 4", y6: "Grade 5", "y7+": "Grade 6+" },
   uae: { "y1-2": "KG2–Grade 1", y3: "Grade 2", y4: "Grade 3", y5: "Grade 4", y6: "Grade 5", "y7+": "Grade 6+" },
 };
 

@@ -68,12 +68,14 @@ export function localExtraReply(
   if (/sky|blue/.test(t) && /night|black|dark|day/.test(t)) {
     return {
       text: "In the day, sunlight hits tiny bits in the air and blue light scatters toward your eyes. At night the Sun is on the other side of Earth, so that blue glow is gone and space looks dark. Want to know what air has to do with it?",
+      visual: { kind: "scene", title: "Why the sky is blue", scene: "sky-colours", items: [] },
     };
   }
 
   if (/sky.*blue|blue.*sky|why.*blue/.test(t)) {
     return {
       text: "Sunlight has many colors. Tiny bits of air scatter blue light more than red, so the sky looks blue to us. Want a tiny experiment you can try with a glass of water?",
+      visual: { kind: "scene", title: "Why the sky is blue", scene: "sky-colours", items: [] },
     };
   }
 
@@ -133,6 +135,7 @@ export function localExtraReply(
   if (/magnet|magnetic/.test(t)) {
     return {
       text: "Magnets pull some metals, like iron, without touching them. Every magnet has a north and south side. Same sides push away; different sides pull together. Want to try a fridge-magnet thought experiment?",
+      visual: { kind: "scene", title: "How magnets work", scene: "magnets", items: [] },
     };
   }
 

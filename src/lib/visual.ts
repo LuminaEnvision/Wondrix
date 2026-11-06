@@ -221,3 +221,26 @@ export function iconFor(label: string, given?: IconName): IconName | undefined {
   if (given) return given;
   return ICON_HINTS.find(([re]) => re.test(label))?.[1];
 }
+
+/**
+ * Quality gate (Anastasia's review): a diagram must SHOW the idea, not add text.
+ * Scenes always pass. Other diagrams need a real picture on every item, at least
+ * two different pictures, and short words; otherwise no diagram is shown at all
+ * (e.g. "What is a molecule?" came back as two text columns with one water drop).
+ */
+export function isUsefulVisual(v: Visual): boolean {
+  if (v.kind === "scene") return true;
+  const items: { text: string; icon?: IconName }[] =
+    v.kind === "steps"
+      ? v.items.map((i) => ({ text: `${i.label} ${i.note ?? ""}`, icon: i.icon }))
+      : v.kind === "compare"
+        ? v.columns.map((c) => ({ text: `${c.label} ${c.points.join(" ")}`, icon: c.icon }))
+        : v.kind === "web"
+          ? [{ text: v.center, icon: v.centerIcon }, ...v.items.map((i) => ({ text: i.label, icon: i.icon }))]
+          : v.items.map((i) => ({ text: i.label, icon: i.icon }));
+  const icons = items.map((i) => iconFor(i.text, i.icon));
+  if (icons.some((i) => !i)) return false;
+  if (new Set(icons).size < 2) return false;
+  const words = items.reduce((n, i) => n + i.text.trim().split(/\s+/).length, 0);
+  return words <= items.length * 8;
+}

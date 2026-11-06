@@ -39,7 +39,21 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Ready-made animated scenes (5 essentials)
+### Review round: sky + magnet scenes, no useless diagrams, speed, Saudi curriculum
+
+**What (from Anastasia's review)**
+1. **Two new scenes:** *why the sky is blue (and sunsets orange)*, the opening question of Extra, and *magnets*, where the live check had fallen back to an icon diagram. Now 7 scenes; the rest waits for the test families' questions (docs/SCENES.md).
+2. **No more text-only "diagrams":** "What is a molecule?" showed two text columns with one water drop. Now:
+   - the agent is told to draw only when a picture shows something words cannot, not for definitions or abstract ideas;
+   - `isUsefulVisual` drops any non-scene diagram unless every item has a real picture, there are 2 or more different pictures, and the words stay short.
+   Live re-check: the molecule question gives no diagram; sky and magnets give their scenes.
+3. **Arabic moon labels** in child words, matching the English: قمر جديد، نصف يكبر، بدر، نصف يصغر (school terms kept in a comment; a native speaker confirms).
+4. **Speed:** measured on the production build, the Extra reply takes about 3.4 to 4.6 s (chat 2.7 to 3.5 s plus the output safety check 0.6 to 1.1 s), and the diagram comes about 3 s later. Changes: the natural-voice (Kokoro) wait goes from 8 s to 5 s before the browser voice speaks, because slow laptops made children wait. Note: `npm run dev` is much slower than the deployed app (it compiles each page on first open), so speed should be judged on `npm run build && npm start` or the deployment.
+5. **Saudi Ministry of Education** added to the curriculum picker (grade names "KG3–Grade 1", "Grade 2"…), since test families in Saudi Arabia are joining.
+
+**Tests:** quality gate (the real molecule reply is rejected; same-picture-everywhere is rejected; water steps and scenes pass); offline sky and magnet answers map to their scenes; Arabic moon label. Vitest 205/205, Playwright 64/64, lint and build clean. Screenshots of both new scenes checked.
+
+### Ready-made animated scenes (5 essentials) (`57d41b5`, merged in PR #8)
 
 **What:** for the most common topics, Extra now shows a hand-drawn animated cartoon instead of a diagram: **water cycle, day and night, moon phases, how a plant makes food, solid/liquid/gas**. Each scene has 4 numbered parts; **Show me** lights up and moves the part being said while the others fade. The full list of 15 planned scenes, the science points to check and the review checklist are in [`docs/SCENES.md`](./SCENES.md).
 

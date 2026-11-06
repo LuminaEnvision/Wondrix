@@ -10,7 +10,15 @@
  * Full list, status and the science check for reviewers: docs/SCENES.md.
  */
 
-export const SCENE_IDS = ["water-cycle", "day-night", "moon-phases", "plant-food", "states-of-matter"] as const;
+export const SCENE_IDS = [
+  "water-cycle",
+  "day-night",
+  "moon-phases",
+  "plant-food",
+  "states-of-matter",
+  "sky-colours",
+  "magnets",
+] as const;
 export type SceneId = (typeof SCENE_IDS)[number];
 
 type SceneDef = {
@@ -42,10 +50,11 @@ export const SCENES: Record<SceneId, SceneDef> = {
   "moon-phases": {
     about: "why the Moon changes shape, moon phases",
     parts: [
-      { en: "New moon", ar: "المحاق" },
-      { en: "Half moon (growing)", ar: "التربيع الأول" },
-      { en: "Full moon", ar: "البدر" },
-      { en: "Half moon (shrinking)", ar: "التربيع الأخير" },
+      // Child-level words as in English (school terms: المحاق، التربيع الأول، البدر، التربيع الأخير).
+      { en: "New moon", ar: "قمر جديد" },
+      { en: "Half moon (growing)", ar: "نصف يكبر" },
+      { en: "Full moon", ar: "بدر" },
+      { en: "Half moon (shrinking)", ar: "نصف يصغر" },
     ],
   },
   "plant-food": {
@@ -64,6 +73,24 @@ export const SCENES: Record<SceneId, SceneDef> = {
       { en: "Heat melts it into liquid water", ar: "الحرارة تذيبه فيصير ماءً سائلًا" },
       { en: "More heat makes it a gas (steam)", ar: "حرارة أكثر تجعله غازًا (بخارًا)" },
       { en: "Cooling turns it back", ar: "التبريد يعيده كما كان" },
+    ],
+  },
+  "sky-colours": {
+    about: "why the sky is blue, why sunsets are orange or red",
+    parts: [
+      { en: "Sunlight has all the colours", ar: "ضوء الشمس فيه كل الألوان" },
+      { en: "Air scatters blue light the most", ar: "الهواء يبعثر الضوء الأزرق أكثر" },
+      { en: "So the sky looks blue", ar: "لذلك تبدو السماء زرقاء" },
+      { en: "At sunset, orange and red reach us", ar: "عند الغروب يصلنا البرتقالي والأحمر" },
+    ],
+  },
+  magnets: {
+    about: "how magnets work, what magnets attract, poles, push and pull",
+    parts: [
+      { en: "Magnets pull iron and steel", ar: "المغناطيس يجذب الحديد والفولاذ" },
+      { en: "Every magnet has two poles, N and S", ar: "لكل مغناطيس قطبان: شمالي وجنوبي" },
+      { en: "Same poles push apart", ar: "القطبان المتشابهان يتنافران" },
+      { en: "Different poles pull together", ar: "القطبان المختلفان يتجاذبان" },
     ],
   },
 };
