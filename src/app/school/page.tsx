@@ -161,7 +161,7 @@ export default function SchoolHomePage() {
           )}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3">
           <Link
             href="/school/radar"
             className="overflow-hidden rounded-3xl border border-stroke bg-card transition hover:border-school/40"
@@ -179,26 +179,6 @@ export default function SchoolHomePage() {
               <p className="font-display text-xl font-semibold text-ink">{tr("school.radarTitle")}</p>
               <p className="mt-1 text-sm text-ink-soft">
                 {tr("school.radarBlurb")}
-              </p>
-            </div>
-          </Link>
-          <Link
-            href="/parent"
-            className="overflow-hidden rounded-3xl border border-stroke bg-card transition hover:border-brand/40"
-          >
-            <div className="relative h-28 w-full bg-bg-deep">
-              <Image
-                src="/art/parent-phone.jpg"
-                alt=""
-                fill
-                className="object-contain p-3"
-                sizes="(max-width: 640px) 100vw, 320px"
-              />
-            </div>
-            <div className="px-5 py-4">
-              <p className="font-display text-xl font-semibold text-ink">{tr("school.parentNote")}</p>
-              <p className="mt-1 text-sm text-ink-soft">
-                {tr("school.parentNoteBlurb")}
               </p>
             </div>
           </Link>

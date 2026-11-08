@@ -39,7 +39,19 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Arabic gate for the family tests + the owl comes alive (new art)
+### School corrections before the family tests (technical note items 3, 4, 6, 8, 9a)
+
+**What**
+- **The question shows at once (3).** Practice asks the server with `ai: false`: the bank question, choices and "I don't know" come back instantly. The model's coach line is a second request (`action: "lead"`) and is swapped in when it arrives. Same after an answer: the bank's explanation shows at once, the model's gentler one (`action: "explain"`) replaces it. Correctness was and stays local. Other clients keep the one-call behaviour (default `ai: true`).
+- **A wrong answer no longer looks like praise (4).** Wrong or "I don't know": a calm, neutral card titled "Let's look again", no plant picture. The right option gets a clear outline with "✓ Right answer"; the child's pick is marked "Your answer" with a dashed border; the other options fade. A right answer gets "That's right!" with the small growth picture. No red, no green.
+- **Listen in School (6).** A Listen button reads the question and its options ("Option 1: …"), and one reads the explanation. Same voice as Extra, no auto-play.
+- **Sessions end (8).** 5 questions per session (3 in calm mode), then an end card: "Today's questions are done!", how many were answered, "Some were tricky, we'll practise X again tomorrow" or "Everything went well", "Come back tomorrow". Root cause of the endless loop: once a grade's items were used up, `pickQuestion` drifted to other grades' items. Now it stops; it only uses the closest grade when the grade has no items at all for that skill. Finished sessions are saved for today and the parent summary says "Finished 1 practice session (5 questions)" (English and Arabic).
+- **Parent note off the child's screen (9a).** School no longer shows the "Parent note" card. The Parent field is renamed "Teacher recommendations or parent observations" with Anastasia's help text, plus "You can mention the unit or chapter too" (note 10).
+- Progress line "Question 2 of 5"; Arabic for all new text.
+
+**Tests:** API: `ai: false` question and grade make no AI call and return the right option's id; `explain` returns the model's text; practice does not drift to other grades. e2e: the session ends with the end card and the parent summary counts it; the question appears even when the coach line takes 8 s; a wrong answer shows "Let's look again" with no picture, exactly one option marked right, and a Listen button. Vitest 220/220, Playwright 70/70, lint and build clean.
+
+### Arabic gate for the family tests + the owl comes alive (new art) (`9694228`)
 
 **Arabic (Anastasia: "a pre-test gate, not a nice-to-have")**
 - **Live Extra in Arabic, checked:** the eval's Arabic group passed 3/3 on Z.ai (answer and follow-up in Arabic, bedtime with no question, an Arabic harm request blocked). The English she saw came from the offline path (AI slow or off) and the safety redirect, now both Arabic:

@@ -283,8 +283,12 @@ export function pickQuestion(
   skillId: SkillId,
   avoidIds: string[] = [],
 ): RadarItem | null {
-  const pool = itemsForGrade(gradeLabel, skillId).filter((r) => !avoidIds.includes(r.id));
+  const forGrade = itemsForGrade(gradeLabel, skillId);
+  const pool = forGrade.filter((r) => !avoidIds.includes(r.id));
+  // Used up this grade's items: stop (the session ends) instead of drifting to other grades.
+  if (forGrade.length && !pool.length) return null;
   if (!pool.length) {
+    // The grade has no items for this skill at all: use the closest grade.
     const any = RADAR_BANK.filter((r) => r.skillId === skillId && !avoidIds.includes(r.id));
     if (!any.length) return null;
     // Prefer closest grade-appropriate item

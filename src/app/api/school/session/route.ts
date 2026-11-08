@@ -12,7 +12,13 @@ import { getSkill } from "@/lib/skills";
 import type { ParentProfile, SkillId } from "@/lib/types";
 
 type Body = {
-  action?: "plan" | "question" | "grade";
+  action?: "plan" | "question" | "grade" | "lead" | "explain";
+  /**
+   * false = answer at once from the bank (the child never waits on the model);
+   * the app then asks "lead" / "explain" separately and swaps the text in.
+   * Default true keeps the one-call behaviour for other clients and the eval.
+   */
+  ai?: boolean;
   profile?: ParentProfile;
   focusIds?: SkillId[];
   /** Child's mastery map from localStorage (canvas loop step 1: read state). */
@@ -88,7 +94,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No questions for skill" }, { status: 404 });
     }
 
-    if (provider) {
+    if (provider && body.ai !== false) {
       const item = RADAR_BANK.find((r) => r.id === local.questionId);
       const lead = item ? await aiLeadIn(profile, item) : null;
       if (lead) {
@@ -119,7 +125,7 @@ export async function POST(request: Request) {
       `[agent] school.grade ${item ? getSkill(item.skillId).id : body.questionId} correct=${result.correct} → ${result.mastery}`,
     );
 
-    if (provider) {
+    if (provider && body.ai !== false) {
       const tip = await aiExplain({
         profile,
         questionId: body.questionId,
@@ -131,6 +137,23 @@ export async function POST(request: Request) {
       }
     }
     return NextResponse.json(result);
+  }
+
+  // Second step for the question card: the model's one-line coach lead-in.
+  if (action === "lead") {
+    const item = RADAR_BANK.find((r) => r.id === body.questionId);
+    if (!item) return NextResponse.json({ error: "Unknown question" }, { status: 404 });
+    const lead = provider ? await aiLeadIn(profile, item) : null;
+    return NextResponse.json({ coachLead: lead ?? null, source: lead && provider ? provider.id : "local" });
+  }
+
+  // Second step after an answer: the model's gentle explanation (correctness stays local).
+  if (action === "explain") {
+    const item = RADAR_BANK.find((r) => r.id === body.questionId);
+    if (!item || !body.choiceId) return NextResponse.json({ error: "Unknown question" }, { status: 404 });
+    const correct = body.choiceId !== "idk" && Boolean(item.choices.find((c) => c.id === body.choiceId)?.correct);
+    const tip = provider ? await aiExplain({ profile, questionId: item.id, choiceId: body.choiceId, correct }) : null;
+    return NextResponse.json({ explanation: tip ?? null, source: tip && provider ? provider.id : "local" });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });

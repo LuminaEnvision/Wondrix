@@ -41,6 +41,9 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
   - Gap analysis of the Wondrix skill map, and writing rules.
 - **Question bank phase 1 (draft for review):** 75 new questions (5 per skill) in `src/lib/question-bank.ts`. Metric units, AED, Dubai + global contexts, misconception-based wrong answers. The bank grows from 20 to 95 items. Review sheet: `docs/QUESTION_BANK_REVIEW.md`.
 
+### Changed (School, before family tests)
+- Practice questions show at once (the AI coach line and explanation arrive after). Wrong answers get a calm "Let's look again" card with the right option marked. Listen buttons on the question and the explanation. Sessions end after 5 questions (3 in calm mode) and the parent summary says so. The parent note left the child's School screen and was renamed "Teacher recommendations or parent observations".
+
 ### Added (Arabic gate + owl)
 - **Arabic for what children and parents read:** offline answers, safety redirect and a basic Arabic safety keyword list, parent day summary with the curriculum's grade name, Arabic skill, grade and curriculum names. School says its questions are English for now.
 - **The owl comes alive** with Anastasia's art: waves, listens, thinks, and its beak moves while it talks.

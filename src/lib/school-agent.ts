@@ -31,6 +31,8 @@ export type SchoolQuestionPayload = {
 
 export type SchoolGradeResult = {
   correct: boolean;
+  /** The right option, so the card can mark it without the child reading the explanation. */
+  correctChoiceId: string;
   explanation: string;
   mastery: MasteryLevel;
   nextCoach: string;
@@ -155,6 +157,7 @@ export function localGradeAnswer(
     const next = localNextQuestion(profile, item.skillId, [...avoidIds, questionId]);
     return {
       correct: false,
+      correctChoiceId: item.choices.find((c) => c.correct)!.id,
       explanation: item.explainWrong,
       mastery: nextMastery(prevMastery, "idk"),
       nextCoach: "Want another try?",
@@ -169,6 +172,7 @@ export function localGradeAnswer(
 
   return {
     correct,
+    correctChoiceId: item.choices.find((c) => c.correct)!.id,
     explanation: correct ? item.explainCorrect : item.explainWrong,
     mastery: nextMastery(prevMastery, correct ? "correct" : "wrong"),
     nextCoach: correct ? "Nice. One more?" : "Try another?",

@@ -174,6 +174,39 @@ describe("POST /api/extra/visual", () => {
   });
 });
 
+describe("School: the child never waits on the model", () => {
+  it("ai:false answers question and grade from the bank without any AI call; lead/explain come separately", async () => {
+    useZai();
+    const { calls } = fakeFetch(() => chatResponse('{"lead": "Picture a pizza!"}'));
+    const q = (await json(await schoolSession(req({ action: "question", profile, skillId: "halves-quarters", ai: false })))).data as {
+      questionId: string;
+      choices: { id: string }[];
+    };
+    expect(calls).toHaveLength(0);
+    const g = (await json(await schoolSession(req({ action: "grade", profile, questionId: q.questionId, choiceId: q.choices[0].id, ai: false })))).data as {
+      correctChoiceId: string;
+      source: string;
+    };
+    expect(calls).toHaveLength(0);
+    expect(g.source).toBe("local");
+    const item = RADAR_BANK.find((r) => r.id === q.questionId)!;
+    expect(g.correctChoiceId).toBe(item.choices.find((c) => c.correct)!.id);
+
+    fakeFetch(() => chatResponse("Think of a pizza cut into 4 equal slices."));
+    const ex = (await json(await schoolSession(req({ action: "explain", profile, questionId: q.questionId, choiceId: "idk" })))).data;
+    expect(ex.explanation).toBe("Think of a pizza cut into 4 equal slices.");
+  });
+
+  it("practice does not drift to other grades once this grade's items are used", async () => {
+    const { pickQuestion, itemsForGrade } = await import("@/lib/radar");
+    const all = itemsForGrade("Year 4", "halves-quarters").map((r) => r.id);
+    expect(all.length).toBeGreaterThan(0);
+    expect(pickQuestion("Year 4", "halves-quarters", all)).toBeNull();
+    // A grade with no items at all for a skill still gets the closest grade's item.
+    expect(pickQuestion("Year 3", "algebra-intro", [])?.skillId).toBe("algebra-intro");
+  });
+});
+
 describe("POST /api/school/session", () => {
   it("400 without profile, unknown action", async () => {
     useNoAi();
