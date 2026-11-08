@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { aiProvider, hasFastModeration, isFlagged } from "@/lib/ai";
 import { aiExtraReply, type ExtraChatMessage } from "@/lib/extra-agent";
 import { localExtraReply } from "@/lib/extra-reply";
-import { SAFE_REDIRECT, safetyCheck } from "@/lib/safety";
+import { asLang } from "@/lib/i18n";
+import { safeRedirect, safetyCheck } from "@/lib/safety";
 import type { ParentProfile } from "@/lib/types";
 
 type Body = {
@@ -27,11 +28,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Empty message" }, { status: 400 });
   }
   const topicId = body.topicId ?? null;
+  const lang = asLang(body.profile?.language);
+  const SAFE_REDIRECT = safeRedirect(lang);
 
   // 1. Fast keyword gate (works with or without a key).
   const gate = safetyCheck(message);
   if (!gate.ok) {
-    return NextResponse.json({ text: gate.redirect, source: "safety" });
+    return NextResponse.json({ text: SAFE_REDIRECT, source: "safety" });
   }
 
   // 2. Live agent.
@@ -68,6 +71,6 @@ export async function POST(request: Request) {
 
   // 4. Local fallback (no key, timeout or API error).
   const hadHistory = Array.isArray(body.history) && body.history.length > 0;
-  const local = localExtraReply(message, topicId, hadHistory);
+  const local = localExtraReply(message, topicId, hadHistory, lang);
   return NextResponse.json({ ...local, source: "local" });
 }

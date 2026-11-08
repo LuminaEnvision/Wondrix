@@ -9,7 +9,8 @@ import { gradeName } from "@/lib/curriculum";
 import { loadMastery, loadProfile, setSkillMastery } from "@/lib/demo-store";
 import type { SchoolGradeResult, SchoolQuestionPayload } from "@/lib/school-agent";
 import type { SkillId } from "@/lib/types";
-import { useT } from "@/lib/use-client-state";
+import { skillTitle } from "@/lib/skills";
+import { useLang, useT } from "@/lib/use-client-state";
 
 function PracticeInner() {
   const params = useSearchParams();
@@ -30,14 +31,16 @@ async function requestQuestion(skillId: SkillId, avoid: string[]): Promise<Quest
       body: JSON.stringify({ action: "question", profile, skillId, avoidIds: avoid }),
     });
     if (!res.ok) throw new Error("fail");
-    return { question: (await res.json()) as SchoolQuestionPayload, gradeLabel: gradeName(profile.gradeLabel, profile.curriculum) };
+    const lang = profile.language === "ar" ? "ar" : "en";
+    return { question: (await res.json()) as SchoolQuestionPayload, gradeLabel: gradeName(profile.gradeLabel, profile.curriculum, lang) };
   } catch {
-    return { question: null, gradeLabel: gradeName(profile.gradeLabel, profile.curriculum) };
+    return { question: null, gradeLabel: gradeName(profile.gradeLabel, profile.curriculum, profile.language === "ar" ? "ar" : "en") };
   }
 }
 
 function PracticeSession({ skillId }: { skillId: SkillId }) {
   const tr = useT();
+  const lang = useLang();
   const [question, setQuestion] = useState<SchoolQuestionPayload | null>(null);
   const [avoidIds, setAvoidIds] = useState<string[]>([]);
   const [picked, setPicked] = useState<string | null>(null);
@@ -126,7 +129,7 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
             {tr("practice.kicker")}
           </p>
           <h1 className="font-display mt-1 text-3xl font-semibold">
-            {question?.skillTitle ?? tr("practice.title")}
+            {question ? skillTitle(question.skillId, lang) : tr("practice.title")}
           </h1>
           <p className="mt-2 text-ink-soft">
             {gradeLabel ? `${gradeLabel}. ` : ""}

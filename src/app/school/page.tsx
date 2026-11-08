@@ -5,12 +5,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { loadExtraTopic, loadMastery, loadProfile, pickFocusSkills } from "@/lib/demo-store";
-import { gradeName } from "@/lib/curriculum";
+import { gradeBlurb, gradeName } from "@/lib/curriculum";
 import { gradeFromLabel } from "@/lib/grades";
 import type { SchoolPlan } from "@/lib/school-agent";
-import { getSkill } from "@/lib/skills";
+import { getSkill, skillTitle } from "@/lib/skills";
 import type { SkillId } from "@/lib/types";
-import { useProfileKey, useT } from "@/lib/use-client-state";
+import { useLang, useProfileKey, useT } from "@/lib/use-client-state";
 
 type PlanView = {
   /** Profile snapshot this plan belongs to (stale plans are ignored). */
@@ -24,6 +24,7 @@ export default function SchoolHomePage() {
   // Changes when the parent saves the profile (this tab or another tab).
   const profileKey = useProfileKey();
   const tr = useT();
+  const lang = useLang();
 
   // Local state of the child, derived during render (no setState in an effect).
   const local = useMemo(() => {
@@ -45,7 +46,7 @@ export default function SchoolHomePage() {
     if (!local) return;
     const controller = new AbortController();
     const fallbackNote = tr("school.today", {
-      skills: local.focusIds.map((id) => getSkill(id).title).join(" · ") || tr("school.practice"),
+      skills: local.focusIds.map((id) => skillTitle(id, lang)).join(" · ") || tr("school.practice"),
     });
 
     fetch("/api/school/session", {
@@ -92,8 +93,8 @@ export default function SchoolHomePage() {
   const calm = local?.profile.calmMode ?? false;
   const nickname = local?.profile.childNickname || tr("school.friend");
   // Grade shown in the family's curriculum ("Year 4" / "Grade 3" / "Class 3").
-  const gradeLabel = local ? gradeName(local.grade.label, local.profile.curriculum) : "Year 3";
-  const gradeBlurb = local?.grade.blurb ?? "";
+  const gradeLabel = local ? gradeName(local.grade.label, local.profile.curriculum, lang) : "";
+  const blurb = local ? gradeBlurb(local.grade.id, lang) : "";
 
   return (
     <AppShell backHref="/">
@@ -110,11 +111,12 @@ export default function SchoolHomePage() {
             </h1>
             <p className="mt-1 text-sm font-semibold text-school">
               {gradeLabel}
-              {gradeBlurb ? ` · ${gradeBlurb}` : ""}
+              {blurb ? ` · ${blurb}` : ""}
             </p>
             <p className="mt-2 text-ink-soft">
               {coachNote || (calm ? tr("school.softDay") : tr("school.pickSkill"))}
             </p>
+            {lang === "ar" ? <p className="mt-2 text-xs font-semibold text-ink-soft">{tr("school.englishNote")}</p> : null}
           </div>
           <div className="relative h-28 w-24 shrink-0 sm:h-40 sm:w-36">
             <Image
@@ -141,7 +143,7 @@ export default function SchoolHomePage() {
                   className="flex items-center justify-between gap-3 rounded-2xl bg-bg-deep/50 px-4 py-3"
                 >
                   <div>
-                    <p className="font-semibold text-ink">{skill.title}</p>
+                    <p className="font-semibold text-ink">{skillTitle(id, lang)}</p>
                     <p className="text-sm text-ink-soft">{tr(skill.subject === "math" ? "subject.math" : "subject.science")}</p>
                     {whyById[id] ? (
                       <p className="mt-1 text-xs text-ink-soft">{whyById[id]}</p>

@@ -1,3 +1,4 @@
+import { SKILL_TITLES_AR } from "./i18n/content-ar";
 import type { SkillId, SkillNode } from "./types";
 
 export const SKILL_GRAPH: SkillNode[] = [
@@ -107,6 +108,11 @@ export const SKILL_GRAPH: SkillNode[] = [
     fromGrade: "y7+",
   },
 ];
+
+/** Skill name in the app language (Arabic draft in i18n/content-ar.ts). */
+export function skillTitle(id: SkillId, lang: "en" | "ar" = "en"): string {
+  return lang === "ar" ? SKILL_TITLES_AR[id] : getSkill(id).title;
+}
 
 export function getSkill(id: SkillId): SkillNode {
   const skill = SKILL_GRAPH.find((s) => s.id === id);

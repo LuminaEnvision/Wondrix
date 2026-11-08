@@ -12,7 +12,8 @@
 # OPENAI_API_KEY for moderation); never write them into files in the repo.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PORT="${EVAL_PORT:-3199}"
+# Not the e2e port (3199), so a run never leaves a stale server for Playwright.
+PORT="${EVAL_PORT:-3299}"
 mkdir -p eval-results
 
 if [ "$#" -eq 0 ]; then
@@ -29,13 +30,14 @@ for model in "$@"; do
     provider="openrouter"
   fi
   logname="eval-results/server-$(echo "$model" | tr '/' '_').log"
-  AI_PROVIDER="$provider" OPENROUTER_MODEL="$model" npx next start -p "$PORT" >"$logname" 2>&1 &
+  # Own process group, so stopping it also stops the next-server child.
+  AI_PROVIDER="$provider" OPENROUTER_MODEL="$model" setsid npx next start -p "$PORT" >"$logname" 2>&1 &
   pid=$!
   for _ in $(seq 1 40); do
     if curl -s -o /dev/null "http://localhost:$PORT"; then break; fi
     sleep 0.5
   done
   EVAL_BASE_URL="http://localhost:$PORT" EVAL_LABEL="$model" node scripts/eval-agents.mjs || true
-  kill "$pid" 2>/dev/null || true
+  kill -- "-$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
   wait "$pid" 2>/dev/null || true
 done

@@ -7,9 +7,9 @@ import { AppShell } from "@/components/AppShell";
 import { saveMastery, loadMastery } from "@/lib/demo-store";
 import { radarForGrade, seededRandom, shuffleChoices } from "@/lib/radar";
 import { nextMastery } from "@/lib/school-agent";
-import { getSkill } from "@/lib/skills";
+import { skillTitle } from "@/lib/skills";
 import type { MasteryLevel, SkillId } from "@/lib/types";
-import { useProfileGradeLabel, useProfileGradeName, useT } from "@/lib/use-client-state";
+import { useLang, useProfileGradeLabel, useProfileGradeName, useT } from "@/lib/use-client-state";
 
 export default function RadarPage() {
   // Live grade from the saved profile; a grade change remounts the run (fresh radar).
@@ -20,6 +20,7 @@ export default function RadarPage() {
 function RadarRun({ gradeLabel }: { gradeLabel: string }) {
   const gradeShown = useProfileGradeName();
   const tr = useT();
+  const lang = useLang();
   // One random seed per radar run: options are shuffled once and stay put while answering.
   const [seed] = useState(() => Math.floor(Math.random() * 2 ** 31));
   const bank = useMemo(() => {
@@ -86,7 +87,7 @@ function RadarRun({ gradeLabel }: { gradeLabel: string }) {
               <p className="text-ink-soft">
                 {tr("radar.worth")}{" "}
                 <span className="font-semibold text-ink">
-                  {shaky.map((id) => getSkill(id).title).join(", ")}
+                  {shaky.map((id) => skillTitle(id, lang)).join(lang === "ar" ? "، " : ", ")}
                 </span>
               </p>
             )}
@@ -102,7 +103,7 @@ function RadarRun({ gradeLabel }: { gradeLabel: string }) {
         ) : (
           <div className="rounded-3xl border border-stroke bg-card p-6">
             <p className="text-sm font-bold text-ink-soft">
-              {index + 1} / {bank.length} · {getSkill(item.skillId).title}
+              {index + 1} / {bank.length} · {skillTitle(item.skillId, lang)}
             </p>
             <p className="mt-3 text-lg font-semibold text-ink">{item.prompt}</p>
             <div className="mt-5 space-y-3">
