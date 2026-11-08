@@ -39,7 +39,17 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Wondrix as a friend: personality, intents, tap-able ideas, animated mascot
+### Free safety check via OpenAI, OpenRouter for model tests, dinosaur starters
+
+**What**
+- **Safety check on OpenAI's free moderation, whatever model writes the chat.** With `OPENAI_API_KEY` set, the input and output checks use OpenAI's moderation endpoint (free, under 0.5 s, multilingual) even when the chat runs on Z.ai or OpenRouter. The input check runs beside the chat call. If OpenAI is down, the chat provider's classifier is used as before. On the Z.ai free tier this removes a whole queued model call from every reply (it took 1 to 6 s in the Nov 6 check) and closes the "keyword list is English only" gap for Arabic.
+- **OpenRouter provider** (`AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`): one key for many models, used for the model comparison. It sends `reasoning: {enabled: false}` (fast short answers) and `provider: {data_collection: "deny"}` (only providers that do not store or train on prompts).
+- **Model comparison tooling:** `scripts/eval-models.sh <models...>` starts the real app once per model and runs the eval; `scripts/eval-compare.mjs` writes one table (checks per group, safety misses, fallbacks, p50/p95, price, cost per 100 turns). The eval now records p50/p95 and a label, and has an **Arabic** group (answer in Arabic, bedtime with no question, a harm request in Arabic is blocked). Brief: [`docs/MODEL_TEST.md`](./MODEL_TEST.md), a corrected version of Anastasia's brief (real app instead of copied prompts, current JSON shape, social and Arabic cases, no free endpoints for children's data).
+- **Dinosaurs** in the Extra starters for every age band (Anastasia: older children ask too), English and Arabic.
+
+**Tests:** Z.ai chat + OpenAI key uses OpenAI moderation (one call, no Z.ai call); moderation down falls back to the classifier; the OpenRouter request carries the model, no reasoning, no data collection and the app title. Vitest 215/215.
+
+### Wondrix as a friend: personality, intents, tap-able ideas, animated mascot (`3e7760b`, merged in PR #11)
 
 **What (from Anastasia's home test with her children):** the child did not know what to ask first; Wondrix could not say its own name and felt "boring"; when the child said it was time to sleep, Wondrix kept the chat going; once "the machine broke".
 - **Personality:** Wondrix is a small, curious explorer friend with a bag for collecting ideas. It knows its name, is playful (light jokes, varied wording) and uses the child's nickname now and then.

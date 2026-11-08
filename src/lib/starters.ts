@@ -24,6 +24,8 @@ export const STARTERS: Record<AgeBand, List> = {
       "How does a rainbow happen?",
       "Why do camels have humps?",
       "What makes thunder so loud?",
+      "When did the dinosaurs live?",
+      "What did dinosaurs eat?",
     ],
     ar: [
       "لماذا تكون السماء زرقاء في النهار وسوداء في الليل؟",
@@ -38,6 +40,8 @@ export const STARTERS: Record<AgeBand, List> = {
       "كيف يظهر قوس قزح؟",
       "لماذا للجمل سنام؟",
       "لماذا صوت الرعد عالٍ جدًا؟",
+      "متى عاشت الديناصورات؟",
+      "ماذا كانت تأكل الديناصورات؟",
     ],
   },
   middle: {
@@ -54,6 +58,8 @@ export const STARTERS: Record<AgeBand, List> = {
       "How do planes stay up in the sky?",
       "Why does a ball fall down and not up?",
       "How does a phone screen know where I touch?",
+      "When did the last dinosaurs live?",
+      "How do we know what dinosaurs looked like?",
     ],
     ar: [
       "لماذا يكون الغروب برتقاليًا وأحمر؟",
@@ -68,6 +74,8 @@ export const STARTERS: Record<AgeBand, List> = {
       "كيف تبقى الطائرات في السماء؟",
       "لماذا تسقط الكرة إلى الأسفل وليس إلى الأعلى؟",
       "كيف تعرف شاشة الهاتف أين ألمسها؟",
+      "متى عاش آخر ديناصور؟",
+      "كيف نعرف شكل الديناصورات؟",
     ],
   },
   teen: {
@@ -82,6 +90,8 @@ export const STARTERS: Record<AgeBand, List> = {
       "How do vaccines teach the body to fight germs?",
       "How does GPS know where I am?",
       "Why can't anything go faster than light?",
+      "What really wiped out the dinosaurs?",
+      "Are birds really dinosaurs?",
     ],
     ar: [
       "لماذا السماء زرقاء بينما الفضاء أسود؟",
@@ -94,6 +104,8 @@ export const STARTERS: Record<AgeBand, List> = {
       "كيف تعلّم اللقاحات الجسم محاربة الجراثيم؟",
       "كيف يعرف نظام GPS مكاني؟",
       "لماذا لا يمكن لشيء أن يسير أسرع من الضوء؟",
+      "ما الذي قضى على الديناصورات فعلًا؟",
+      "هل الطيور ديناصورات حقًا؟",
     ],
   },
 };

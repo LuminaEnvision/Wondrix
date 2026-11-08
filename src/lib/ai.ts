@@ -10,7 +10,7 @@
  *   API key, which must never reach the browser).
  */
 
-export type AiProviderId = "zai" | "openai";
+export type AiProviderId = "zai" | "openai" | "openrouter";
 
 type ProviderConfig = {
   id: AiProviderId;
@@ -21,6 +21,8 @@ type ProviderConfig = {
   extraBody: Record<string, unknown>;
   /** True when the provider has an OpenAI-style /moderations endpoint. */
   hasModerationEndpoint: boolean;
+  /** Extra HTTP headers (OpenRouter app attribution). */
+  headers?: Record<string, string>;
 };
 
 export type AiMessage = { role: "system" | "user" | "assistant"; content: string };
@@ -41,12 +43,31 @@ function trimSlash(url: string) {
 
 /**
  * Pick the provider from env.
- * AI_PROVIDER=zai|openai forces one; otherwise the first key found wins (Z.ai first).
+ * AI_PROVIDER=zai|openai|openrouter forces one; otherwise the first key found wins (Z.ai first).
  */
 export function aiProvider(): ProviderConfig | null {
   const forced = process.env.AI_PROVIDER?.toLowerCase();
   const zaiKey = process.env.ZAI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+
+  // OpenRouter: one key, many models (used to compare models; see docs/MODEL_TEST.md).
+  if (openrouterKey && (forced === "openrouter" || (!forced && !zaiKey && !openaiKey))) {
+    return {
+      id: "openrouter",
+      apiKey: openrouterKey,
+      baseUrl: trimSlash(process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1"),
+      model: process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash-lite",
+      extraBody: {
+        // Kids chat needs fast short answers, not hidden reasoning.
+        reasoning: { enabled: process.env.OPENROUTER_REASONING === "enabled" },
+        // Only providers that do not train on or store prompts (children's chats).
+        provider: { data_collection: "deny" },
+      },
+      hasModerationEndpoint: false,
+      headers: { "X-Title": "Wondrix" },
+    };
+  }
 
   if (zaiKey && (forced === "zai" || !forced || (forced === "openai" && !openaiKey))) {
     return {
@@ -154,6 +175,7 @@ async function requestOnce(
       headers: {
         Authorization: `Bearer ${provider.apiKey}`,
         "Content-Type": "application/json",
+        ...provider.headers,
       },
       body: JSON.stringify({
         model: provider.model,
@@ -244,12 +266,33 @@ function extractJson(raw: string): string {
 export async function isFlagged(text: string): Promise<boolean | null> {
   const provider = aiProvider();
   if (!provider || !text.trim()) return null;
-  return provider.hasModerationEndpoint
-    ? moderationEndpoint(provider, text)
-    : classifierCheck(text);
+  const moderation = moderationConfig(provider);
+  if (moderation) {
+    const flagged = await moderationEndpoint(moderation, text);
+    // OpenAI moderation down: fall back to the chat provider's classifier.
+    if (flagged !== null || provider.hasModerationEndpoint) return flagged;
+  }
+  return classifierCheck(text);
 }
 
-async function moderationEndpoint(provider: ProviderConfig, text: string) {
+/**
+ * OpenAI's moderation endpoint is free, fast (< 0.5 s) and multilingual, so it is
+ * used whenever an OpenAI key exists, whatever model writes the chat (Z.ai,
+ * OpenRouter...). This also frees the chat provider's slot on free tiers.
+ */
+function moderationConfig(provider: ProviderConfig): { apiKey: string; baseUrl: string } | null {
+  if (provider.hasModerationEndpoint) return { apiKey: provider.apiKey, baseUrl: provider.baseUrl };
+  const key = process.env.OPENAI_API_KEY;
+  return key ? { apiKey: key, baseUrl: "https://api.openai.com/v1" } : null;
+}
+
+/** True when the safety check is a fast moderation call (safe to run beside the chat call). */
+export function hasFastModeration(): boolean {
+  const provider = aiProvider();
+  return Boolean(provider && moderationConfig(provider));
+}
+
+async function moderationEndpoint(provider: { apiKey: string; baseUrl: string }, text: string) {
   const started = Date.now();
   try {
     const res = await fetch(`${provider.baseUrl}/moderations`, {

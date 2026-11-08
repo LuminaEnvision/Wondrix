@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { aiProvider, isFlagged } from "@/lib/ai";
+import { aiProvider, hasFastModeration, isFlagged } from "@/lib/ai";
 import { aiExtraReply, type ExtraChatMessage } from "@/lib/extra-agent";
 import { localExtraReply } from "@/lib/extra-reply";
 import { SAFE_REDIRECT, safetyCheck } from "@/lib/safety";
@@ -35,8 +35,9 @@ export async function POST(request: Request) {
   }
 
   // 2. Live agent.
-  //    OpenAI: moderation endpoint on the child's turn, in parallel with the reply.
-  //    Z.ai (no moderation endpoint): the agent flags unsafe input in its own JSON,
+  //    With an OpenAI key (whatever model writes the chat): the free moderation endpoint
+  //    checks the child's turn in parallel with the reply.
+  //    Otherwise (e.g. Z.ai alone): the agent flags unsafe input in its own JSON,
   //    so we never fire two requests at once on the free tier's low concurrency.
   const provider = aiProvider();
   if (provider) {
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     const localTime =
       typeof body.localTime === "string" && /^[A-Za-z]{3,9} \d{1,2}:\d{2}$/.test(body.localTime) ? body.localTime : undefined;
     const agentCall = aiExtraReply({ message, topicId, history, profile: body.profile, localTime });
-    const [inputFlagged, reply] = provider.hasModerationEndpoint
+    const [inputFlagged, reply] = hasFastModeration()
       ? await Promise.all([isFlagged(message), agentCall])
       : [null, await agentCall];
 
