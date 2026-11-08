@@ -128,7 +128,50 @@ describe("Extra agent output", () => {
       topic: "Moon phases",
       draw: true,
       unsafeInput: false,
+      intent: "question",
+      suggestions: [],
     });
+  });
+
+  it("persona, intents, local time and recent follow-ups are in the prompt", async () => {
+    const { calls } = fakeFetch(() => chatResponse('{"intent":"question","answer":"A.","followUp":"B?","topic":"t"}'));
+    await aiExtraReply({
+      message: "why?",
+      topicId: null,
+      history: [
+        { role: "child", text: "why is the sky blue?" },
+        { role: "agent", text: "Air scatters blue light. Have you ever noticed the sky at sunset?" },
+      ],
+      profile: profile(),
+      localTime: "Thursday 22:47",
+    });
+    const sys = systemPrompt(calls[0]);
+    expect(sys).toMatch(/You are Wondrix/);
+    expect(sys).toMatch(/"goodbye"/);
+    expect(sys).toContain("Thursday 22:47");
+    expect(sys).toContain("The child's nickname is Sara");
+    expect(sys).toContain('"Have you ever noticed the sky at sunset?"');
+  });
+
+  it("goodbye: never a follow-up or suggestions that keep the child talking", async () => {
+    fakeFetch(() =>
+      chatResponse('{"intent":"goodbye","answer":"You are right, it is late. Sleep well!","followUp":"What will you dream about?","suggestions":["Why do we dream?"],"topic":"Bedtime","draw":true}'),
+    );
+    const r = await aiExtraReply({ message: "I have to go to sleep", topicId: null, history: [], profile: profile() });
+    expect(r?.intent).toBe("goodbye");
+    expect(r?.followUp).toBe("");
+    expect(r?.text).toBe("You are right, it is late. Sleep well!");
+    expect(r?.suggestions).toEqual([]);
+    expect(r?.draw).toBe(false);
+  });
+
+  it("stuck: up to 3 clean suggestions", async () => {
+    fakeFetch(() =>
+      chatResponse('{"intent":"stuck","answer":"No problem!","followUp":"","suggestions":["Why is the sky blue?","How do magnets work?","Where does rain come from?","One too many?"],"topic":"Ideas"}'),
+    );
+    const r = await aiExtraReply({ message: "I don't know what to ask", topicId: null, history: [], profile: profile() });
+    expect(r?.intent).toBe("stuck");
+    expect(r?.suggestions).toEqual(["Why is the sky blue?", "How do magnets work?", "Where does rain come from?"]);
   });
 
   it("unsafe flag from the agent → unsafeInput and never draw", async () => {
@@ -259,5 +302,15 @@ describe("oneQuestion (exactly one follow-up)", () => {
     const r = await aiExtraReply({ message: "molecule?", topicId: null, history: [], profile: profile() });
     expect(r?.followUp).toBe("Seen ice melt?");
     expect(r?.text).toBe("Molecules are tiny. Seen ice melt?");
+  });
+});
+
+describe("follow-up variety", () => {
+  it('replaces the overused "Have you ever noticed" opener, leaves others alone', async () => {
+    const { varyFollowUp } = await import("@/lib/extra-agent");
+    const out = varyFollowUp("Have you ever noticed how fish open their mouths?");
+    expect(out).not.toMatch(/^Have you ever noticed/);
+    expect(out).toMatch(/how fish open their mouths\?$/);
+    expect(varyFollowUp("Which do you think is heavier?")).toBe("Which do you think is heavier?");
   });
 });

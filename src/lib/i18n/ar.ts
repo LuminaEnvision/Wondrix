@@ -75,7 +75,8 @@ export const ar: Record<MessageKey, string> = {
 
   "extra.kicker": "إضافي",
   "extra.letsWonder": "هيا نتساءل",
-  "extra.opening": "إذا لم تعرف من أين تبدأ… لماذا تكون السماء زرقاء في النهار وسوداء في الليل؟",
+  "extra.opening": "إذا لم تعرف من أين تبدأ… {q}",
+  "extra.tryOne": "جرّب واحدًا:",
   "extra.listenStarter": "استمع إلى سؤال البداية",
   "extra.voiceOn": "الإجابات الصوتية تعمل",
   "extra.voiceOff": "الإجابات الصوتية متوقفة",

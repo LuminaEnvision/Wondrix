@@ -10,6 +10,8 @@ type Body = {
   topicId?: string | null;
   history?: ExtraChatMessage[];
   profile?: ParentProfile;
+  /** Child's local weekday and time, e.g. "Thursday 22:47". */
+  localTime?: string;
 };
 
 export async function POST(request: Request) {
@@ -39,7 +41,9 @@ export async function POST(request: Request) {
   const provider = aiProvider();
   if (provider) {
     const history = Array.isArray(body.history) ? body.history : [];
-    const agentCall = aiExtraReply({ message, topicId, history, profile: body.profile });
+    const localTime =
+      typeof body.localTime === "string" && /^[A-Za-z]{3,9} \d{1,2}:\d{2}$/.test(body.localTime) ? body.localTime : undefined;
+    const agentCall = aiExtraReply({ message, topicId, history, profile: body.profile, localTime });
     const [inputFlagged, reply] = provider.hasModerationEndpoint
       ? await Promise.all([isFlagged(message), agentCall])
       : [null, await agentCall];
@@ -51,10 +55,11 @@ export async function POST(request: Request) {
     if (reply) {
       // 3. Check the agent's own output before a child sees it.
       // (Moderation/classifier only: the keyword list would block innocent science like "germs kill".)
-      if (await isFlagged(reply.text)) {
+      if (await isFlagged([reply.text, ...reply.suggestions].join("\n"))) {
         return NextResponse.json({ text: SAFE_REDIRECT, source: "safety" });
       }
       const { unsafeInput: _unsafe, ...publicReply } = reply;
+      publicReply.suggestions = publicReply.suggestions.filter((s) => safetyCheck(s).ok);
       void _unsafe;
       return NextResponse.json({ ...publicReply, source: provider.id });
     }
