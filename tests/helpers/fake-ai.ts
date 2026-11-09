@@ -59,11 +59,13 @@ export function useZai() {
   vi.stubEnv("ZAI_BASE_URL", "");
   vi.stubEnv("ZAI_MODEL", "");
   vi.stubEnv("AI_MAX_CONCURRENCY", "");
+  vi.stubEnv("OPENROUTER_API_KEY", "");
 }
 
 /** No provider at all (local fallback mode). */
 export function useNoAi() {
   vi.stubEnv("ZAI_API_KEY", "");
   vi.stubEnv("OPENAI_API_KEY", "");
+  vi.stubEnv("OPENROUTER_API_KEY", "");
   vi.stubEnv("AI_PROVIDER", "");
 }

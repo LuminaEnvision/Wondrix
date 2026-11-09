@@ -24,14 +24,16 @@ import {
   lockParentSession,
   setParentPin,
 } from "@/lib/parent-auth";
-import { asCurriculum, CURRICULA, gradeName, gradeNameWithAge, type Curriculum } from "@/lib/curriculum";
+import { asCurriculum, CURRICULA, curriculumLabel, gradeBlurb, gradeName, gradeNameWithAge, type Curriculum } from "@/lib/curriculum";
+import type { Lang } from "@/lib/i18n";
 import type { ParentProfile } from "@/lib/types";
-import { useHydrated, useT } from "@/lib/use-client-state";
+import { useHydrated, useLang, useT } from "@/lib/use-client-state";
 
-function daySummaryFor(p: ParentProfile): string {
+function daySummaryFor(p: ParentProfile, lang: Lang): string {
   return buildDaySummary({
+    lang,
     nickname: p.childNickname,
-    gradeLabel: gradeName(p.gradeLabel, p.curriculum),
+    gradeLabel: gradeName(p.gradeLabel, p.curriculum, lang),
     focus: pickFocusSkills(loadMastery(), p),
     calmMode: p.calmMode,
     extraTopic: loadExtraTopic(),
@@ -56,13 +58,15 @@ export default function ParentPage() {
 function ParentHome() {
   // Lazy initializers run once on the client: no setState-in-effect needed.
   const [profile, setProfile] = useState<ParentProfile>(() => loadProfile());
-  const [summary, setSummary] = useState(() => daySummaryFor(loadProfile()));
   const [saved, setSaved] = useState(false);
   const [pinSet, setPinSet] = useState(() => hasParentPin());
   const [newPin, setNewPin] = useState("");
   const [pinMsg, setPinMsg] = useState("");
   const [chatCount, setChatCount] = useState(() => listChats().length);
   const tr = useT();
+  const lang = useLang();
+  // Live preview: follows the form (grade, programme, calm mode) and the language.
+  const summary = daySummaryFor(profile, lang);
 
   function update<K extends keyof ParentProfile>(key: K, value: ParentProfile[K]) {
     setProfile((prev) => ({ ...prev, [key]: value }));
@@ -71,7 +75,6 @@ function ParentHome() {
 
   function onSave() {
     saveProfile(profile);
-    setSummary(daySummaryFor(profile));
     setSaved(true);
   }
 
@@ -103,14 +106,13 @@ function ParentHome() {
               <span className="text-sm font-bold text-ink-soft">{tr("parent.curriculum")}</span>
               <select
                 name="curriculum"
-                dir="ltr"
                 value={asCurriculum(profile.curriculum)}
                 onChange={(e) => update("curriculum", e.target.value as Curriculum)}
                 className="w-full rounded-2xl border border-stroke bg-bg/40 px-4 py-3 outline-none focus:border-brand/40"
               >
                 {CURRICULA.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.label}
+                    {curriculumLabel(c.id, lang)}
                   </option>
                 ))}
               </select>
@@ -123,14 +125,13 @@ function ParentHome() {
               <span className="text-sm font-bold text-ink-soft">{tr("parent.grade")}</span>
               <select
                 name="grade"
-                dir="ltr"
                 value={profile.gradeLabel}
                 onChange={(e) => update("gradeLabel", e.target.value)}
                 className="w-full rounded-2xl border border-stroke bg-bg/40 px-4 py-3 outline-none focus:border-brand/40"
               >
                 {GRADE_OPTIONS.map((g) => (
                   <option key={g.id} value={g.label}>
-                    {gradeNameWithAge(g.id, profile.curriculum)}: {g.blurb}
+                    {gradeNameWithAge(g.id, profile.curriculum, lang)}: {gradeBlurb(g.id, lang)}
                   </option>
                 ))}
               </select>
@@ -193,7 +194,7 @@ function ParentHome() {
             </button>
             {saved ? (
               <p className="text-sm font-semibold text-brand">
-                {tr("parent.saved", { grade: gradeName(profile.gradeLabel, profile.curriculum) })}
+                {tr("parent.saved", { grade: gradeName(profile.gradeLabel, profile.curriculum, lang) })}
               </p>
             ) : null}
           </div>

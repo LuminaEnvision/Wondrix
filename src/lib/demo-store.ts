@@ -1,5 +1,5 @@
 import { gradeFromLabel, skillAllowedForGrade } from "./grades";
-import { skillsFromParentNote, SKILL_GRAPH } from "./skills";
+import { skillsFromParentNote, skillTitle as skillName, SKILL_GRAPH } from "./skills";
 import type { MasteryLevel, ParentProfile, SkillId } from "./types";
 import { notifyProfileChanged } from "./types";
 
@@ -109,7 +109,10 @@ export function buildDaySummary(input: {
   calmMode: boolean;
   /** Questions the safety gate redirected today (never the question text itself). */
   safetyRedirects?: number;
+  /** Summary language; the grade label should already be in this language. */
+  lang?: "en" | "ar";
 }): string {
+  if (input.lang === "ar") return buildDaySummaryAr(input);
   const focusText = input.focus.map(skillTitle).join(", ") || "general practice";
   const extra = input.extraTopic
     ? `Extra explored: ${input.extraTopic}.`
@@ -121,6 +124,18 @@ export function buildDaySummary(input: {
       ? ` Wondrix gently redirected ${n === 1 ? "1 question" : `${n} questions`} to safer topics today; a calm chat about it may help.`
       : "";
   return `${input.nickname} (${input.gradeLabel}) practiced: ${focusText}. ${extra}${calm}${safety} Tip: ask one dinner question about today's focus.`;
+}
+
+function buildDaySummaryAr(input: Parameters<typeof buildDaySummary>[0]): string {
+  const focusText = input.focus.map((id) => skillName(id, "ar")).join("، ") || "تدريب عام";
+  const extra = input.extraTopic ? `استكشف في قسم إضافي: ${input.extraTopic}.` : "لم يُفتح قسم إضافي اليوم.";
+  const calm = input.calmMode ? " كان الوضع الهادئ مفعّلًا." : "";
+  const n = input.safetyRedirects ?? 0;
+  const safety =
+    n > 0
+      ? ` وجّه ووندريكس بلطف ${n === 1 ? "سؤالًا واحدًا" : `${n} أسئلة`} إلى مواضيع أكثر أمانًا اليوم، وقد يفيد حديث هادئ عن ذلك.`
+      : "";
+  return `${input.nickname} (${input.gradeLabel}) تدرّب على: ${focusText}. ${extra}${calm}${safety} نصيحة: اطرح على العشاء سؤالًا واحدًا عن مهارة اليوم.`;
 }
 
 function skillTitle(id: SkillId): string {

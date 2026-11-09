@@ -39,7 +39,34 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Wondrix as a friend: personality, intents, tap-able ideas, animated mascot
+### Arabic gate for the family tests + the owl comes alive (new art)
+
+**Arabic (Anastasia: "a pre-test gate, not a nice-to-have")**
+- **Live Extra in Arabic, checked:** the eval's Arabic group passed 3/3 on Z.ai (answer and follow-up in Arabic, bedtime with no question, an Arabic harm request blocked). The English she saw came from the offline path (AI slow or off) and the safety redirect, now both Arabic:
+- **Offline replies** (`extra-reply.ts`) are bilingual: every topic answer, hello, name, good night, bye, stuck, "keep going" and the "tangled" fallback, with Arabic keyword matching and Arabic scene titles. Dinosaur answer now says the last big dinosaurs died out about 66 million years ago.
+- **Safety:** `safeRedirect(lang)` in Arabic; a basic **Arabic keyword gate** (first-person harm, weapons, self-harm, drugs, sexual content, bleach/ammonia mixes). It is person-first so science passes ("how white blood cells kill germs", "a pencil" which uses the word for lead, "genus" which uses the word for sex are all allowed; tested).
+- **Parent:** day summary in Arabic with the grade name of the chosen curriculum (for example "الروضة 3–الصف 1" for Saudi), Arabic skill names, Arabic curriculum names and grade blurbs in the menus. The summary preview now follows the form live (Anastasia's "Year 1–2" was the saved value, not the selected one).
+- **School:** skill names, grade name and blurb in Arabic; the questions stay English, and in Arabic mode School says so in one line. Plan for the bank: see the reply to Anastasia (translate the reviewed bank with a native check, about 95 items).
+
+**Owl (Anastasia's new character sheets)**
+- Cut the poses and mouth frames out of the sheets (transparent, same canvas, webp, about 22 KB each, `public/art/owl/`).
+- `Mascot` now swaps real frames: **happy** (waves on an empty chat and after hello or goodbye), **listening** (turns toward the child), **thinking** (looks aside, with dots), **speaking** (the beak opens and closes, closed / half / open, about 8 times a second, with sound waves), **idle** (breathes). The talking frames reuse the front pose with the mouth patch from the face sheet, so the body never jumps. Still under reduced motion.
+
+**Fix:** `scripts/eval-models.sh` left a server running on the e2e port (3199), so Playwright reused a stale build. It now uses port 3299 and stops the whole process group.
+
+**Tests:** `tests/unit/arabic.test.ts` (offline answers and scene titles in Arabic, Arabic safety blocks harm and allows science, Arabic summary and grade names). Z.ai baseline eval: 33/33 cases, 122/122 checks, p50 5.9 s, **p95 13.2 s** (above the 8 s bar); Arabic group 3/3. Vitest 218/218, Playwright 66/66, lint and build clean.
+
+### Free safety check via OpenAI, OpenRouter for model tests, dinosaur starters (`459bc52`)
+
+**What**
+- **Safety check on OpenAI's free moderation, whatever model writes the chat.** With `OPENAI_API_KEY` set, the input and output checks use OpenAI's moderation endpoint (free, under 0.5 s, multilingual) even when the chat runs on Z.ai or OpenRouter. The input check runs beside the chat call. If OpenAI is down, the chat provider's classifier is used as before. On the Z.ai free tier this removes a whole queued model call from every reply (it took 1 to 6 s in the Nov 6 check) and closes the "keyword list is English only" gap for Arabic.
+- **OpenRouter provider** (`AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`): one key for many models, used for the model comparison. It sends `reasoning: {enabled: false}` (fast short answers) and `provider: {data_collection: "deny"}` (only providers that do not store or train on prompts).
+- **Model comparison tooling:** `scripts/eval-models.sh <models...>` starts the real app once per model and runs the eval; `scripts/eval-compare.mjs` writes one table (checks per group, safety misses, fallbacks, p50/p95, price, cost per 100 turns). The eval now records p50/p95 and a label, and has an **Arabic** group (answer in Arabic, bedtime with no question, a harm request in Arabic is blocked). Brief: [`docs/MODEL_TEST.md`](./MODEL_TEST.md), a corrected version of Anastasia's brief (real app instead of copied prompts, current JSON shape, social and Arabic cases, no free endpoints for children's data).
+- **Dinosaurs** in the Extra starters for every age band (Anastasia: older children ask too), English and Arabic.
+
+**Tests:** Z.ai chat + OpenAI key uses OpenAI moderation (one call, no Z.ai call); moderation down falls back to the classifier; the OpenRouter request carries the model, no reasoning, no data collection and the app title. Vitest 215/215.
+
+### Wondrix as a friend: personality, intents, tap-able ideas, animated mascot (`3e7760b`, merged in PR #11)
 
 **What (from Anastasia's home test with her children):** the child did not know what to ask first; Wondrix could not say its own name and felt "boring"; when the child said it was time to sleep, Wondrix kept the chat going; once "the machine broke".
 - **Personality:** Wondrix is a small, curious explorer friend with a bag for collecting ideas. It knows its name, is playful (light jokes, varied wording) and uses the child's nickname now and then.

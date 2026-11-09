@@ -12,6 +12,9 @@
  */
 
 import { gradeFromLabel } from "./grades";
+import { CURRICULUM_LABELS_AR, GRADE_AGES_AR, GRADE_BLURBS_AR, GRADE_NAMES_AR } from "./i18n/content-ar";
+
+type Lang = "en" | "ar";
 
 export type Curriculum = "uk" | "us" | "indian" | "ib" | "uae" | "saudi" | "other";
 
@@ -52,20 +55,28 @@ export function asCurriculum(value: unknown): Curriculum {
   return CURRICULA.some((c) => c.id === value) ? (value as Curriculum) : DEFAULT_CURRICULUM;
 }
 
-export function curriculumLabel(c: Curriculum | undefined): string {
+export function curriculumLabel(c: Curriculum | undefined, lang: Lang = "en"): string {
+  if (lang === "ar") return CURRICULUM_LABELS_AR[asCurriculum(c)];
   return CURRICULA.find((x) => x.id === asCurriculum(c))?.label ?? CURRICULA[0].label;
 }
 
 /** Grade name in the family's curriculum, e.g. ("Year 4", "us") → "Grade 3". */
-export function gradeName(gradeLabelOrId: string, curriculum?: Curriculum): string {
+export function gradeName(gradeLabelOrId: string, curriculum?: Curriculum, lang: Lang = "en"): string {
   const id = gradeFromLabel(gradeLabelOrId).id as GradeId;
+  if (lang === "ar") return GRADE_NAMES_AR[asCurriculum(curriculum)][id] ?? gradeLabelOrId;
   return NAMES[asCurriculum(curriculum)][id] ?? gradeLabelOrId;
 }
 
+/** Short list of what a grade practices ("Measuring, fractions, living things"). */
+export function gradeBlurb(gradeLabelOrId: string, lang: Lang = "en"): string {
+  const g = gradeFromLabel(gradeLabelOrId);
+  return lang === "ar" ? GRADE_BLURBS_AR[g.id] : g.blurb;
+}
+
 /** "Grade 3 (age 8–9)". */
-export function gradeNameWithAge(gradeLabelOrId: string, curriculum?: Curriculum): string {
+export function gradeNameWithAge(gradeLabelOrId: string, curriculum?: Curriculum, lang: Lang = "en"): string {
   const id = gradeFromLabel(gradeLabelOrId).id as GradeId;
-  return `${gradeName(gradeLabelOrId, curriculum)} (${GRADE_AGES[id]})`;
+  return `${gradeName(gradeLabelOrId, curriculum, lang)} (${lang === "ar" ? GRADE_AGES_AR[id] : GRADE_AGES[id]})`;
 }
 
 /** One line for the AI prompts: grade name, curriculum, spelling. */

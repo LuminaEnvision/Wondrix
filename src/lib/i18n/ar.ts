@@ -163,6 +163,7 @@ export const ar: Record<MessageKey, string> = {
   "school.start": "ابدأ",
   "school.today": "اليوم: {skills}.",
   "school.practice": "تدريب",
+  "school.englishNote": "أسئلة المدرسة بالإنجليزية حاليًا، والنسخة العربية قادمة.",
   "school.radarTitle": "رادار الفجوات",
   "school.radarBlurb": "فحوصات مناسبة للصف، حتى عندما يكون الكلام عن الصعوبات صعبًا.",
   "school.parentNote": "ملاحظة ولي الأمر",

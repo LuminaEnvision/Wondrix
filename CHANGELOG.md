@@ -41,7 +41,13 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
   - Gap analysis of the Wondrix skill map, and writing rules.
 - **Question bank phase 1 (draft for review):** 75 new questions (5 per skill) in `src/lib/question-bank.ts`. Metric units, AED, Dubai + global contexts, misconception-based wrong answers. The bank grows from 20 to 95 items. Review sheet: `docs/QUESTION_BANK_REVIEW.md`.
 
+### Added (Arabic gate + owl)
+- **Arabic for what children and parents read:** offline answers, safety redirect and a basic Arabic safety keyword list, parent day summary with the curriculum's grade name, Arabic skill, grade and curriculum names. School says its questions are English for now.
+- **The owl comes alive** with Anastasia's art: waves, listens, thinks, and its beak moves while it talks.
+
 ### Added (Wondrix as a friend)
+- **Free, faster safety check:** with an OpenAI key, OpenAI's free moderation checks every turn (any chat model), in Arabic too.
+- **Model comparison:** OpenRouter support and `scripts/eval-models.sh` + `eval-compare.mjs` to test models on our own suite ([docs/MODEL_TEST.md](./docs/MODEL_TEST.md)). Dinosaur starter questions.
 - **Personality and intents:** Wondrix knows its name, is playful and varied, says good night without keeping the child talking, and helps a stuck child with ideas. It knows the child's local time.
 - **Tap-able ideas:** starter questions on an empty chat and next ideas under answers, rotating per visit, age band and language.
 - **Animated Wondrix:** breathes, listens, thinks and talks with the conversation.

@@ -160,6 +160,7 @@ export const en = {
   "school.start": "Start",
   "school.today": "Today: {skills}.",
   "school.practice": "practice",
+  "school.englishNote": "School questions are in English for now. An Arabic version is coming.",
   "school.radarTitle": "Gap radar",
   "school.radarBlurb": "Grade-matched checks, including when speaking up feels hard.",
   "school.parentNote": "Parent note",

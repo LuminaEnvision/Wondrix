@@ -23,12 +23,31 @@ const UNSAFE: RegExp[] = [
   /\b(bleach|ammonia|drain cleaner)\b.{0,15}\b(and|with|\+)\b.{0,15}\b(bleach|ammonia|vinegar|drain cleaner)\b.{0,60}\b(try|at home|make)\b/i,
   /\b(set|light)\b.{0,30}\b(on fire|alight|ablaze)\b/i,
   /\b(hate (all|those)|racist joke)\b/i,
+  // Arabic (draft, for native review): first-person intent to harm, weapons, self-harm,
+  // drugs and sexual content. Person-first like the English list, so science such as
+  // "كيف تقتل خلايا الدم البيضاء الجراثيم" (how white blood cells kill germs) stays allowed.
+  /(أقتل|اقتل|أذبح|أطعن|أؤذي|اؤذي|أوذي|أضرب|اضرب|أجرح|أخنق)\s*(\S+\s*){0,3}(أخي|أختي|أمي|أبي|صديق|زميل|زميلي|زميلتي|ولد|بنت|طفل|شخص|أحد|المعلم|معلم|نفسي)/,
+  /(كيف|أريد|اريد|ابغى|أبغى)\s*(\S+\s*){0,3}(أقتل|اقتل|أؤذي|اؤذي|أجرح|أنتحر|انتحر)/,
+  /(انتحار|أنتحر|انتحر|أقتل نفسي|اقتل نفسي|أؤذي نفسي|أجرح نفسي)/,
+  /(سلاح|مسدس|بندقية|قنبلة|متفجرات)/, // not "رصاص": it also means lead (pencil)
+  /(مخدرات|حشيش|كوكايين|حبوب مخدرة)/,
+  /(ممارسة الجنس|جنسي|إباحي|اباحي|عاري|عارية)/, // not "جنس" alone: it also means kind / genus
+  /(أخلط|اخلط|خلط)\s*(\S+\s*){0,3}(كلور|كلوركس|مبيض|أمونيا|نشادر)/,
 ];
 
 export const SAFE_REDIRECT =
   "That topic isn't something I can explore here. Let's pick something curious and safe instead: stars, robots, plants, or how something works. What are you wondering about?";
 
+export const SAFE_REDIRECT_AR =
+  "هذا موضوع لا أستطيع أن أستكشفه هنا. لنختر شيئًا ممتعًا وآمنًا بدلًا منه: النجوم، أو الروبوتات، أو النباتات، أو كيف تعمل الأشياء. ما الذي تتساءل عنه؟";
+
+/** The kind redirect in the child's language. */
+export function safeRedirect(lang: "en" | "ar" = "en"): string {
+  return lang === "ar" ? SAFE_REDIRECT_AR : SAFE_REDIRECT;
+}
+
 export function safetyCheck(text: string): { ok: true } | { ok: false; redirect: string } {
   if (!UNSAFE.some((re) => re.test(text))) return { ok: true };
+  // Callers that know the child's language use safeRedirect(lang) instead of this text.
   return { ok: false, redirect: SAFE_REDIRECT };
 }

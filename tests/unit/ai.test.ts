@@ -172,6 +172,36 @@ describe("isFlagged", () => {
     expect(calls[0].body).toMatchObject({ temperature: 0, max_tokens: 20 });
   });
 
+  it("Z.ai chat + an OpenAI key → the free OpenAI moderation, not a Z.ai call", async () => {
+    useZai();
+    vi.stubEnv("OPENAI_API_KEY", "sk");
+    expect(aiProvider()?.id).toBe("zai");
+    const { calls } = fakeFetch(() => jsonResponse({ results: [{ flagged: false }] }));
+    expect(await isFlagged("how do volcanoes erupt?")).toBe(false);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("https://api.openai.com/v1/moderations");
+  });
+
+  it("OpenAI moderation down → falls back to the chat provider's classifier", async () => {
+    useZai();
+    vi.stubEnv("OPENAI_API_KEY", "sk");
+    const { calls } = fakeFetch((c) => (c.url.endsWith("/moderations") ? jsonResponse({}, 500) : chatResponse('{"unsafe": true}')));
+    expect(await isFlagged("bad")).toBe(true);
+    expect(calls.map((c) => c.url)).toEqual(["https://api.openai.com/v1/moderations", expect.stringMatching(/z\.ai.*chat\/completions$/)]);
+  });
+
+  it("OpenRouter provider: model from env, no reasoning, no data collection, app title", async () => {
+    useNoAi();
+    vi.stubEnv("OPENROUTER_API_KEY", "or-key");
+    vi.stubEnv("AI_PROVIDER", "openrouter");
+    vi.stubEnv("OPENROUTER_MODEL", "anthropic/claude-haiku-5.5");
+    const { calls, fn } = fakeFetch(() => chatResponse('{"ok": true}'));
+    await chatJSON(msgs, { tag: "t" });
+    expect(calls[0].url).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(calls[0].body).toMatchObject({ model: "anthropic/claude-haiku-5.5", reasoning: { enabled: false }, provider: { data_collection: "deny" } });
+    expect((fn.mock.calls[0][1] as RequestInit).headers).toMatchObject({ "X-Title": "Wondrix" });
+  });
+
   it("null when unavailable or the verdict is malformed", async () => {
     useNoAi();
     expect(await isFlagged("x")).toBeNull();

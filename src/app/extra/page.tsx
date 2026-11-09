@@ -47,6 +47,8 @@ type Msg = {
   drawing?: boolean;
   /** Short questions the child can tap next (shown under the newest answer). */
   suggestions?: string[];
+  /** What the child wanted (question, social, goodbye, stuck): Wondrix waves for hello and goodbye. */
+  intent?: string;
 };
 
 /** "Thursday 22:47": lets Wondrix say good night at bedtime. */
@@ -209,10 +211,11 @@ function ExtraInner() {
     const childMsg: Msg = { id: baseId + 1, role: "child", text: trimmed };
     setMessages((m) => [...m, childMsg]);
 
-    let reply = localExtraReply(trimmed, topic?.id ?? null, history.length > 0);
+    let reply = localExtraReply(trimmed, topic?.id ?? null, history.length > 0, lang);
     let topicLabel = topic ? tr(topic.label) : trimmed.slice(0, 40);
     let drawFor: string | null = null;
     let redirected = safetyCheck(trimmed).ok === false;
+    let replyIntent: string | undefined;
 
     try {
       const res = await fetch("/api/extra/chat", {
@@ -235,11 +238,13 @@ function ExtraInner() {
           visual?: Visual | null;
           source?: string;
           suggestions?: string[];
+          intent?: string;
         };
         if (data.source === "safety") redirected = true;
         if (data.text) {
           // Local replies may carry a ready-made visual; live ones draw in a second step.
           reply = { text: data.text, visual: data.visual ?? undefined, suggestions: data.suggestions };
+          replyIntent = data.intent;
           if (data.draw) drawFor = data.answer || data.text;
         }
         if (data.topic) topicLabel = data.topic;
@@ -255,6 +260,7 @@ function ExtraInner() {
       visual: reply.visual ?? null,
       drawing: Boolean(drawFor),
       suggestions: reply.suggestions?.length ? reply.suggestions : undefined,
+      intent: replyIntent,
     };
     setMessages((m) => [...m, agentMsg]);
     if (agentMsg.visual) setAutoVisualId(agentMsg.id);
@@ -377,7 +383,11 @@ function ExtraInner() {
               <SpeakButton id="opening" text={opening} tone="extra" label={tr("extra.listenStarter")} />
             </div>
           </div>
-          <Mascot busy={busy} listening={listening} />
+          <Mascot
+            busy={busy}
+            listening={listening}
+            happy={messages.length === 0 || ["social", "goodbye"].includes(messages.at(-1)?.intent ?? "")}
+          />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
