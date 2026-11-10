@@ -142,14 +142,15 @@ export async function aiExtraReply(input: {
     tag: "extra.chat",
     // A little more variety in wording (facts stay pinned by the prompt).
     temperature: 0.75,
-    maxTokens: 360,
+    // Arabic needs more tokens for the same answer; a cut-off JSON reply is unusable.
+    maxTokens: asLang(input.profile?.language) === "ar" ? 700 : 360,
     // Free-tier latency spikes past 12s now and then; give the main answer a bit more room.
     timeoutMs: 15000,
   });
   if (!result) return null;
   // Plain-text answer (format drift): keep it, split off the last question as the follow-up.
   const raw: Partial<Record<keyof ExtraAgentReply | "unsafe", unknown>> =
-    "json" in result ? result.json : splitPlainAnswer(result.text);
+    "json" in result ? result.json : fromBrokenJson(result.text) ?? splitPlainAnswer(result.text);
 
   const answer = typeof raw.answer === "string" ? cleanKidText(raw.answer) : "";
   const intent: ExtraIntent = INTENTS.has(raw.intent as ExtraIntent) ? (raw.intent as ExtraIntent) : "question";
@@ -247,6 +248,18 @@ export async function aiExtraVisual(input: {
 export function oneQuestion(text: string): string {
   const i = text.search(/[?؟]/); // Arabic uses ؟
   return i === -1 ? text : text.slice(0, i + 1).trim();
+}
+
+/**
+ * A JSON reply that was cut off (token limit) or slightly malformed must never reach
+ * the child as raw JSON (seen with an Arabic answer, Nov 10). Salvage the answer and
+ * follow-up fields; if there is no answer field, treat it as a failed call.
+ */
+export function fromBrokenJson(text: string): { answer: string; followUp: string; draw: boolean } | null {
+  const t = text.trim().replace(/^```\w*\s*/, "");
+  if (!t.startsWith("{")) return null;
+  const field = (name: string) => t.match(new RegExp(`"${name}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`))?.[1]?.replace(/\\"/g, '"') ?? "";
+  return { answer: field("answer"), followUp: field("followUp"), draw: false };
 }
 
 /** Turn a plain-text reply into { answer, followUp } (the last question, if any). */

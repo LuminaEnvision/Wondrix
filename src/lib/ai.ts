@@ -59,8 +59,9 @@ export function aiProvider(): ProviderConfig | null {
       baseUrl: trimSlash(process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1"),
       model: process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash-lite",
       extraBody: {
-        // Kids chat needs fast short answers, not hidden reasoning.
-        reasoning: { enabled: process.env.OPENROUTER_REASONING === "enabled" },
+        // Kids chat needs fast short answers, not hidden reasoning. Some models cannot turn it
+        // off (gpt-5-nano, glm-5.3-flash, gemini-3.8-flash): OPENROUTER_REASONING=minimal|low.
+        reasoning: openrouterReasoning(process.env.OPENROUTER_REASONING),
         // Only providers that do not train on or store prompts (children's chats).
         provider: { data_collection: "deny" },
       },
@@ -95,6 +96,12 @@ export function aiProvider(): ProviderConfig | null {
   }
 
   return null;
+}
+
+function openrouterReasoning(value?: string): Record<string, unknown> {
+  if (value === "enabled") return { enabled: true };
+  if (value === "minimal" || value === "low" || value === "medium") return { effort: value };
+  return { enabled: false };
 }
 
 export function aiEnabled(): boolean {

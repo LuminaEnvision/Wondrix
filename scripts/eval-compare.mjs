@@ -53,7 +53,7 @@ const lines = [
   "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
 ];
 for (const [label, r] of runs) {
-  const p = prices[label];
+  const p = prices[label.split("@")[0]];
   const cost = p ? ((2400 * p.in + 220 * p.out) / 1e6) * 100 : null;
   lines.push(
     [

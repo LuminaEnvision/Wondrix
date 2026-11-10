@@ -76,3 +76,13 @@ describe("mid-conversation fallback (live agent unavailable)", () => {
     expect(localExtraReply("how can I hurt my sister", null, true).text).toBe(SAFE_REDIRECT);
   });
 });
+
+describe("a cut-off JSON reply never reaches the child as JSON", () => {
+  it("salvages answer and follow-up, or returns no answer", async () => {
+    const { fromBrokenJson } = await import("@/lib/extra-agent");
+    const cut = '{"intent": "question", "unsafe": false, "answer": "القمر لا يتغير فعلاً، بل نرى منه أجزاء مختلفة.", "followUp": "هل تريد';
+    expect(fromBrokenJson(cut)?.answer).toBe("القمر لا يتغير فعلاً، بل نرى منه أجزاء مختلفة.");
+    expect(fromBrokenJson('{"intent": "question", "unsa')?.answer).toBe("");
+    expect(fromBrokenJson("Plain answer. Want more?")).toBeNull();
+  });
+});
