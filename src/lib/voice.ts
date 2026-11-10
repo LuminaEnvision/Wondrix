@@ -15,7 +15,7 @@
  *
  * Arabic (profile.language = "ar"): Kokoro has no Arabic voice, so the chain is
  * Azure (ar-AE voice, when configured) then the best installed Arabic browser voice.
- * The mic listens in ar-AE.
+ * The mic tries ar-AE → ar-SA → ar-EG → ar (Chrome's Arabic support varies by dialect tag).
  */
 
 import { currentLang, langInfo, t, type MessageKey } from "./i18n";
@@ -46,8 +46,8 @@ export type SpeechState =
   | { state: "unavailable"; id?: string };
 
 /** Max wait for Kokoro's first sentence before the browser voice takes over. */
-// Past this the browser voice speaks instead (slow laptops made children wait too long at 8 s).
-const KOKORO_FIRST_CHUNK_MS = 5000;
+// Give the natural voice time on WASM machines; browser fallback is much more robotic.
+const KOKORO_FIRST_CHUNK_MS = 9000;
 
 const KOKORO_VOICE = process.env.NEXT_PUBLIC_KOKORO_VOICE || "af_heart";
 
@@ -403,19 +403,30 @@ async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise
 /* Engine: browser Web Speech (best voice available)                   */
 /* ------------------------------------------------------------------ */
 
+function voiceLangMatches(voiceLang: string, appLang: string): boolean {
+  const v = voiceLang.toLowerCase().replace("_", "-");
+  const a = appLang.toLowerCase();
+  return v === a || v.startsWith(`${a}-`);
+}
+
+/** Novelty / compact voices sound like a robot — never pick them for kids. */
+const ROBOTIC_VOICE =
+  /compact|espeak|eloquent|mbrola|whisper|zarvox|trinoids|bad news|good news|bells|bubbles|cellos|organ|albert|fred|junior|kathy|princess|pipe organ|ralph|bruce|agnes|deranged|boing|hysterical|superstar|bahh|jester|flo|gordon|grandma|grandpa|reed|rocko|shelley|eddy|sandy/i;
+
 /** Rank voices for the app language: neural/natural first, then known good ones. */
 function scoreVoice(v: SpeechSynthesisVoice): number {
   const lang = currentLang();
-  if (!v.lang.toLowerCase().startsWith(lang)) return -1;
+  if (!voiceLangMatches(v.lang, lang)) return -1;
+  if (ROBOTIC_VOICE.test(v.name)) return -1;
   if (lang === "ar" && /ar[-_]AE/i.test(v.lang)) return 60 + (/natural|neural|google/i.test(v.name) ? 50 : 0);
   let s = 0;
-  if (/natural|neural/i.test(v.name)) s += 50; // Edge "Microsoft Aria Online (Natural)"
-  if (/google/i.test(v.name)) s += 30; // Chrome "Google US English"
-  if (/samantha|ava|allison|serena|karen|moira|tessa/i.test(v.name)) s += 25; // Apple
-  if (/aria|jenny|ana|emma|libby|sonia/i.test(v.name)) s += 10; // friendly Microsoft voices
-  if (/en[-_]US/i.test(v.lang)) s += 5;
-  if (/en[-_]GB/i.test(v.lang)) s += 3;
-  if (/compact|espeak/i.test(v.name)) s -= 40; // robotic
+  if (/natural|neural|online \(natural\)/i.test(v.name)) s += 80; // Edge / Windows neural
+  if (/google/i.test(v.name) && !/compact/i.test(v.name)) s += 45; // Chrome cloud English
+  if (/samantha|ava|allison|serena|karen|moira|tessa|siri|nicky|zoe/i.test(v.name)) s += 40; // Apple
+  if (/aria|jenny|guy|ryan|sonia|emma|libby|maged|naayf|laila|tarik|salma|shakir/i.test(v.name)) s += 25;
+  if (v.localService === false) s += 15; // cloud voices are usually less robotic
+  if (lang === "en" && /en[-_]US/i.test(v.lang)) s += 5;
+  if (lang === "en" && /en[-_]GB/i.test(v.lang)) s += 3;
   return s;
 }
 
@@ -442,6 +453,13 @@ async function speakBrowser(text: string, opts: SpeakOpts, token: number): Promi
   if (!("speechSynthesis" in window)) return false;
   const voice = await bestBrowserVoice();
   if (token !== playToken) return false;
+  const appLang = currentLang();
+  const hasArabicScript = /[\u0600-\u06FF]/.test(text);
+  // Never let an English (or missing) voice "read" Arabic — it comes out as nonsense syllables.
+  if ((appLang === "ar" || hasArabicScript) && (!voice || !voiceLangMatches(voice.lang, "ar"))) {
+    console.warn("[voice] no Arabic system voice installed; skip speak (install an Arabic voice, or set Azure TTS)");
+    return false;
+  }
   if (!voice && window.speechSynthesis.getVoices().length === 0) {
     // Typical on Linux without speech-dispatcher: the API exists but has no voices.
     console.warn("[voice] the browser has no speech voices installed");
@@ -459,9 +477,10 @@ async function speakBrowser(text: string, opts: SpeakOpts, token: number): Promi
     // One utterance per sentence: avoids Chrome cutting long text and sounds less flat.
     sentences.forEach((sentence, i) => {
       const u = new SpeechSynthesisUtterance(sentence);
-      u.rate = opts.rate ?? 0.95;
-      u.pitch = opts.pitch ?? 1.05;
-      u.lang = voice?.lang ?? langInfo(currentLang()).speech;
+      // Flat rate/pitch reads more natural than the old slightly pitched "kid" settings.
+      u.rate = opts.rate ?? 1;
+      u.pitch = opts.pitch ?? 1;
+      u.lang = voice?.lang ?? langInfo(appLang).speech;
       if (voice) {
         try {
           u.voice = voice;
@@ -517,16 +536,34 @@ export type DictationHandle = {
   cancel: () => void;
 };
 
+/** Chrome Arabic tags vary; try UAE first, then other common dialects. */
+const ARABIC_SPEECH_LANGS = ["ar-AE", "ar-SA", "ar-EG", "ar"] as const;
+
+function speechLangCandidates(preferred?: string): string[] {
+  const primary = preferred || langInfo(currentLang()).speech;
+  if (!primary.toLowerCase().startsWith("ar")) return [primary];
+  const rest = ARABIC_SPEECH_LANGS.filter((l) => l.toLowerCase() !== primary.toLowerCase());
+  return [primary, ...rest];
+}
+
+/** After the child has spoken, this long a quiet pause means they finished → auto-send. */
+const SILENCE_SEND_MS = 2000;
+/** If nothing was heard at all, stop and ask them to try again / type. */
+const EMPTY_GIVE_UP_MS = 12000;
+
 /**
  * Tap-to-talk dictation for kids.
- * - Starts on one tap and keeps listening through pauses (a child may think for a while):
- *   it never sends on silence; if the browser ends recognition early, it restarts.
- * - Streams the live transcript (onText) and a 0..1 microphone level (onLevel) for a meter.
- * - finish() delivers the text (onDone); cancel() discards it.
+ * - One tap starts listening.
+ * - After they speak, a ~2s pause auto-sends the question (no second tap needed).
+ * - Done still works as an optional "send now"; Cancel discards.
+ * - Streams live transcript + mic level for the UI meter.
+ * - Arabic: tries several speech locale tags if the browser rejects one.
  */
 export function startDictation(options: {
   onText: (text: string) => void;
   onLevel?: (level: number) => void;
+  /** True when a pause is about to auto-send (UI can say "Sending…"). */
+  onAutoSendSoon?: () => void;
   onDone: (text: string) => void;
   onError: (message: string) => void;
   lang?: string;
@@ -537,51 +574,136 @@ export function startDictation(options: {
     return null;
   }
 
+  const langs = speechLangCandidates(options.lang);
+  let langIndex = 0;
   let finalText = "";
   let interimText = "";
   let active = true; // false once finished/cancelled
-  let delivering = false; // finish() pressed: deliver on the next end
+  let delivering = false; // finish / auto-send: deliver on the next end
+  let deliverTimer: ReturnType<typeof setTimeout> | null = null;
+  let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+  let emptyTimer: ReturnType<typeof setTimeout> | null = null;
   let stream: MediaStream | null = null;
   let levelCtx: AudioContext | null = null;
   let raf = 0;
+  let heardSpeech = false;
+  let autoSoonTold = false;
+  const isArabic = langs[0].toLowerCase().startsWith("ar");
 
   const text = () => `${finalText} ${interimText}`.replace(/\s+/g, " ").trim();
 
   const recognition = new Ctor();
-  recognition.lang = options.lang ?? langInfo(currentLang()).speech;
+  recognition.lang = langs[langIndex];
   recognition.interimResults = true;
-  recognition.continuous = true;
+  // Arabic is more reliable as utterance chunks; English keeps continuous for long pauses.
+  recognition.continuous = !isArabic;
   recognition.maxAlternatives = 1;
+
+  function clearWatchers() {
+    if (silenceTimer) clearTimeout(silenceTimer);
+    if (emptyTimer) clearTimeout(emptyTimer);
+    if (deliverTimer) clearTimeout(deliverTimer);
+    silenceTimer = null;
+    emptyTimer = null;
+    deliverTimer = null;
+  }
+
+  function requestFinish() {
+    if (!active || delivering) return;
+    delivering = true;
+    clearWatchers();
+    try {
+      recognition.stop();
+    } catch {
+      deliverDone();
+    }
+  }
+
+  /** After words arrive, wait for a pause, then send by itself. */
+  function armSilenceSend() {
+    if (!active || delivering || !heardSpeech) return;
+    if (silenceTimer) clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(() => {
+      if (!active || delivering) return;
+      if (!text()) return;
+      if (!autoSoonTold) {
+        autoSoonTold = true;
+        options.onAutoSendSoon?.();
+      }
+      requestFinish();
+    }, SILENCE_SEND_MS);
+  }
 
   recognition.onresult = (event) => {
     interimText = "";
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const r = event.results[i];
-      const t = r[0]?.transcript ?? "";
-      if (r.isFinal) finalText = `${finalText} ${t}`;
-      else interimText += t;
+      const piece = r[0]?.transcript ?? "";
+      if (r.isFinal) finalText = `${finalText} ${piece}`;
+      else interimText += piece;
     }
-    options.onText(text());
+    const next = text();
+    if (next) {
+      heardSpeech = true;
+      autoSoonTold = false;
+      if (emptyTimer) {
+        clearTimeout(emptyTimer);
+        emptyTimer = null;
+      }
+      armSilenceSend();
+    }
+    options.onText(next);
   };
 
   recognition.onerror = (event) => {
     const err = event.error;
-    if (err === "no-speech" || err === "aborted") return; // silence is fine: keep listening
+    if (err === "aborted") return;
+    if (err === "no-speech") {
+      // Browser heard only silence for a stretch — if we already have words, send them.
+      if (heardSpeech && text()) {
+        requestFinish();
+      }
+      return;
+    }
+    // Try the next Arabic dialect tag before giving up.
+    if (err === "language-not-supported" && langIndex < langs.length - 1) {
+      langIndex += 1;
+      recognition.lang = langs[langIndex];
+      return;
+    }
     active = false;
+    clearWatchers();
     cleanupLevel();
     options.onError(t(MIC_ERRORS[err] ?? "mic.failed", undefined, currentLang()));
   };
 
+  function deliverDone() {
+    clearWatchers();
+    delivering = false;
+    active = false;
+    cleanupLevel();
+    options.onDone(text());
+  }
+
   recognition.onend = () => {
     if (delivering) {
-      delivering = false;
-      active = false;
-      cleanupLevel();
-      options.onDone(text());
+      // Chrome often finalizes the last bit after stop(); give it a short beat.
+      if (text()) {
+        deliverDone();
+        return;
+      }
+      if (!deliverTimer) {
+        deliverTimer = setTimeout(deliverDone, 450);
+      }
       return;
     }
-    // Browsers stop after a pause; the child has not tapped Done yet, so keep going.
+    // Browser ended on its own (common after a pause). If we have words, send;
+    // otherwise keep listening so a shy child can still start.
     if (active) {
+      if (heardSpeech && text()) {
+        requestFinish();
+        return;
+      }
       try {
         recognition.start();
       } catch {
@@ -600,38 +722,43 @@ export function startDictation(options: {
   }
 
   // Live volume meter (separate from recognition; purely visual).
+  // Start after recognition so a second getUserMedia does not steal the first audio frame
+  // (Arabic speech recognition is especially sensitive to that race on some browsers).
   if (options.onLevel && navigator.mediaDevices?.getUserMedia) {
-    navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then((s) => {
-        if (!active) {
-          s.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        stream = s;
-        levelCtx = new AudioContext();
-        const analyser = levelCtx.createAnalyser();
-        analyser.fftSize = 512;
-        levelCtx.createMediaStreamSource(s).connect(analyser);
-        const data = new Uint8Array(analyser.fftSize);
-        let last = 0;
-        const tick = (now: number) => {
-          if (!active && !delivering) return;
-          if (now - last > 60) {
-            last = now;
-            analyser.getByteTimeDomainData(data);
-            let sum = 0;
-            for (const v of data) sum += ((v - 128) / 128) ** 2;
-            const rms = Math.sqrt(sum / data.length);
-            options.onLevel?.(Math.min(1, rms * 4));
+    window.setTimeout(() => {
+      if (!active) return;
+      navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then((s) => {
+          if (!active) {
+            s.getTracks().forEach((track) => track.stop());
+            return;
           }
+          stream = s;
+          levelCtx = new AudioContext();
+          const analyser = levelCtx.createAnalyser();
+          analyser.fftSize = 512;
+          levelCtx.createMediaStreamSource(s).connect(analyser);
+          const data = new Uint8Array(analyser.fftSize);
+          let last = 0;
+          const tick = (now: number) => {
+            if (!active && !delivering) return;
+            if (now - last > 60) {
+              last = now;
+              analyser.getByteTimeDomainData(data);
+              let sum = 0;
+              for (const v of data) sum += ((v - 128) / 128) ** 2;
+              const rms = Math.sqrt(sum / data.length);
+              options.onLevel?.(Math.min(1, rms * 4));
+            }
+            raf = requestAnimationFrame(tick);
+          };
           raf = requestAnimationFrame(tick);
-        };
-        raf = requestAnimationFrame(tick);
-      })
-      .catch(() => {
-        /* meter is optional; recognition still works */
-      });
+        })
+        .catch(() => {
+          /* meter is optional; recognition still works */
+        });
+    }, isArabic ? 400 : 0);
   }
 
   try {
@@ -641,22 +768,17 @@ export function startDictation(options: {
     return null;
   }
 
+  emptyTimer = setTimeout(() => {
+    if (!active || delivering || heardSpeech) return;
+    requestFinish(); // onDone("") → micNoCatch UI
+  }, EMPTY_GIVE_UP_MS);
+
   return {
-    finish: () => {
-      if (!active) return;
-      delivering = true;
-      try {
-        recognition.stop(); // onend delivers the final text
-      } catch {
-        delivering = false;
-        active = false;
-        cleanupLevel();
-        options.onDone(text());
-      }
-    },
+    finish: () => requestFinish(),
     cancel: () => {
       active = false;
       delivering = false;
+      clearWatchers();
       cleanupLevel();
       try {
         recognition.abort();

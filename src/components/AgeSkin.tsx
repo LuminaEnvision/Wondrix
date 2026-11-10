@@ -1,21 +1,28 @@
 "use client";
 
 import { useEffect } from "react";
-import { loadProfile } from "@/lib/demo-store";
-import { PROFILE_CHANGED_EVENT, type AgeBand } from "@/lib/types";
+import { loadProfile, profileAgeMode } from "@/lib/demo-store";
+import { PROFILE_CHANGED_EVENT } from "@/lib/types";
 
-const SKINS: Record<AgeBand, string> = {
-  young: "meadow",
-  middle: "journal",
-  teen: "studio",
-};
-
-/** Applies meadow / field-journal / studio skin from parent age band (canvas three skins). */
+/**
+ * Syncs UI chrome to the document:
+ * - data-age = explorer | teen (tap size, radius, type scale)
+ * - data-theme = dark only when teen + teenDark
+ * Keeps legacy data-skin for any leftover meadow/journal/studio rules.
+ */
 export function AgeSkin() {
   useEffect(() => {
     function apply() {
-      const band = loadProfile().ageBand;
-      document.documentElement.dataset.skin = SKINS[band] ?? "meadow";
+      const profile = loadProfile();
+      const mode = profileAgeMode(profile);
+      const root = document.documentElement;
+      root.dataset.age = mode;
+      root.dataset.skin = mode === "teen" ? "studio" : "meadow";
+      if (mode === "teen" && profile.teenDark) {
+        root.dataset.theme = "dark";
+      } else {
+        delete root.dataset.theme;
+      }
     }
     apply();
     window.addEventListener(PROFILE_CHANGED_EVENT, apply);

@@ -80,7 +80,12 @@ export function gradeNameWithAge(gradeLabelOrId: string, curriculum?: Curriculum
 }
 
 /** One line for the AI prompts: grade name, curriculum, spelling. */
-export function curriculumPromptLine(profile: { gradeLabel: string; curriculum?: Curriculum; language?: string }): string {
+export function curriculumPromptLine(profile: {
+  gradeLabel: string;
+  curriculum?: Curriculum;
+  language?: string;
+  unitNote?: string;
+}): string {
   const c = asCurriculum(profile.curriculum);
   const name = gradeName(profile.gradeLabel, c);
   const uk = gradeName(profile.gradeLabel, "uk");
@@ -88,5 +93,50 @@ export function curriculumPromptLine(profile: { gradeLabel: string; curriculum?:
   const same = name === uk ? "" : ` (same level as UK ${uk})`;
   // In Arabic the language line (i18n) decides the wording; no English spelling rule.
   const spelling = profile.language === "ar" ? "" : ` and use ${english}`;
-  return `School level: ${name}${same}, ${curriculumLabel(c)} curriculum. Call the level "${name}"${spelling}.`;
+  const unit = profile.unitNote?.trim()
+    ? ` The family says they are working on: "${profile.unitNote.trim().slice(0, 120)}". Prefer skills that match that unit when possible.`
+    : "";
+  return `School level: ${name}${same}, ${curriculumLabel(c)} curriculum. Call the level "${name}"${spelling}.${unit}`;
+}
+
+/**
+ * Which subjects Parent should show for this programme + grade.
+ * Math and science are practiceable now; others appear as "coming later".
+ */
+export function subjectsForProgramme(
+  curriculum: Curriculum | undefined,
+  gradeLabelOrId: string,
+): import("./types").SubjectOffer[] {
+  const c = asCurriculum(curriculum);
+  const id = gradeFromLabel(gradeLabelOrId).id as GradeId;
+  const offers: import("./types").SubjectOffer[] = [
+    { id: "math", available: true },
+    { id: "science", available: true },
+  ];
+  // Literacy appears from Year 3 / Grade 2 up (younger keep maths + science focus).
+  if (id !== "y1-2") {
+    offers.push({ id: "english", available: false });
+  }
+  if (c === "uae" || c === "saudi") {
+    offers.push({ id: "arabic", available: false });
+  }
+  if (id === "y5" || id === "y6" || id === "y7+") {
+    offers.push({ id: "social", available: false });
+  }
+  return offers;
+}
+
+/** Keep only practiceable subjects that are offered for this programme/grade. */
+export function clampSubjectsToProgramme(
+  subjects: Array<"math" | "science">,
+  curriculum: Curriculum | undefined,
+  gradeLabelOrId: string,
+): Array<"math" | "science"> {
+  const offered = new Set(
+    subjectsForProgramme(curriculum, gradeLabelOrId)
+      .filter((s) => s.available)
+      .map((s) => s.id),
+  );
+  const next = subjects.filter((s) => offered.has(s)) as Array<"math" | "science">;
+  return next.length ? next : ["math"];
 }

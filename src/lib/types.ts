@@ -1,5 +1,11 @@
 export type AgeBand = "young" | "middle" | "teen";
 
+/** UI chrome mode (separate from AI ageBand). Explorer = ages ~7–10; Teen = ~11–17. */
+export type AgeMode = "explorer" | "teen";
+
+/** Shell world for theming: home doors, school, wonder (extra), parent. */
+export type WorldId = "home" | "school" | "wonder" | "parent";
+
 export type SkillId =
   | "measure-length"
   | "halves-quarters"
@@ -44,12 +50,30 @@ export type ParentProfile = {
   /** School curriculum: changes grade names and AI wording only (see src/lib/curriculum.ts). */
   curriculum?: import("./curriculum").Curriculum;
   ageBand: AgeBand;
+  /**
+   * UI age mode (tap size, nav, owl role). Missing → derived from grade.
+   * AI prompts still use ageBand.
+   */
+  ageMode?: AgeMode;
+  /** Teen-only dark surfaces. Ignored when ageMode is explorer. */
+  teenDark?: boolean;
   gradeLabel: string;
   subjects: Array<"math" | "science">;
   oneLiner: string;
   calmMode: boolean;
+  /**
+   * Optional free-text unit/book note (e.g. "fractions chapter 4").
+   * Steers AI wording only — not a textbook catalogue.
+   */
+  unitNote?: string;
   /** App language (UI + Extra answers). Missing = English. */
   language?: import("./i18n").Lang;
+};
+
+/** Subject chip on Parent: practiceable now, or shown as coming later. */
+export type SubjectOffer = {
+  id: "math" | "science" | "english" | "arabic" | "social";
+  available: boolean;
 };
 
 export const PROFILE_CHANGED_EVENT = "wondrix-profile-changed";

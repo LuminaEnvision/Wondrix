@@ -4,15 +4,15 @@ import { useT } from "@/lib/use-client-state";
 
 /**
  * What the child sees while the mic is on:
- * a live volume meter (proof the mic hears them), the words so far,
- * a timer, a gentle "take your time" hint, and big Done / Cancel buttons.
- * Nothing is sent until the child taps Done.
+ * live volume meter, words so far, and a clear hint that a pause sends the question.
+ * Done is optional ("send now"); Cancel discards.
  */
 export function DictationPanel({
   text,
   levels,
   seconds,
   quiet,
+  sendingSoon = false,
   onDone,
   onCancel,
 }: {
@@ -20,14 +20,24 @@ export function DictationPanel({
   /** Recent mic levels, 0..1, oldest first. */
   levels: number[];
   seconds: number;
-  /** No sound for a while: show the reassuring hint. */
+  /** No sound for a while (before auto-send). */
   quiet: boolean;
+  /** Pause detected — about to send. */
+  sendingSoon?: boolean;
   onDone: () => void;
   onCancel: () => void;
 }) {
   const tr = useT();
   const mm = Math.floor(seconds / 60);
   const ss = String(seconds % 60).padStart(2, "0");
+  const hint = sendingSoon
+    ? tr("dict.sendingSoon")
+    : quiet
+      ? tr("dict.quietHint")
+      : text
+        ? tr("dict.hintAfterSpeech")
+        : tr("dict.hint");
+
   return (
     <div
       className="space-y-3 rounded-3xl border-2 border-extra/40 bg-card p-4"
@@ -40,7 +50,7 @@ export function DictationPanel({
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-extra opacity-60" />
             <span className="relative inline-flex h-3 w-3 rounded-full bg-extra" />
           </span>
-          {tr("dict.listening")}
+          {sendingSoon ? tr("dict.sendingSoon") : tr("dict.listening")}
         </p>
         <span className="font-mono text-sm text-ink-soft" aria-label={tr("dict.time")} dir="ltr">
           {mm}:{ss}
@@ -62,11 +72,7 @@ export function DictationPanel({
         {text ? `“${text}”` : <span className="text-ink-soft">{tr("dict.prompt")}</span>}
       </p>
 
-      <p className="text-center text-xs text-ink-soft">
-        {quiet
-          ? tr("dict.quietHint")
-          : tr("dict.hint")}
-      </p>
+      <p className="text-center text-sm font-semibold text-ink-soft">{hint}</p>
 
       <div className="flex gap-2">
         <button

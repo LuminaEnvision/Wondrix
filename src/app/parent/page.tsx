@@ -24,10 +24,40 @@ import {
   lockParentSession,
   setParentPin,
 } from "@/lib/parent-auth";
-import { asCurriculum, CURRICULA, curriculumLabel, gradeBlurb, gradeName, gradeNameWithAge, type Curriculum } from "@/lib/curriculum";
-import type { Lang } from "@/lib/i18n";
-import type { ParentProfile } from "@/lib/types";
+import {
+  asCurriculum,
+  CURRICULA,
+  curriculumLabel,
+  gradeBlurb,
+  gradeName,
+  gradeNameWithAge,
+  subjectsForProgramme,
+  type Curriculum,
+} from "@/lib/curriculum";
+import type { Lang, MessageKey } from "@/lib/i18n";
+import { skillTitle } from "@/lib/skills";
+import type { MasteryLevel, ParentProfile, SkillId, SubjectOffer } from "@/lib/types";
 import { useHydrated, useLang, useT } from "@/lib/use-client-state";
+
+const SUBJECT_LABEL: Record<SubjectOffer["id"], MessageKey> = {
+  math: "subject.math",
+  science: "subject.science",
+  english: "subject.english",
+  arabic: "subject.arabic",
+  social: "subject.social",
+};
+
+function masteryBuckets(mastery: Partial<Record<SkillId, MasteryLevel>>) {
+  const shaky: SkillId[] = [];
+  const growing: SkillId[] = [];
+  const secure: SkillId[] = [];
+  for (const [id, level] of Object.entries(mastery) as [SkillId, MasteryLevel][]) {
+    if (level === "shaky") shaky.push(id);
+    else if (level === "growing") growing.push(id);
+    else if (level === "secure") secure.push(id);
+  }
+  return { shaky, growing, secure };
+}
 
 function daySummaryFor(p: ParentProfile, lang: Lang): string {
   return buildDaySummary({
@@ -47,7 +77,7 @@ export default function ParentPage() {
   const tr = useT();
   if (!hydrated) {
     return (
-      <AppShell backHref="/">
+      <AppShell backHref="/" world="parent" dense>
         <p className="text-ink-soft">{tr("common.loading")}</p>
       </AppShell>
     );
@@ -62,14 +92,29 @@ function ParentHome() {
   const [pinSet, setPinSet] = useState(() => hasParentPin());
   const [newPin, setNewPin] = useState("");
   const [pinMsg, setPinMsg] = useState("");
-  const [chatCount, setChatCount] = useState(() => listChats().length);
+  const [chatCount, setChatCount] = useState(() => listChats().length); // current language only
+  const [mastery] = useState(() => loadMastery());
   const tr = useT();
   const lang = useLang();
   // Live preview: follows the form (grade, programme, calm mode) and the language.
   const summary = daySummaryFor(profile, lang);
+  const subjectOffers = subjectsForProgramme(profile.curriculum, profile.gradeLabel);
+  const week = masteryBuckets(mastery);
 
   function update<K extends keyof ParentProfile>(key: K, value: ParentProfile[K]) {
-    setProfile((prev) => ({ ...prev, [key]: value }));
+    setProfile((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === "curriculum" || key === "gradeLabel") {
+        const curriculum = key === "curriculum" ? (value as Curriculum) : next.curriculum;
+        const gradeLabel = key === "gradeLabel" ? (value as string) : next.gradeLabel;
+        const offered = subjectsForProgramme(curriculum, gradeLabel)
+          .filter((s) => s.available)
+          .map((s) => s.id);
+        next.subjects = next.subjects.filter((s) => offered.includes(s));
+        if (!next.subjects.length) next.subjects = ["math"];
+      }
+      return next;
+    });
     setSaved(false);
   }
 
@@ -79,19 +124,70 @@ function ParentHome() {
   }
 
   return (
-    <AppShell backHref="/">
+    <AppShell backHref="/" world="parent" dense>
       <ParentLock>
-        <div className="space-y-6">
+        <div className="space-y-5">
           <div>
-            <p className="text-sm font-bold uppercase tracking-wide text-brand">{tr("parent.kicker")}</p>
-            <h1 className="font-display mt-1 text-3xl font-semibold">{tr("parent.title")}</h1>
-            <p className="mt-2 text-ink-soft">
+            <h1 className="font-display text-2xl font-semibold text-[var(--world-ink)]">{tr("parent.title")}</h1>
+            <p className="mt-1 text-sm text-[var(--world-ink-soft)]">
               {tr("parent.intro", { name: profile.childNickname || tr("parent.yourChild") })}
             </p>
           </div>
 
-          <div className="space-y-4 rounded-3xl border border-stroke bg-card p-5">
+          <div className="wx-surface-lift grid gap-4 p-4 sm:grid-cols-[120px_1fr] sm:items-center">
+            <div className="relative mx-auto h-36 w-24">
+              <Image
+                src="/art/parent-phone.jpg"
+                alt=""
+                fill
+                className="object-contain"
+                sizes="96px"
+              />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-[var(--world-accent)]">{tr("parent.summaryLead")}</p>
+              <p className="mt-1 text-xs font-semibold text-[var(--world-ink-soft)]">{tr("parent.summaryTitle")}</p>
+              <p className="mt-2 text-sm leading-relaxed text-[var(--world-ink)]">{summary}</p>
+            </div>
+          </div>
+
+          <div className="wx-surface space-y-4 p-4">
             <LanguagePicker />
+
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-bold text-[var(--world-ink-soft)]">{tr("parent.ageMode")}</legend>
+              <p className="text-xs text-[var(--world-ink-soft)]">{tr("parent.ageModeHelp")}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {(["explorer", "teen"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => {
+                      update("ageMode", mode);
+                      if (mode === "explorer") update("teenDark", false);
+                    }}
+                    className={`wx-tap rounded-[var(--radius-m)] border px-3 py-2 text-sm font-bold ${
+                      (profile.ageMode ?? "explorer") === mode
+                        ? "border-[var(--world-accent)] bg-[var(--world-accent)] text-white"
+                        : "border-stroke bg-[var(--world-bg)] text-[var(--world-ink)]"
+                    }`}
+                  >
+                    {mode === "explorer" ? tr("parent.ageModeExplorer") : tr("parent.ageModeTeen")}
+                  </button>
+                ))}
+              </div>
+              {(profile.ageMode ?? "explorer") === "teen" ? (
+                <label className="flex items-center gap-3 rounded-[var(--radius-m)] bg-[var(--world-bg)] px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(profile.teenDark)}
+                    onChange={(e) => update("teenDark", e.target.checked)}
+                    className="size-4"
+                  />
+                  <span className="text-sm font-semibold">{tr("parent.teenDark")}</span>
+                </label>
+              ) : null}
+            </fieldset>
 
             <label className="block space-y-1">
               <span className="text-sm font-bold text-ink-soft">{tr("parent.nickname")}</span>
@@ -142,26 +238,49 @@ function ParentHome() {
 
             <fieldset className="space-y-2">
               <legend className="text-sm font-bold text-ink-soft">{tr("parent.subjects")}</legend>
-              {(["math", "science"] as const).map((subject) => (
-                <label key={subject} className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={profile.subjects.includes(subject)}
-                    onChange={(e) => {
-                      const next = e.target.checked
-                        ? [...profile.subjects, subject]
-                        : profile.subjects.filter((s) => s !== subject);
-                      update(
-                        "subjects",
-                        (next.length ? next : ["math"]) as ParentProfile["subjects"],
-                      );
-                    }}
-                    className="size-4"
-                  />
-                  {tr(subject === "math" ? "subject.math" : "subject.science")}
-                </label>
-              ))}
+              <p className="text-xs text-ink-soft">{tr("parent.subjectsHelp")}</p>
+              {subjectOffers.map((offer) =>
+                offer.available ? (
+                  <label key={offer.id} className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={profile.subjects.includes(offer.id as "math" | "science")}
+                      onChange={(e) => {
+                        const id = offer.id as "math" | "science";
+                        const next = e.target.checked
+                          ? [...profile.subjects, id]
+                          : profile.subjects.filter((s) => s !== id);
+                        update(
+                          "subjects",
+                          (next.length ? next : ["math"]) as ParentProfile["subjects"],
+                        );
+                      }}
+                      className="size-4"
+                    />
+                    {tr(SUBJECT_LABEL[offer.id])}
+                  </label>
+                ) : (
+                  <p key={offer.id} className="flex items-center gap-3 text-sm text-ink-soft">
+                    <span className="inline-block size-4 rounded border border-dashed border-stroke" aria-hidden />
+                    <span>
+                      {tr(SUBJECT_LABEL[offer.id])}
+                      <span className="ms-2 text-xs font-semibold">({tr("parent.subjectComing")})</span>
+                    </span>
+                  </p>
+                ),
+              )}
             </fieldset>
+
+            <label className="block space-y-1">
+              <span className="text-sm font-bold text-ink-soft">{tr("parent.unit")}</span>
+              <p className="text-xs text-ink-soft">{tr("parent.unitHelp")}</p>
+              <input
+                value={profile.unitNote ?? ""}
+                onChange={(e) => update("unitNote", e.target.value)}
+                placeholder={tr("parent.unitPlaceholder")}
+                className="w-full rounded-2xl border border-stroke bg-bg/40 px-4 py-3 outline-none focus:border-brand/40"
+              />
+            </label>
 
             <label className="block space-y-1">
               <span className="text-sm font-bold text-ink-soft">{tr("parent.teacher")}</span>
@@ -197,6 +316,41 @@ function ParentHome() {
                 {tr("parent.saved", { grade: gradeName(profile.gradeLabel, profile.curriculum, lang) })}
               </p>
             ) : null}
+          </div>
+
+          <div className="space-y-3 rounded-3xl border border-stroke bg-card p-5">
+            <p className="font-display text-lg font-semibold text-ink">{tr("parent.weekTitle")}</p>
+            <p className="text-sm text-ink-soft">{tr("parent.weekIntro")}</p>
+            {!week.shaky.length && !week.growing.length && !week.secure.length ? (
+              <p className="text-sm text-ink-soft">{tr("parent.weekEmpty")}</p>
+            ) : (
+              <div className="space-y-3 text-sm">
+                {week.shaky.length ? (
+                  <div>
+                    <p className="font-bold text-ink">{tr("parent.weekShaky")}</p>
+                    <p className="mt-1 text-ink-soft">
+                      {week.shaky.map((id) => skillTitle(id, lang)).join(lang === "ar" ? "، " : ", ")}
+                    </p>
+                  </div>
+                ) : null}
+                {week.growing.length ? (
+                  <div>
+                    <p className="font-bold text-ink">{tr("parent.weekGrowing")}</p>
+                    <p className="mt-1 text-ink-soft">
+                      {week.growing.map((id) => skillTitle(id, lang)).join(lang === "ar" ? "، " : ", ")}
+                    </p>
+                  </div>
+                ) : null}
+                {week.secure.length ? (
+                  <div>
+                    <p className="font-bold text-ink">{tr("parent.weekSecure")}</p>
+                    <p className="mt-1 text-ink-soft">
+                      {week.secure.map((id) => skillTitle(id, lang)).join(lang === "ar" ? "، " : ", ")}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
 
           <div className="space-y-3 rounded-3xl border border-stroke bg-card p-5">
@@ -272,25 +426,7 @@ function ParentHome() {
             {pinMsg ? <p className="text-sm font-semibold text-brand">{pinMsg}</p> : null}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-[140px_1fr] sm:items-center rounded-3xl border border-stroke bg-card p-5">
-            <div className="relative mx-auto h-44 w-28">
-              <Image
-                src="/art/parent-phone.jpg"
-                alt=""
-                fill
-                className="object-contain"
-                sizes="112px"
-              />
-            </div>
-            <div>
-              <p className="text-sm font-bold uppercase tracking-wide text-ink-soft">
-                {tr("parent.summaryTitle")}
-              </p>
-              <p className="mt-3 leading-relaxed text-ink">{summary}</p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-[120px_1fr] sm:items-center rounded-3xl border border-stroke bg-card p-5">
+          <div className="wx-surface grid gap-4 p-4 sm:grid-cols-[120px_1fr] sm:items-center">
             <div className="relative mx-auto h-28 w-28 overflow-hidden rounded-2xl">
               <Image
                 src="/art/safety-trust.jpg"

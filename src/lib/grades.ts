@@ -1,4 +1,4 @@
-import type { AgeBand, SkillId } from "./types";
+import type { AgeBand, AgeMode, SkillId } from "./types";
 
 export type GradeOption = {
   id: string;
@@ -70,6 +70,13 @@ export function gradeFromLabel(label: string): GradeOption {
 export function gradeIndex(gradeId: string): number {
   const i = GRADE_ORDER.indexOf(gradeId);
   return i >= 0 ? i : 1;
+}
+
+/** Default UI mode from grade: y1–y4 → explorer; y5+ → teen. */
+export function defaultAgeMode(gradeLabel: string): AgeMode {
+  const id = gradeFromLabel(gradeLabel).id;
+  if (id === "y1-2" || id === "y3" || id === "y4") return "explorer";
+  return "teen";
 }
 
 /** True if skill is appropriate for this grade or earlier entry grades. */

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import {
+  chatLang,
   deleteChat,
   getActiveChatId,
   listChats,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/demo-store";
 import { langInfo, type MessageKey } from "@/lib/i18n";
 import { nextExtraVisit, startersForVisit } from "@/lib/starters";
+import { topicSeedFor, type TopicId } from "@/lib/topic-seeds";
 import { useHydrated, useLang, useT } from "@/lib/use-client-state";
 import { Mascot } from "@/components/Mascot";
 import { localExtraReply } from "@/lib/extra-reply";
@@ -58,12 +60,12 @@ function localTimeLabel(d = new Date()): string {
 }
 
 const INTERESTS = [
-  { id: "physics", label: "interest.physics", seed: "interest.physics.seed", art: "/art/topic-physics.jpg" },
-  { id: "robots", label: "interest.robots", seed: "interest.robots.seed", art: "/art/topic-robots.jpg" },
-  { id: "sky", label: "interest.sky", seed: "interest.sky.seed", art: "/art/topic-astronomy.jpg" },
-  { id: "life", label: "interest.life", seed: "interest.life.seed", art: "/art/topic-living.jpg" },
-  { id: "chemistry", label: "interest.chemistry", seed: "interest.chemistry.seed", art: "/art/topic-physics.jpg" },
-] as const satisfies readonly { id: string; label: MessageKey; seed: MessageKey; art: string }[];
+  { id: "physics", label: "interest.physics", art: "/art/topics/physics.svg", tone: "physics" },
+  { id: "robots", label: "interest.robots", art: "/art/topics/robots.svg", tone: "robots" },
+  { id: "sky", label: "interest.sky", art: "/art/topics/astronomy.svg", tone: "sky" },
+  { id: "life", label: "interest.life", art: "/art/topics/living.svg", tone: "life" },
+  { id: "chemistry", label: "interest.chemistry", art: "/art/topics/chemistry.svg", tone: "chemistry" },
+] as const satisfies readonly { id: TopicId; label: MessageKey; art: string; tone: string }[];
 
 type Interest = (typeof INTERESTS)[number];
 
@@ -108,6 +110,7 @@ function ExtraInner() {
   // A different opening line and starter ideas on every visit (per age band and language).
   const [visit] = useState(() => nextExtraVisit());
   const [ageBand] = useState(() => loadProfile().ageBand);
+  const [topicTap, setTopicTap] = useState(0);
   const starters = startersForVisit(ageBand, lang, visit, 4);
   const opening = tr("extra.opening", { q: starters[0] });
   const [input, setInput] = useState("");
@@ -122,7 +125,9 @@ function ExtraInner() {
   const [levels, setLevels] = useState<number[]>(() => Array(18).fill(0));
   const [seconds, setSeconds] = useState(0);
   const [quiet, setQuiet] = useState(false);
+  const [sendingSoon, setSendingSoon] = useState(false);
   const lastSoundAt = useRef(0);
+  const dictTextRef = useRef("");
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const didGreet = useRef(false);
   const messagesRef = useRef<Msg[]>([]);
@@ -140,15 +145,33 @@ function ExtraInner() {
     setRestored(true);
     const active = getActiveChatId();
     const chat = active ? loadChat(active) : undefined;
-    if (active && chat) {
+    // Only restore a chat that matches the current app language.
+    if (active && chat && chatLang(chat) === lang) {
       setActiveChatIdState(active);
       setMessages(toMsgs(chat));
+    } else if (active) {
+      storeActiveChatId(null);
     }
   }
 
+  // Language switch: drop the on-screen thread so Arabic never shows English replies (and vice versa).
+  const langRef = useRef(lang);
   useEffect(() => {
-    if (restored && activeChatId && messages.length) saveChat(activeChatId, messages);
-  }, [messages, restored, activeChatId]);
+    if (langRef.current === lang) return;
+    langRef.current = lang;
+    stopSpeaking();
+    setActiveChatIdState(null);
+    storeActiveChatId(null);
+    setMessages([]);
+    setPastChats(null);
+    setAutoVisualId(null);
+    setInput("");
+    setVoiceHint("");
+  }, [lang]);
+
+  useEffect(() => {
+    if (restored && activeChatId && messages.length) saveChat(activeChatId, messages, lang);
+  }, [messages, restored, activeChatId, lang]);
 
   function openChat(id: string | null, msgs: Msg[]) {
     stopSpeaking();
@@ -178,15 +201,16 @@ function ExtraInner() {
   useEffect(() => {
     if (didGreet.current) return;
     didGreet.current = true;
+    // Arabic needs a real Arabic system/Azure voice; auto-greet with an English voice is garbled.
+    if (lang === "ar") return;
     if (voiceOn && speakOk) speak(opening, { id: "opening" });
-  }, [voiceOn, speakOk, opening]);
+  }, [voiceOn, speakOk, opening, lang]);
 
-  // When the ?topic= changes, prefill its starter question (React's
+  // When the ?topic= changes, remember which topic is active (React's
   // "adjust state when a prop changes" pattern, instead of an effect).
   const [seededTopicId, setSeededTopicId] = useState<string | null>(null);
   if (topic && topic.id !== seededTopicId) {
     setSeededTopicId(topic.id);
-    setInput(tr(topic.seed));
   }
 
   function say(text: string, id?: string) {
@@ -292,9 +316,11 @@ function ExtraInner() {
 
   function pickSuggestion(item: Interest) {
     router.replace(`/extra?topic=${item.id}`);
-    setInput(tr(item.seed));
     saveExtraTopic(tr(item.label));
-    say(tr("extra.howAbout", { seed: tr(item.seed) }));
+    // Age-banded seed; re-taps rotate so the same card does not always ask the same thing.
+    const seed = topicSeedFor(item.id, ageBand, lang, visit + topicTap);
+    setTopicTap((n) => n + 1);
+    void send(seed);
   }
 
   function stopDictationUi() {
@@ -304,7 +330,7 @@ function ExtraInner() {
     setListening(false);
   }
 
-  /** One tap starts listening; the child taps Done (or Cancel) when finished. */
+  /** One tap starts listening; a short pause after speech auto-sends (Done is optional). */
   function startMic() {
     if (listening || busy) return;
     if (!micOk) {
@@ -317,23 +343,29 @@ function ExtraInner() {
     setLevels(Array(18).fill(0));
     setSeconds(0);
     setQuiet(false);
+    setSendingSoon(false);
     lastSoundAt.current = Date.now();
 
     const handle = startDictation({
       lang: langInfo(lang).speech,
       onText: (t) => {
         lastSoundAt.current = Date.now();
+        dictTextRef.current = t;
+        setSendingSoon(false);
         setDictText(t);
       },
       onLevel: (level) => {
         if (level > 0.08) lastSoundAt.current = Date.now();
         setLevels((prev) => [...prev.slice(1), level]);
       },
+      onAutoSendSoon: () => setSendingSoon(true),
       onDone: (t) => {
         stopDictationUi();
+        setSendingSoon(false);
+        dictTextRef.current = "";
         const question = t.trim();
         if (!question) {
-          setVoiceHint(tr("extra.micNoCatch"));
+          setVoiceHint(lang === "ar" ? tr("extra.micNoCatchAr") : tr("extra.micNoCatch"));
           return;
         }
         setInput(question);
@@ -341,6 +373,8 @@ function ExtraInner() {
       },
       onError: (message) => {
         stopDictationUi();
+        setSendingSoon(false);
+        dictTextRef.current = "";
         setVoiceHint(message);
       },
     });
@@ -350,8 +384,9 @@ function ExtraInner() {
     const startedAt = Date.now();
     tickRef.current = setInterval(() => {
       setSeconds(Math.floor((Date.now() - startedAt) / 1000));
-      setQuiet(Date.now() - lastSoundAt.current > 8000);
-    }, 500);
+      // Soft “still listening” cue before the ~2s auto-send kicks in.
+      setQuiet(Boolean(dictTextRef.current) && Date.now() - lastSoundAt.current > 1200);
+    }, 400);
   }
 
   function finishMic() {
@@ -365,21 +400,20 @@ function ExtraInner() {
   }
 
   return (
-    <AppShell backHref="/">
+    <AppShell backHref="/" world="wonder">
       <VoiceLoadingBubble enabled={voiceOn && lang === "en"} />
-      <div className="flex flex-1 flex-col gap-5">
-        <div className="flex items-end gap-3 sm:gap-5">
-          <div className="relative min-w-0 flex-1 rounded-3xl border border-stroke bg-card px-5 py-5 sm:px-6 sm:py-6">
+      <div className="flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+        <div className="flex shrink-0 items-end gap-3">
+          <div className="wx-surface relative min-w-0 flex-1 px-4 py-3">
             <span
-              className="absolute -end-2 bottom-10 hidden h-4 w-4 rotate-45 border-r border-t border-stroke bg-card rtl:rotate-[225deg] sm:block"
+              className="absolute -end-2 bottom-10 hidden h-4 w-4 rotate-45 border-e border-t border-stroke bg-[var(--world-surface)] rtl:rotate-[225deg] sm:block"
               aria-hidden
             />
-            <p className="text-sm font-bold uppercase tracking-wide text-extra">{tr("extra.kicker")}</p>
-            <h1 className="font-display mt-1 text-3xl font-semibold text-ink">
+            <h1 className="font-display text-xl font-semibold text-[var(--world-ink)] sm:text-3xl">
               {topic ? tr(topic.label) : tr("extra.letsWonder")}
             </h1>
-            <p className="mt-2 text-ink-soft">{opening}</p>
-            <div className="mt-2">
+            <p className="mt-1 line-clamp-3 text-sm text-[var(--world-ink-soft)] sm:text-base">{opening}</p>
+            <div className="mt-1">
               <SpeakButton id="opening" text={opening} tone="extra" label={tr("extra.listenStarter")} />
             </div>
           </div>
@@ -390,7 +424,7 @@ function ExtraInner() {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => {
@@ -418,7 +452,7 @@ function ExtraInner() {
           ) : null}
           <button
             type="button"
-            onClick={() => setPastChats(pastChats ? null : listChats())}
+            onClick={() => setPastChats(pastChats ? null : listChats(lang))}
             aria-expanded={Boolean(pastChats)}
             className="rounded-full border border-stroke bg-card px-4 py-2 text-sm font-bold text-ink-soft"
           >
@@ -468,28 +502,28 @@ function ExtraInner() {
           </div>
         ) : null}
 
-        <div className="flex min-h-[260px] flex-1 flex-col gap-3 rounded-3xl border border-stroke bg-card p-4">
+        <div className="wx-surface flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
           {messages.length === 0 ? (
-            <div className="flex flex-1 flex-col justify-center gap-3 text-ink-soft">
-              <p>{tr("extra.ready")}</p>
+            <div className="flex flex-col justify-end gap-2 py-1 text-[var(--world-ink-soft)]">
+              <p className="text-sm sm:text-base">{tr("extra.ready")}</p>
               <p className="text-sm font-bold">{tr("extra.tryOne")}</p>
-              <IdeaChips ideas={starters.slice(1)} onPick={(q) => void send(q)} disabled={busy} big />
+              <IdeaChips ideas={starters.slice(1, 3)} onPick={(q) => void send(q)} disabled={busy} big />
             </div>
           ) : (
             messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`max-w-[90%] space-y-2 rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                className={`max-w-[90%] space-y-2 rounded-[var(--radius-m)] px-4 py-3 text-base leading-relaxed ${
                   msg.role === "child"
-                    ? "ms-auto bg-extra text-white"
-                    : "bg-bg-deep text-ink"
+                    ? "ms-auto bg-[var(--world-accent)] text-white"
+                    : "bg-[var(--world-accent-soft)] text-[var(--world-ink)]"
                 }`}
               >
                 <p dir="auto">{msg.text}</p>
                 {msg.role === "agent" && msg.visual ? <ExtraVisual visual={msg.visual} autoPlay={voiceOn && speakOk && msg.id === autoVisualId} /> : null}
                 {msg.role === "agent" && msg.drawing ? (
-                  <p className="flex items-center gap-2 text-xs font-semibold text-extra" role="status">
-                    <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-extra" aria-hidden />
+                  <p className="flex items-center gap-2 text-xs font-semibold text-[var(--world-accent)]" role="status">
+                    <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--world-accent)]" aria-hidden />
                     {tr("extra.drawing")}
                   </p>
                 ) : null}
@@ -500,10 +534,10 @@ function ExtraInner() {
               </div>
             ))
           )}
-          {busy ? <p className="text-sm text-ink-soft">{tr("extra.thinking")}</p> : null}
+          {busy ? <p className="text-sm text-[var(--world-ink-soft)]">{tr("extra.thinking")}</p> : null}
         </div>
 
-        {voiceHint ? <p className="text-sm font-semibold text-extra">{voiceHint}</p> : null}
+        {voiceHint ? <p className="text-sm font-semibold text-[var(--world-accent)]">{voiceHint}</p> : null}
 
         {listening ? (
           <DictationPanel
@@ -511,61 +545,15 @@ function ExtraInner() {
             levels={levels}
             seconds={seconds}
             quiet={quiet}
+            sendingSoon={sendingSoon}
             onDone={finishMic}
             onCancel={cancelMic}
           />
         ) : null}
 
-        <form
-          className="flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send(input);
-          }}
-        >
-          <button
-            type="button"
-            onClick={startMic}
-            aria-pressed={listening}
-            disabled={busy || listening}
-            className={`rounded-full px-4 py-3 font-bold text-white disabled:opacity-60 ${
-              listening ? "bg-extra" : "bg-ink"
-            }`}
-            title={tr("extra.micTitle")}
-            aria-label={tr("extra.micLabel")}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                <rect x="9" y="3" width="6" height="11" rx="3" />
-                <path d="M5 11a7 7 0 0 0 14 0M12 18v3" strokeLinecap="round" />
-              </svg>
-              {listening ? tr("extra.recording") : tr("extra.mic")}
-            </span>
-          </button>
-          <input
-            id="extra-question"
-            name="question"
-            aria-label={tr("extra.inputLabel")}
-            autoComplete="off"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={tr("extra.placeholder")}
-            dir="auto"
-            disabled={busy}
-            className="min-w-0 flex-1 rounded-full border border-stroke bg-card px-4 py-3 text-ink outline-none focus:border-extra/50 disabled:opacity-60"
-          />
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-full bg-extra px-5 py-3 font-bold text-white disabled:opacity-60"
-          >
-            {tr("extra.send")}
-          </button>
-        </form>
-
-        <div className="space-y-3">
-          <p className="text-sm font-bold text-ink-soft">{tr("extra.topicIdeas")}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
+        <div className="z-30 -mx-1 shrink-0 space-y-1.5 border-t border-stroke bg-[var(--world-bg)]/95 px-1 pb-1 pt-2 backdrop-blur-md">
+          <p className="text-xs font-bold text-[var(--world-ink-soft)]">{tr("extra.topicIdeas")}</p>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
             {INTERESTS.map((item) => {
               const active = topic?.id === item.id;
               return (
@@ -573,29 +561,72 @@ function ExtraInner() {
                   key={item.id}
                   type="button"
                   onClick={() => pickSuggestion(item)}
-                  className={`overflow-hidden rounded-3xl border bg-card text-start transition ${
+                  data-topic={item.tone}
+                  className={`w-[7.5rem] shrink-0 overflow-hidden rounded-[var(--radius-m)] border text-start transition ${
                     active
-                      ? "border-extra ring-2 ring-extra/30"
-                      : "border-stroke hover:border-extra/40"
+                      ? "border-[var(--world-accent)] ring-2 ring-[var(--world-accent)]/30"
+                      : "border-stroke"
                   }`}
                 >
-                  <div className="relative h-24 w-full">
-                    <Image
-                      src={item.art}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 100vw, 320px"
-                    />
+                  <div className="relative flex h-14 w-full items-center justify-center bg-[var(--world-surface)]">
+                    {/* SVG topic art — plain img so we do not need Next SVG config */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.art} alt="" className="h-full w-full object-cover" />
                   </div>
-                  <div className="px-4 py-3">
-                    <p className="font-display text-lg font-semibold text-ink">{tr(item.label)}</p>
-                    <p className="mt-0.5 text-sm text-ink-soft">{tr(item.seed)}</p>
+                  <div className="px-2 py-1.5">
+                    <p className="truncate text-xs font-bold text-[var(--world-ink)]">{tr(item.label)}</p>
                   </div>
                 </button>
               );
             })}
           </div>
+
+          <form
+            className="flex items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void send(input);
+            }}
+          >
+            <button
+              type="button"
+              onClick={startMic}
+              aria-pressed={listening}
+              disabled={busy || listening}
+              className={`wx-tap inline-flex items-center justify-center rounded-full px-4 font-bold text-white disabled:opacity-60 ${
+                listening ? "bg-[var(--world-accent)]" : "bg-ink"
+              }`}
+              title={tr("extra.micTitle")}
+              aria-label={tr("extra.micLabel")}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                  <rect x="9" y="3" width="6" height="11" rx="3" />
+                  <path d="M5 11a7 7 0 0 0 14 0M12 18v3" strokeLinecap="round" />
+                </svg>
+                {listening ? tr("extra.recording") : tr("extra.mic")}
+              </span>
+            </button>
+            <input
+              id="extra-question"
+              name="question"
+              aria-label={tr("extra.inputLabel")}
+              autoComplete="off"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={lang === "ar" ? tr("extra.placeholderAr") : tr("extra.placeholder")}
+              dir="auto"
+              disabled={busy}
+              className="wx-tap min-w-0 flex-1 rounded-full border border-stroke bg-[var(--world-surface)] px-4 text-[var(--world-ink)] outline-none focus:border-[var(--world-accent)]/50 disabled:opacity-60"
+            />
+            <button
+              type="submit"
+              disabled={busy}
+              className="wx-cta disabled:opacity-60"
+            >
+              {tr("extra.askOwl")}
+            </button>
+          </form>
         </div>
       </div>
     </AppShell>
@@ -607,7 +638,7 @@ export default function ExtraPage() {
   return (
     <Suspense
       fallback={
-        <AppShell backHref="/">
+        <AppShell backHref="/" world="wonder">
           <p className="text-ink-soft">{tr("extra.loadingPage")}</p>
         </AppShell>
       }
