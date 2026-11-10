@@ -39,7 +39,16 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
-### Arabic gate for the family tests + the owl comes alive (new art)
+### Model test run (10 OpenRouter models + Z.ai baseline), owl frames v2, JSON salvage
+
+**Model test:** full results and verdict in [`docs/MODEL_TEST_RESULTS.md`](./MODEL_TEST_RESULTS.md). Every model beat the free Z.ai tier today (84%, 8 timeouts, p95 16.9 s). Best value: `z-ai/glm-5.3-flash` with reasoning "minimal" (99% of checks, p95 5.6 s, about $0.011 per 100 turns, open weights on US hosts). Backups: Claude Haiku 5.5, Gemini 2.5 Flash-Lite.
+- `OPENROUTER_REASONING=minimal|low|medium` for models that cannot turn reasoning off (GPT-5 nano, GLM-5.3 Flash, Gemini 3.8 Flash); `eval-models.sh` accepts `model@minimal`.
+
+**Fix found by the run:** an Arabic answer was cut off by the token limit and the raw JSON showed as the reply. Arabic Extra replies now get 700 tokens (English 360), and `fromBrokenJson` salvages the answer and follow-up from a broken JSON reply or falls back, so a child never sees JSON.
+
+**Owl frames v2** (Anastasia's new sheets, background removed including the fake checkerboard): front "thinking" with the wing on the chin replaces the side pose; full-body talking frames (`talk-0/1/2`, wings open); a calm face (`calm.webp`) for School's "look again" card. Same file names, so the current `Mascot` picks them up.
+
+### Arabic gate for the family tests + the owl comes alive (new art) (`9694228`)
 
 **Arabic (Anastasia: "a pre-test gate, not a nice-to-have")**
 - **Live Extra in Arabic, checked:** the eval's Arabic group passed 3/3 on Z.ai (answer and follow-up in Arabic, bedtime with no question, an Arabic harm request blocked). The English she saw came from the offline path (AI slow or off) and the safety redirect, now both Arabic:
