@@ -2,7 +2,20 @@
 
 import { useEffect } from "react";
 import { loadProfile, profileAgeMode } from "@/lib/demo-store";
+import type { AgeMode } from "@/lib/types";
 import { PROFILE_CHANGED_EVENT } from "@/lib/types";
+
+/** Apply age + dark chrome to <html> (also usable for live Parent previews). */
+export function applyAgeChrome(mode: AgeMode, teenDark: boolean) {
+  const root = document.documentElement;
+  root.dataset.age = mode;
+  root.dataset.skin = mode === "teen" ? "studio" : "meadow";
+  if (mode === "teen" && teenDark) {
+    root.dataset.theme = "dark";
+  } else {
+    delete root.dataset.theme;
+  }
+}
 
 /**
  * Syncs UI chrome to the document:
@@ -14,15 +27,7 @@ export function AgeSkin() {
   useEffect(() => {
     function apply() {
       const profile = loadProfile();
-      const mode = profileAgeMode(profile);
-      const root = document.documentElement;
-      root.dataset.age = mode;
-      root.dataset.skin = mode === "teen" ? "studio" : "meadow";
-      if (mode === "teen" && profile.teenDark) {
-        root.dataset.theme = "dark";
-      } else {
-        delete root.dataset.theme;
-      }
+      applyAgeChrome(profileAgeMode(profile), Boolean(profile.teenDark));
     }
     apply();
     window.addEventListener(PROFILE_CHANGED_EVENT, apply);

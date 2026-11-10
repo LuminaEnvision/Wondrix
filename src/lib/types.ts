@@ -21,7 +21,13 @@ export type SkillId =
   | "forces-motion"
   | "solar-system"
   | "algebra-intro"
-  | "cells-micro";
+  | "cells-micro"
+  | "equations-linear"
+  | "ratio-rate"
+  | "stats-data"
+  | "energy-electricity"
+  | "chemical-reactions"
+  | "genetics-intro";
 
 export type MasteryLevel = "unknown" | "shaky" | "growing" | "secure";
 

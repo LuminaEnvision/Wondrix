@@ -37,49 +37,53 @@ export function AppShell({
 
   return (
     <div className="wx-shell" data-world={worldId}>
-      <div
-        className={`wx-shell-inner mx-auto w-full max-w-lg px-4 pt-4 sm:max-w-2xl ${
-          hideNav ? "pb-8" : "wx-bottom-pad"
-        }`}
-      >
-        <header
-          className={`mb-4 flex items-center gap-3 ${dense ? "min-h-11" : "min-h-14"}`}
-        >
-          {backHref ? (
-            <Link
-              href={backHref}
-              aria-label={tr("common.back")}
-              className="wx-tap inline-flex items-center justify-center rounded-full border border-stroke bg-[var(--world-surface)] text-[var(--world-ink)] shadow-[var(--shadow-card)]"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden className="rtl:-scale-x-100">
-                <path d="M15 6 9 12l6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
-          ) : (
-            <Link href="/" className="flex min-w-0 items-center gap-2">
-              <Image
-                src="/art/mascot-icon.jpg"
-                alt=""
-                width={dense ? 32 : 40}
-                height={dense ? 32 : 40}
-                className="rounded-full"
-              />
-              {showBrandHome ? (
-                <span className="font-display truncate text-2xl font-semibold tracking-tight text-[var(--world-accent)]">
-                  Wondrix
-                </span>
-              ) : (
-                <span className="font-display truncate text-xl font-semibold tracking-tight text-[var(--world-ink)]">
-                  Wondrix
-                </span>
-              )}
-            </Link>
-          )}
-          <div className="ms-auto" />
-        </header>
-        <main className="flex min-h-0 flex-1 flex-col">{children}</main>
+      <div className="wx-device wx-enter">
+        <div className="wx-shell-inner flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-4">
+          <header
+            className={`mb-4 flex shrink-0 items-center gap-3 ${dense ? "min-h-11" : "min-h-14"}`}
+          >
+            {backHref ? (
+              <Link
+                href={backHref}
+                aria-label={tr("common.back")}
+                className="wx-tap inline-flex items-center justify-center rounded-full border border-stroke bg-[var(--world-surface)] text-[var(--world-ink)] shadow-[var(--shadow-card)]"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden className="rtl:-scale-x-100">
+                  <path d="M15 6 9 12l6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Link>
+            ) : (
+              <Link href="/" className="flex min-w-0 items-center gap-2">
+                <Image
+                  src="/art/mascot-icon.jpg"
+                  alt=""
+                  width={dense ? 32 : 40}
+                  height={dense ? 32 : 40}
+                  className="rounded-full shadow-[var(--shadow-card)]"
+                />
+                {showBrandHome ? (
+                  <span className="font-display truncate text-2xl font-semibold tracking-tight text-[var(--world-accent)]">
+                    Wondrix
+                  </span>
+                ) : (
+                  <span className="font-display truncate text-xl font-semibold tracking-tight text-[var(--world-ink)]">
+                    Wondrix
+                  </span>
+                )}
+              </Link>
+            )}
+            <div className="ms-auto" />
+          </header>
+          <main
+            className={`flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto ${
+              hideNav ? "pb-8" : "wx-bottom-pad"
+            }`}
+          >
+            {children}
+          </main>
+        </div>
+        {hideNav ? null : <BottomNav />}
       </div>
-      {hideNav ? null : <BottomNav />}
     </div>
   );
 }

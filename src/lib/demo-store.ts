@@ -37,6 +37,7 @@ export function loadProfile(): ParentProfile {
     return {
       ...parsed,
       ageBand: grade.ageBand,
+      // Normalize legacy "Year 7+" (and other aliases) to the current menu label.
       gradeLabel: grade.label,
       ageMode: normalizeAgeMode(parsed.ageMode, grade.label),
       teenDark: Boolean(parsed.teenDark),
@@ -102,7 +103,7 @@ export function skillsForProfile(
 
 /**
  * Pick 1–2 focus skills.
- * Grade defaults come first so changing Year 3 → Year 7+ actually changes practice.
+ * Grade defaults come first so changing Year 3 → Year 10 actually changes practice.
  * Teacher note and shaky skills (only if still grade-appropriate) refine the pick.
  */
 export function pickFocusSkills(

@@ -402,7 +402,7 @@ function ExtraInner() {
   return (
     <AppShell backHref="/" world="wonder">
       <VoiceLoadingBubble enabled={voiceOn && lang === "en"} />
-      <div className="flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+      <div className="wx-enter flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden">
         <div className="flex shrink-0 items-end gap-3">
           <div className="wx-surface relative min-w-0 flex-1 px-4 py-3">
             <span

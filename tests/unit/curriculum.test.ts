@@ -20,7 +20,10 @@ describe("grades", () => {
     expect(gradeFromLabel("Year 4").id).toBe("y4");
     expect(gradeFromLabel("y5").id).toBe("y5");
     expect(gradeFromLabel("grade 6").id).toBe("y6");
-    expect(gradeFromLabel("secondary school").id).toBe("y7+");
+    expect(gradeFromLabel("secondary school").id).toBe("y7");
+    expect(gradeFromLabel("Year 7+").id).toBe("y7");
+    expect(gradeFromLabel("Year 10").id).toBe("y10");
+    expect(gradeFromLabel("Year 11–13").id).toBe("y11+");
     expect(gradeFromLabel("Year 2").id).toBe("y1-2");
     expect(gradeFromLabel("???").id).toBe("y3");
   });
@@ -28,13 +31,15 @@ describe("grades", () => {
   it("age bands match the canvas skins", () => {
     expect(gradeFromLabel("Year 3").ageBand).toBe("young");
     expect(gradeFromLabel("Year 5").ageBand).toBe("middle");
-    expect(gradeFromLabel("Year 7+").ageBand).toBe("teen");
+    expect(gradeFromLabel("Year 7").ageBand).toBe("teen");
+    expect(gradeFromLabel("Year 11–13").ageBand).toBe("teen");
   });
 
   it("a skill is allowed from its entry grade upwards", () => {
     expect(skillAllowedForGrade("y5", "y4")).toBe(false);
     expect(skillAllowedForGrade("y5", "y5")).toBe(true);
-    expect(skillAllowedForGrade("y1-2", "y7+")).toBe(true);
+    expect(skillAllowedForGrade("y1-2", "y11+")).toBe(true);
+    expect(skillAllowedForGrade("y10", "y9")).toBe(false);
   });
 
   it("every grade default skill exists in the skill graph", () => {
@@ -74,13 +79,13 @@ describe("radar bank", () => {
     for (const item of RADAR_BANK) for (const g of item.grades) expect(gradeIds.has(g), item.id).toBe(true);
   });
 
-  it("Year 3 and Year 7+ get different radar items (grade-matched)", () => {
+  it("Year 3 and Year 10 get different radar items (grade-matched)", () => {
     const y3 = radarForGrade("Year 3", 5).map((r) => r.id);
-    const y7 = radarForGrade("Year 7+", 5).map((r) => r.id);
+    const y10 = radarForGrade("Year 10", 5).map((r) => r.id);
     expect(y3.length).toBeGreaterThan(0);
-    expect(y7.length).toBeGreaterThan(0);
-    expect(y3).not.toEqual(y7);
-    for (const id of y7) expect(RADAR_BANK.find((r) => r.id === id)!.grades).toContain("y7+");
+    expect(y10.length).toBeGreaterThan(0);
+    expect(y3).not.toEqual(y10);
+    for (const id of y10) expect(RADAR_BANK.find((r) => r.id === id)!.grades).toContain("y10");
   });
 
   it("pickQuestion respects avoidIds and falls back to the closest grade", () => {
@@ -96,8 +101,8 @@ describe("radar bank", () => {
 describe("focus picking (local School plan)", () => {
   it("grade change changes the focus", () => {
     const y3 = pickFocusSkills({}, profile({ gradeLabel: "Year 3" }));
-    const y7 = pickFocusSkills({}, profile({ gradeLabel: "Year 7+" }));
-    expect(y3).not.toEqual(y7);
+    const y10 = pickFocusSkills({}, profile({ gradeLabel: "Year 10" }));
+    expect(y3).not.toEqual(y10);
   });
 
   it("calm mode limits focus to one skill", () => {
@@ -113,7 +118,8 @@ describe("focus picking (local School plan)", () => {
   it("skillsForProfile never includes skills above the grade", () => {
     const y3 = skillsForProfile(profile({ gradeLabel: "Year 3" }));
     expect(y3).not.toContain("algebra-intro");
-    expect(skillsForProfile(profile({ gradeLabel: "Year 7+" }))).toContain("algebra-intro");
+    expect(skillsForProfile(profile({ gradeLabel: "Year 7" }))).toContain("algebra-intro");
+    expect(skillsForProfile(profile({ gradeLabel: "Year 10" }))).toContain("stats-data");
   });
 
   it("day summary mentions child, grade, focus and Extra topic", () => {
@@ -201,7 +207,7 @@ describe("answer position (review fix: correct answer was first in 44/75)", () =
 describe("distractor quality (review)", () => {
   const silly = ["Sand", "Plastic", "Nothing at all", "Nowhere", "It is on fire", "Balls get tired", "Things grow at night", "Four cakes"];
   it("no throwaway distractors in questions for Year 5 and above", () => {
-    const upper = new Set(["y5", "y6", "y7+"]);
+    const upper = new Set(["y5", "y6", "y7", "y8", "y9", "y10", "y11+"]);
     for (const item of RADAR_BANK.filter((r) => r.id.startsWith("q-") && r.grades.some((g) => upper.has(g)))) {
       for (const c of item.choices) expect(silly, `${item.id}: "${c.label}"`).not.toContain(c.label);
     }

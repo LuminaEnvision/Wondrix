@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { applyAgeChrome } from "@/components/AgeSkin";
 import { AppShell } from "@/components/AppShell";
 import { LanguagePicker } from "@/components/LanguagePicker";
 import { ParentLock } from "@/components/ParentLock";
@@ -36,7 +37,7 @@ import {
 } from "@/lib/curriculum";
 import type { Lang, MessageKey } from "@/lib/i18n";
 import { skillTitle } from "@/lib/skills";
-import type { MasteryLevel, ParentProfile, SkillId, SubjectOffer } from "@/lib/types";
+import type { AgeMode, MasteryLevel, ParentProfile, SkillId, SubjectOffer } from "@/lib/types";
 import { useHydrated, useLang, useT } from "@/lib/use-client-state";
 
 const SUBJECT_LABEL: Record<SubjectOffer["id"], MessageKey> = {
@@ -113,6 +114,11 @@ function ParentHome() {
         next.subjects = next.subjects.filter((s) => offered.includes(s));
         if (!next.subjects.length) next.subjects = ["math"];
       }
+      if (key === "ageMode" || key === "teenDark") {
+        const mode = (key === "ageMode" ? value : next.ageMode) as AgeMode | undefined;
+        const dark = key === "teenDark" ? Boolean(value) : Boolean(next.teenDark);
+        applyAgeChrome(mode === "teen" ? "teen" : "explorer", dark);
+      }
       return next;
     });
     setSaved(false);
@@ -126,7 +132,7 @@ function ParentHome() {
   return (
     <AppShell backHref="/" world="parent" dense>
       <ParentLock>
-        <div className="space-y-5">
+        <div className="wx-enter space-y-5 pb-12">
           <div>
             <h1 className="font-display text-2xl font-semibold text-[var(--world-ink)]">{tr("parent.title")}</h1>
             <p className="mt-1 text-sm text-[var(--world-ink-soft)]">
@@ -426,7 +432,7 @@ function ParentHome() {
             {pinMsg ? <p className="text-sm font-semibold text-brand">{pinMsg}</p> : null}
           </div>
 
-          <div className="wx-surface grid gap-4 p-4 sm:grid-cols-[120px_1fr] sm:items-center">
+          <div className="wx-surface mb-4 grid gap-4 p-4 sm:grid-cols-[120px_1fr] sm:items-center">
             <div className="relative mx-auto h-28 w-28 overflow-hidden rounded-2xl">
               <Image
                 src="/art/safety-trust.jpg"
@@ -437,8 +443,8 @@ function ParentHome() {
               />
             </div>
             <div>
-              <p className="font-display text-lg font-semibold text-ink">{tr("parent.safetyTitle")}</p>
-              <p className="mt-1 text-sm text-ink-soft">{tr("parent.safetyBody")}</p>
+              <p className="font-display text-lg font-semibold text-[var(--world-ink)]">{tr("parent.safetyTitle")}</p>
+              <p className="mt-1 text-sm text-[var(--world-ink-soft)]">{tr("parent.safetyBody")}</p>
             </div>
           </div>
         </div>

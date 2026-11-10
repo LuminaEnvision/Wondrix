@@ -59,6 +59,9 @@ function skillsMentioned(note: string, id: SkillId): boolean {
     "fractions-compare": /fraction|compare/,
     percentages: /percent|%/,
     "algebra-intro": /algebra|equation/,
+    "equations-linear": /linear|equation|solve/,
+    "ratio-rate": /ratio|rate|proportion/,
+    "stats-data": /average|mean|data|statistic/,
     "living-things": /living|animal|plant/,
     materials: /material|solid|liquid/,
     "day-night": /day|night|earth|spin/,
@@ -66,6 +69,9 @@ function skillsMentioned(note: string, id: SkillId): boolean {
     "forces-motion": /force|motion|gravity/,
     "solar-system": /planet|solar|moon|space/,
     "cells-micro": /cell|microbe/,
+    "energy-electricity": /electric|energy|circuit/,
+    "chemical-reactions": /reaction|chemical|acid/,
+    "genetics-intro": /gene|dna|inherit/,
   };
   return map[id]?.test(note) ?? false;
 }

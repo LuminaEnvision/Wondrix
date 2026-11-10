@@ -17,10 +17,10 @@ export function BottomNav() {
   return (
     <nav
       aria-label={tr("nav.label")}
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-stroke bg-world-surface/95 backdrop-blur-md"
+      className="wx-nav"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <ul className="mx-auto flex max-w-lg items-stretch justify-around gap-1 px-2 pt-1 sm:max-w-2xl">
+      <ul className="flex items-stretch justify-around gap-1 px-2 pt-1">
         {TABS.map((tab) => {
           const active = tab.match(pathname);
           const Icon = tab.icon;
@@ -28,8 +28,8 @@ export function BottomNav() {
             <li key={tab.href} className="flex-1">
               <Link
                 href={tab.href}
-                className={`wx-tap flex w-full flex-col items-center justify-center gap-0.5 rounded-[var(--radius-m)] px-2 py-1.5 text-center transition-colors ${
-                  active ? "text-[var(--world-accent)]" : "text-ink-soft"
+                className={`wx-nav-tab wx-tap flex w-full flex-col items-center justify-center gap-0.5 px-2 py-1.5 text-center ${
+                  active ? "wx-nav-tab-active" : ""
                 }`}
                 aria-current={active ? "page" : undefined}
               >

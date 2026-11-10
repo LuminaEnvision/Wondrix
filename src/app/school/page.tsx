@@ -97,7 +97,7 @@ export default function SchoolHomePage() {
 
   return (
     <AppShell backHref="/" world="school" dense={teen}>
-      <div className="space-y-4">
+      <div className="wx-enter space-y-4">
         <div className={`flex items-end gap-3 ${teen ? "" : "sm:gap-5"}`}>
           <div className="wx-surface relative min-w-0 flex-1 px-4 py-4 sm:px-5">
             <span
@@ -149,7 +149,7 @@ export default function SchoolHomePage() {
         ) : null}
 
         {primarySkill && primaryId ? (
-          <div className="wx-surface-lift space-y-3 border-[var(--world-accent)]/25 p-5">
+          <div className="wx-surface-lift wx-enter wx-enter-delay-1 space-y-3 border-[var(--world-accent)]/25 p-5">
             <p className="text-sm font-bold text-[var(--world-ink-soft)]">{tr("school.nextSkill")}</p>
             <h2 className={`font-display font-semibold text-[var(--world-ink)] ${teen ? "text-2xl" : "text-3xl"}`}>
               {primaryTitle}
@@ -201,7 +201,7 @@ export default function SchoolHomePage() {
 
         <Link
           href="/school/radar"
-          className="wx-surface flex items-center gap-4 overflow-hidden p-0 transition active:scale-[0.99]"
+          className="wx-door wx-surface flex items-center gap-4 overflow-hidden p-0 transition active:scale-[0.99]"
         >
           <div className="relative h-20 w-24 shrink-0 sm:h-24 sm:w-28">
             <Image

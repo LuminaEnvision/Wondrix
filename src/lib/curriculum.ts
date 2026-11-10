@@ -5,13 +5,12 @@
  * Content overlaps a lot (all are benchmarked on TIMSS), but GRADE NAMES and ages differ:
  * UK Year N ≈ US / IB / CBSE / UAE Grade (or Class) N-1.
  *
- * Wondrix keeps ONE internal grade scale (the UK-style ids y1-2 … y7+, stored as gradeLabel)
+ * Wondrix keeps ONE internal grade scale (UK-style ids y1-2 … y11+, stored as gradeLabel)
  * and ONE question bank. The curriculum only changes how the grade is shown and how the AI
- * talks (grade name, spelling). Grade equivalences are "background" in the research doc:
- * verify before the final submission.
+ * talks (grade name, spelling).
  */
 
-import { gradeFromLabel } from "./grades";
+import { gradeFromLabel, TEEN_GRADE_IDS } from "./grades";
 import { CURRICULUM_LABELS_AR, GRADE_AGES_AR, GRADE_BLURBS_AR, GRADE_NAMES_AR } from "./i18n/content-ar";
 
 type Lang = "en" | "ar";
@@ -30,16 +29,93 @@ export const CURRICULA: { id: Curriculum; label: string }[] = [
   { id: "other", label: "Other / not sure" },
 ];
 
-type GradeId = "y1-2" | "y3" | "y4" | "y5" | "y6" | "y7+";
+export type GradeId = "y1-2" | "y3" | "y4" | "y5" | "y6" | "y7" | "y8" | "y9" | "y10" | "y11+";
 
 const NAMES: Record<Curriculum, Record<GradeId, string>> = {
-  uk: { "y1-2": "Year 1–2", y3: "Year 3", y4: "Year 4", y5: "Year 5", y6: "Year 6", "y7+": "Year 7+" },
-  other: { "y1-2": "Year 1–2", y3: "Year 3", y4: "Year 4", y5: "Year 5", y6: "Year 6", "y7+": "Year 7+" },
-  us: { "y1-2": "Kindergarten–Grade 1", y3: "Grade 2", y4: "Grade 3", y5: "Grade 4", y6: "Grade 5", "y7+": "Grade 6+" },
-  ib: { "y1-2": "Kindergarten–Grade 1", y3: "Grade 2", y4: "Grade 3", y5: "Grade 4", y6: "Grade 5", "y7+": "Grade 6+" },
-  indian: { "y1-2": "UKG–Class 1", y3: "Class 2", y4: "Class 3", y5: "Class 4", y6: "Class 5", "y7+": "Class 6+" },
-  saudi: { "y1-2": "KG3–Grade 1", y3: "Grade 2", y4: "Grade 3", y5: "Grade 4", y6: "Grade 5", "y7+": "Grade 6+" },
-  uae: { "y1-2": "KG2–Grade 1", y3: "Grade 2", y4: "Grade 3", y5: "Grade 4", y6: "Grade 5", "y7+": "Grade 6+" },
+  uk: {
+    "y1-2": "Year 1–2",
+    y3: "Year 3",
+    y4: "Year 4",
+    y5: "Year 5",
+    y6: "Year 6",
+    y7: "Year 7",
+    y8: "Year 8",
+    y9: "Year 9",
+    y10: "Year 10",
+    "y11+": "Year 11–13",
+  },
+  other: {
+    "y1-2": "Year 1–2",
+    y3: "Year 3",
+    y4: "Year 4",
+    y5: "Year 5",
+    y6: "Year 6",
+    y7: "Year 7",
+    y8: "Year 8",
+    y9: "Year 9",
+    y10: "Year 10",
+    "y11+": "Year 11–13",
+  },
+  us: {
+    "y1-2": "Kindergarten–Grade 1",
+    y3: "Grade 2",
+    y4: "Grade 3",
+    y5: "Grade 4",
+    y6: "Grade 5",
+    y7: "Grade 6",
+    y8: "Grade 7",
+    y9: "Grade 8",
+    y10: "Grade 9",
+    "y11+": "Grade 10–12",
+  },
+  ib: {
+    "y1-2": "Kindergarten–Grade 1",
+    y3: "Grade 2",
+    y4: "Grade 3",
+    y5: "Grade 4",
+    y6: "Grade 5",
+    y7: "MYP 1 (Grade 6)",
+    y8: "MYP 2 (Grade 7)",
+    y9: "MYP 3 (Grade 8)",
+    y10: "MYP 4 (Grade 9)",
+    "y11+": "MYP 5 / DP (Grade 10–12)",
+  },
+  indian: {
+    "y1-2": "UKG–Class 1",
+    y3: "Class 2",
+    y4: "Class 3",
+    y5: "Class 4",
+    y6: "Class 5",
+    y7: "Class 6",
+    y8: "Class 7",
+    y9: "Class 8",
+    y10: "Class 9",
+    "y11+": "Class 10–12",
+  },
+  saudi: {
+    "y1-2": "KG3–Grade 1",
+    y3: "Grade 2",
+    y4: "Grade 3",
+    y5: "Grade 4",
+    y6: "Grade 5",
+    y7: "Grade 6",
+    y8: "Grade 7",
+    y9: "Grade 8",
+    y10: "Grade 9",
+    "y11+": "Grade 10–12",
+  },
+  uae: {
+    "y1-2": "KG2–Grade 1",
+    y3: "Grade 2",
+    y4: "Grade 3",
+    y5: "Grade 4",
+    y6: "Grade 5",
+    y7: "Grade 6",
+    y8: "Grade 7",
+    y9: "Grade 8",
+    y10: "Grade 9",
+    "y11+": "Grade 10–12",
+  },
 };
 
 export const GRADE_AGES: Record<GradeId, string> = {
@@ -48,7 +124,11 @@ export const GRADE_AGES: Record<GradeId, string> = {
   y4: "age 8–9",
   y5: "age 9–10",
   y6: "age 10–11",
-  "y7+": "age 11+",
+  y7: "age 11–12",
+  y8: "age 12–13",
+  y9: "age 13–14",
+  y10: "age 14–15",
+  "y11+": "age 15–17",
 };
 
 export function asCurriculum(value: unknown): Curriculum {
@@ -91,7 +171,6 @@ export function curriculumPromptLine(profile: {
   const uk = gradeName(profile.gradeLabel, "uk");
   const english = c === "us" ? "American English (math, color)" : "British English (maths, colour)";
   const same = name === uk ? "" : ` (same level as UK ${uk})`;
-  // In Arabic the language line (i18n) decides the wording; no English spelling rule.
   const spelling = profile.language === "ar" ? "" : ` and use ${english}`;
   const unit = profile.unitNote?.trim()
     ? ` The family says they are working on: "${profile.unitNote.trim().slice(0, 120)}". Prefer skills that match that unit when possible.`
@@ -113,14 +192,14 @@ export function subjectsForProgramme(
     { id: "math", available: true },
     { id: "science", available: true },
   ];
-  // Literacy appears from Year 3 / Grade 2 up (younger keep maths + science focus).
   if (id !== "y1-2") {
     offers.push({ id: "english", available: false });
   }
   if (c === "uae" || c === "saudi") {
     offers.push({ id: "arabic", available: false });
   }
-  if (id === "y5" || id === "y6" || id === "y7+") {
+  const teenish = (TEEN_GRADE_IDS as readonly string[]).includes(id) || id === "y5" || id === "y6";
+  if (teenish) {
     offers.push({ id: "social", available: false });
   }
   return offers;

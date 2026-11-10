@@ -15,7 +15,9 @@ export default function HomePage() {
   return (
     <AppShell world="home">
       <section className="flex flex-1 flex-col gap-3">
-        <div className={`flex items-end gap-3 ${explorer ? "min-h-[7.5rem]" : "min-h-[4.5rem]"}`}>
+        <div
+          className={`wx-enter flex items-end gap-3 ${explorer ? "min-h-[6.5rem]" : "min-h-[4.5rem]"}`}
+        >
           <div className="wx-surface relative min-w-0 flex-1 px-4 py-3 sm:px-5">
             <span
               className="absolute -end-1.5 bottom-8 hidden size-3 rotate-45 border-e border-t border-stroke bg-[var(--world-surface)] rtl:rotate-[225deg] sm:block"
@@ -28,7 +30,9 @@ export default function HomePage() {
               {tr("home.tagline")}
             </p>
           </div>
-          <div className={`relative shrink-0 ${explorer ? "h-28 w-24" : "h-16 w-14"}`}>
+          <div
+            className={`wx-breathe relative shrink-0 ${explorer ? "h-28 w-24" : "h-16 w-14"}`}
+          >
             <Image
               src="/art/mascot-hero.png"
               alt=""
@@ -40,26 +44,31 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Path scene: full-bleed inside the device — Wondrix walking toward School / Curiosity */}
         {explorer ? (
-          <div className="relative mx-auto w-full max-h-[22dvh] max-w-xl overflow-hidden rounded-[var(--radius-l)] border border-stroke">
-            <div className="relative aspect-[16/9] max-h-[22dvh] w-full">
-              <Image
-                src="/art/mascot-path-hero.jpg"
-                alt={tr("home.heroAlt")}
-                fill
-                className="object-cover object-center"
-                sizes="(max-width: 640px) 100vw, 576px"
-                priority
-              />
-            </div>
+          <div className="wx-enter wx-enter-delay-1 relative -mx-4 min-h-[30dvh] flex-[1.15] overflow-hidden sm:rounded-[var(--radius-l)] sm:mx-0">
+            <Image
+              src="/art/mascot-path-hero.jpg"
+              alt={tr("home.heroAlt")}
+              fill
+              className="object-cover object-[center_40%]"
+              sizes="(max-width: 640px) 100vw, 672px"
+              priority
+            />
           </div>
         ) : null}
 
-        <div className={explorer ? "mt-1 flex flex-1 flex-col gap-3" : "mt-2 grid grid-cols-2 gap-3"}>
+        <div
+          className={
+            explorer
+              ? "mt-0 flex min-h-0 flex-[0.95] flex-col gap-3"
+              : "mt-2 grid grid-cols-2 gap-3"
+          }
+        >
           <Link
             href="/school"
-            className={`group relative overflow-hidden text-white transition active:scale-[0.99] ${
-              explorer ? "min-h-[var(--tap-min)] flex-1 rounded-[var(--radius-l)]" : "min-h-28 rounded-[var(--radius-m)]"
+            className={`wx-door wx-enter wx-enter-delay-2 group relative overflow-hidden text-white transition active:scale-[0.99] ${
+              explorer ? "min-h-[7.5rem] flex-1 rounded-[var(--radius-l)]" : "min-h-28 rounded-[var(--radius-m)]"
             }`}
           >
             <Image
@@ -86,8 +95,8 @@ export default function HomePage() {
 
           <Link
             href="/extra"
-            className={`group relative overflow-hidden text-white transition active:scale-[0.99] ${
-              explorer ? "min-h-[var(--tap-min)] flex-1 rounded-[var(--radius-l)]" : "min-h-28 rounded-[var(--radius-m)]"
+            className={`wx-door wx-enter wx-enter-delay-3 group relative overflow-hidden text-white transition active:scale-[0.99] ${
+              explorer ? "min-h-[7.5rem] flex-1 rounded-[var(--radius-l)]" : "min-h-28 rounded-[var(--radius-m)]"
             }`}
           >
             <Image
