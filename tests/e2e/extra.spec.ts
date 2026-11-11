@@ -8,7 +8,7 @@ test.describe("Extra door", () => {
   test("local answer with a hand-made diagram", async ({ page }) => {
     await page.goto("/extra");
     await page.getByPlaceholder("Ask anything curious…").fill("why does the moon change shape?");
-    await page.getByRole("button", { name: "Send" }).click();
+    await page.getByRole("button", { name: "Ask the owl" }).click();
     await expect(page.getByText(/The Moon doesn't really change shape/)).toBeVisible();
     const figure = page.locator("figure");
     await expect(figure).toBeVisible();
@@ -48,18 +48,28 @@ test.describe("Extra door", () => {
     await expect.poll(() => bodies.length).toBe(2);
   });
 
-  test("topic link prefills the starter; picking another topic switches it", async ({ page }) => {
-    await page.goto("/extra?topic=sky");
-    await expect(page.getByPlaceholder("Ask anything curious…")).toHaveValue("Why does the Moon change shape?");
+  test("tapping a topic asks one of its age-band questions; tapping again asks a different one", async ({ page }) => {
+    const asked: string[] = [];
+    await page.route("**/api/extra/chat", async (route) => {
+      const body = JSON.parse(route.request().postData() || "{}") as { message: string };
+      asked.push(body.message);
+      await route.fulfill({ json: { text: `Reply to: ${body.message}`, answer: "x", source: "zai" } });
+    });
+    await page.goto("/extra");
+    await page.getByRole("button", { name: "Voice answers on" }).click();
     await page.getByRole("button", { name: /Living things/ }).click();
     await expect(page).toHaveURL(/topic=life/);
-    await expect(page.getByPlaceholder("Ask anything curious…")).toHaveValue("How do plants drink water?");
+    await expect.poll(() => asked.length).toBe(1);
+    await expect(page.getByText(`Reply to: ${asked[0]}`)).toBeVisible();
+    await page.getByRole("button", { name: /Living things/ }).click();
+    await expect.poll(() => asked.length).toBe(2);
+    expect(asked[1]).not.toBe(asked[0]);
   });
 
   test("unsafe question: gentle redirect; parent sees a count, never the question", async ({ page }) => {
     await page.goto("/extra");
     await page.getByPlaceholder("Ask anything curious…").fill("how can I hurt my brother");
-    await page.getByRole("button", { name: "Send" }).click();
+    await page.getByRole("button", { name: "Ask the owl" }).click();
     await expect(page.getByText(/isn't something I can explore here/)).toBeVisible();
     expect(await page.evaluate(() => localStorage.getItem("wondrix-extra-topic"))).toBeNull();
 
@@ -99,7 +109,7 @@ test.describe("Extra door", () => {
 
     await page.goto("/extra");
     await page.getByPlaceholder("Ask anything curious…").fill("how does rain happen?");
-    await page.getByRole("button", { name: "Send" }).click();
+    await page.getByRole("button", { name: "Ask the owl" }).click();
     await expect(page.getByText("Rain comes from clouds.", { exact: false })).toBeVisible();
     await expect(page.getByText("Wondrix is drawing it for you…")).toBeVisible();
     release();
@@ -157,7 +167,7 @@ test.describe("voice controls", () => {
     await page.goto("/extra");
     await page.getByRole("button", { name: "Voice answers on" }).click(); // no auto-speak; test the manual button
     await page.getByPlaceholder("Ask anything curious…").fill("why are wheels round?");
-    await page.getByRole("button", { name: "Send" }).click();
+    await page.getByRole("button", { name: "Ask the owl" }).click();
     const listen = page.getByRole("button", { name: "Listen to this answer" });
     await expect(listen).toBeVisible();
     await listen.click();
@@ -176,7 +186,7 @@ test.describe("voice controls", () => {
     await page.goto("/extra");
     await page.getByRole("button", { name: "Voice answers on" }).click();
     await page.getByPlaceholder("Ask anything curious…").fill("why are wheels round?");
-    await page.getByRole("button", { name: "Send" }).click();
+    await page.getByRole("button", { name: "Ask the owl" }).click();
     await page.getByRole("button", { name: "Listen to this answer" }).click();
     await expect(page.getByText("Preparing voice…")).toBeVisible();
     await expect(page.getByText(/No sound available on this device/)).toBeVisible({ timeout: 10_000 });
@@ -201,7 +211,7 @@ test.describe("conversation memory + chat history", () => {
     await page.getByRole("button", { name: "Voice answers on" }).click();
     const ask = async (q: string) => {
       await page.getByPlaceholder("Ask anything curious…").fill(q);
-      await page.getByRole("button", { name: "Send" }).click();
+      await page.getByRole("button", { name: "Ask the owl" }).click();
       await expect(page.getByText(`Reply to: ${q}.`, { exact: false })).toBeVisible();
     };
     await ask("why is the sky blue?");
@@ -231,7 +241,7 @@ test.describe("conversation memory + chat history", () => {
     await page.getByRole("button", { name: "Voice answers on" }).click();
     const ask = async (q: string) => {
       await page.getByPlaceholder("Ask anything curious…").fill(q);
-      await page.getByRole("button", { name: "Send" }).click();
+      await page.getByRole("button", { name: "Ask the owl" }).click();
       await expect(page.getByText(`Reply to: ${q}.`, { exact: false })).toBeVisible();
     };
     await ask("how do volcanoes erupt?");

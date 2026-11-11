@@ -8,6 +8,7 @@ export const PROFILE_KEY = "wondrix-profile";
 export const MASTERY_KEY = "wondrix-mastery";
 const EXTRA_TOPIC_KEY = "wondrix-extra-topic";
 const SAFETY_KEY = "wondrix-safety-redirects";
+const PRACTICE_KEY = "wondrix-practice-today";
 
 export const DEFAULT_PROFILE: ParentProfile = {
   childNickname: "Alex",
@@ -132,6 +133,30 @@ export function pickFocusSkills(
   return unique.length ? unique : gradeDefaults.slice(0, limit);
 }
 
+/** One finished School practice session (today only; the parent summary reads it). */
+export type PracticeSession = { skillId: SkillId; answered: number; correct: number };
+
+export function recordPracticeSession(session: PracticeSession) {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = JSON.parse(localStorage.getItem(PRACTICE_KEY) || "{}") as { day?: string; sessions?: PracticeSession[] };
+    const sessions = raw.day === todayKey() ? (raw.sessions ?? []) : [];
+    localStorage.setItem(PRACTICE_KEY, JSON.stringify({ day: todayKey(), sessions: [...sessions, session] }));
+  } catch {
+    // storage unavailable: nothing to keep
+  }
+}
+
+export function loadPracticeSessions(): PracticeSession[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(PRACTICE_KEY) || "{}") as { day?: string; sessions?: PracticeSession[] };
+    return raw.day === todayKey() ? (raw.sessions ?? []) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function buildDaySummary(input: {
   nickname: string;
   gradeLabel: string;
@@ -142,6 +167,8 @@ export function buildDaySummary(input: {
   safetyRedirects?: number;
   /** Summary language; the grade label should already be in this language. */
   lang?: "en" | "ar";
+  /** Practice sessions finished today. */
+  sessions?: PracticeSession[];
 }): string {
   if (input.lang === "ar") return buildDaySummaryAr(input);
   const focusText = input.focus.map(skillTitle).join(", ") || "general practice";
@@ -154,7 +181,12 @@ export function buildDaySummary(input: {
     n > 0
       ? ` Wondrix gently redirected ${n === 1 ? "1 question" : `${n} questions`} to safer topics today; a calm chat about it may help.`
       : "";
-  return `${input.nickname} (${input.gradeLabel}) practiced: ${focusText}. ${extra}${calm}${safety} Tip: ask one dinner question about today's focus.`;
+  const done = input.sessions ?? [];
+  const answered = done.reduce((k, s) => k + s.answered, 0);
+  const finished = done.length
+    ? ` Finished ${done.length === 1 ? "1 practice session" : `${done.length} practice sessions`} (${answered} questions).`
+    : "";
+  return `${input.nickname} (${input.gradeLabel}) practiced: ${focusText}.${finished} ${extra}${calm}${safety} Tip: ask one dinner question about today's focus.`;
 }
 
 function buildDaySummaryAr(input: Parameters<typeof buildDaySummary>[0]): string {
@@ -166,7 +198,12 @@ function buildDaySummaryAr(input: Parameters<typeof buildDaySummary>[0]): string
     n > 0
       ? ` وجّه ووندريكس بلطف ${n === 1 ? "سؤالًا واحدًا" : `${n} أسئلة`} إلى مواضيع أكثر أمانًا اليوم، وقد يفيد حديث هادئ عن ذلك.`
       : "";
-  return `${input.nickname} (${input.gradeLabel}) تدرّب على: ${focusText}. ${extra}${calm}${safety} نصيحة: اطرح على العشاء سؤالًا واحدًا عن مهارة اليوم.`;
+  const done = input.sessions ?? [];
+  const answered = done.reduce((k, s) => k + s.answered, 0);
+  const finished = done.length
+    ? ` أنهى ${done.length === 1 ? "جلسة تدريب واحدة" : `${done.length} جلسات تدريب`} (${answered} أسئلة).`
+    : "";
+  return `${input.nickname} (${input.gradeLabel}) تدرّب على: ${focusText}.${finished} ${extra}${calm}${safety} نصيحة: اطرح على العشاء سؤالًا واحدًا عن مهارة اليوم.`;
 }
 
 function skillTitle(id: SkillId): string {

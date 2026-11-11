@@ -6,7 +6,7 @@ test.describe("first run + parent controls", () => {
     await expect(page.getByRole("heading", { name: "Welcome to Wondrix" })).toBeVisible();
     await page.getByRole("button", { name: /Skip for now/ }).click();
     await expect(page.getByRole("heading", { name: "School" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Extra" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Wonder" })).toBeVisible();
     // The decision is remembered.
     await page.reload();
     await expect(page.getByRole("heading", { name: "Welcome to Wondrix" })).toHaveCount(0);
