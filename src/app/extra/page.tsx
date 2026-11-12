@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
@@ -344,6 +343,8 @@ function ExtraInner() {
     setSeconds(0);
     setQuiet(false);
     setSendingSoon(false);
+    // startMic only runs from the mic button click, not during render.
+    // eslint-disable-next-line react-hooks/purity -- event handler timestamp
     lastSoundAt.current = Date.now();
 
     const handle = startDictation({
@@ -381,6 +382,7 @@ function ExtraInner() {
     if (!handle) return;
     listenRef.current = handle;
     setListening(true);
+    // eslint-disable-next-line react-hooks/purity -- event handler timestamp
     const startedAt = Date.now();
     tickRef.current = setInterval(() => {
       setSeconds(Math.floor((Date.now() - startedAt) / 1000));
