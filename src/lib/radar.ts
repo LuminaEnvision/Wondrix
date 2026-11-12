@@ -2,7 +2,7 @@ import { gradeFromLabel, gradeIndex } from "./grades";
 import { QUESTION_BANK } from "./question-bank";
 import type { RadarItem, SkillId } from "./types";
 
-/** Gap radar + practice bank. Each item is tied to grades so Year 7 ≠ Year 3 questions. */
+/** Gap radar + practice bank. Each item is tied to grades so Year 11 ≠ Year 3 questions. */
 export const RADAR_BANK: RadarItem[] = [
   // —— Year 1–3 ——
   {
@@ -126,7 +126,7 @@ export const RADAR_BANK: RadarItem[] = [
   {
     id: "r-shapes-1",
     skillId: "shapes-angles",
-    grades: ["y5", "y6", "y7+"],
+    grades: ["y5", "y6", "y7", "y8", "y9", "y10", "y11+"],
     prompt: "A right angle measures…",
     choices: [
       { id: "a", label: "45 degrees", correct: false },
@@ -139,7 +139,7 @@ export const RADAR_BANK: RadarItem[] = [
   {
     id: "r-forces-1",
     skillId: "forces-motion",
-    grades: ["y5", "y6", "y7+"],
+    grades: ["y5", "y6", "y7", "y8", "y9", "y10", "y11+"],
     prompt: "If you push a book across a table and it slows down, what mostly slows it?",
     choices: [
       { id: "a", label: "Friction", correct: true },
@@ -152,7 +152,7 @@ export const RADAR_BANK: RadarItem[] = [
   {
     id: "r-solar-1",
     skillId: "solar-system",
-    grades: ["y5", "y6", "y7+"],
+    grades: ["y5", "y6", "y7", "y8", "y9", "y10", "y11+"],
     prompt: "Which planet is closest to the Sun?",
     choices: [
       { id: "a", label: "Earth", correct: false },
@@ -166,7 +166,7 @@ export const RADAR_BANK: RadarItem[] = [
   {
     id: "r-pct-1",
     skillId: "percentages",
-    grades: ["y6", "y7+"],
+    grades: ["y6", "y7", "y8", "y9", "y10", "y11+"],
     prompt: "What is 25% of 80?",
     choices: [
       { id: "a", label: "15", correct: false },
@@ -179,7 +179,7 @@ export const RADAR_BANK: RadarItem[] = [
   {
     id: "r-pct-2",
     skillId: "percentages",
-    grades: ["y6", "y7+"],
+    grades: ["y6", "y7", "y8", "y9", "y10", "y11+"],
     prompt: "A jacket costs 200 AED. It is 10% off. How much do you save?",
     choices: [
       { id: "a", label: "10 AED", correct: false },
@@ -192,7 +192,7 @@ export const RADAR_BANK: RadarItem[] = [
   {
     id: "r-alg-1",
     skillId: "algebra-intro",
-    grades: ["y7+"],
+    grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "If 3x + 2 = 14, what is x?",
     choices: [
       { id: "a", label: "3", correct: false },
@@ -205,7 +205,7 @@ export const RADAR_BANK: RadarItem[] = [
   {
     id: "r-alg-2",
     skillId: "algebra-intro",
-    grades: ["y7+"],
+    grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "Simplify: 2(a + 5)",
     choices: [
       { id: "a", label: "2a + 5", correct: false },
@@ -218,7 +218,7 @@ export const RADAR_BANK: RadarItem[] = [
   {
     id: "r-cells-1",
     skillId: "cells-micro",
-    grades: ["y7+"],
+    grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "What is the basic unit of life in plants and animals?",
     choices: [
       { id: "a", label: "The atom", correct: false },
@@ -231,7 +231,7 @@ export const RADAR_BANK: RadarItem[] = [
   {
     id: "r-cells-2",
     skillId: "cells-micro",
-    grades: ["y7+"],
+    grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "Which structure is found in plant cells but not animal cells?",
     choices: [
       { id: "a", label: "Nucleus", correct: false },
@@ -244,7 +244,7 @@ export const RADAR_BANK: RadarItem[] = [
   {
     id: "r-forces-2",
     skillId: "forces-motion",
-    grades: ["y6", "y7+"],
+    grades: ["y6", "y7", "y8", "y9", "y10", "y11+"],
     prompt: "On Earth, gravity pulls objects…",
     choices: [
       { id: "a", label: "Toward Earth's centre", correct: true },
@@ -257,7 +257,7 @@ export const RADAR_BANK: RadarItem[] = [
   {
     id: "r-solar-2",
     skillId: "solar-system",
-    grades: ["y6", "y7+"],
+    grades: ["y6", "y7", "y8", "y9", "y10", "y11+"],
     prompt: "Why do we see phases of the Moon?",
     choices: [
       { id: "a", label: "Earth's shadow always covers half the Moon", correct: false },
@@ -266,6 +266,84 @@ export const RADAR_BANK: RadarItem[] = [
     ],
     explainCorrect: "The Moon reflects sunlight; as it orbits, we see different lit portions.",
     explainWrong: "Lunar eclipse (Earth's shadow) is rare. Phases happen every month from geometry.",
+  },
+  {
+    id: "r-eq-1",
+    skillId: "equations-linear",
+    grades: ["y8", "y9", "y10", "y11+"],
+    prompt: "Solve x − 5 = 12. What is x?",
+    choices: [
+      { id: "a", label: "7", correct: false },
+      { id: "b", label: "17", correct: true },
+      { id: "c", label: "60", correct: false },
+    ],
+    explainCorrect: "Add 5 to both sides: x = 17.",
+    explainWrong: "Undo the −5 by adding 5: x = 17.",
+  },
+  {
+    id: "r-energy-1",
+    skillId: "energy-electricity",
+    grades: ["y8", "y9", "y10", "y11+"],
+    prompt: "What must a circuit have for a bulb to light?",
+    choices: [
+      { id: "a", label: "A complete loop with a power source", correct: true },
+      { id: "b", label: "Only a switch with no battery", correct: false },
+      { id: "c", label: "An open gap in the wire", correct: false },
+    ],
+    explainCorrect: "Current needs a closed path and energy from a cell or battery.",
+    explainWrong: "An open gap stops the current. You need a complete circuit.",
+  },
+  {
+    id: "r-ratio-1",
+    skillId: "ratio-rate",
+    grades: ["y9", "y10", "y11+"],
+    prompt: "A recipe uses sugar:flour = 1:3. For 2 cups of sugar, how much flour?",
+    choices: [
+      { id: "a", label: "3 cups", correct: false },
+      { id: "b", label: "6 cups", correct: true },
+      { id: "c", label: "2 cups", correct: false },
+    ],
+    explainCorrect: "Flour is three times sugar: 2 × 3 = 6 cups.",
+    explainWrong: "Keep the 1:3 relationship - flour is triple the sugar.",
+  },
+  {
+    id: "r-chem-1",
+    skillId: "chemical-reactions",
+    grades: ["y9", "y10", "y11+"],
+    prompt: "Which is evidence a chemical reaction happened?",
+    choices: [
+      { id: "a", label: "A new gas forms and the mixture heats up", correct: true },
+      { id: "b", label: "Ice melts into water", correct: false },
+      { id: "c", label: "A book is moved to another shelf", correct: false },
+    ],
+    explainCorrect: "New substances and energy changes often signal a chemical reaction.",
+    explainWrong: "Melting and moving are physical changes, not new substances.",
+  },
+  {
+    id: "r-stats-1",
+    skillId: "stats-data",
+    grades: ["y10", "y11+"],
+    prompt: "What is the mean of 10, 20 and 30?",
+    choices: [
+      { id: "a", label: "20", correct: true },
+      { id: "b", label: "30", correct: false },
+      { id: "c", label: "60", correct: false },
+    ],
+    explainCorrect: "Mean = (10+20+30) ÷ 3 = 20.",
+    explainWrong: "Add the values, then divide by how many there are.",
+  },
+  {
+    id: "r-gene-1",
+    skillId: "genetics-intro",
+    grades: ["y10", "y11+"],
+    prompt: "DNA is important because it…",
+    choices: [
+      { id: "a", label: "Carries instructions for living traits", correct: true },
+      { id: "b", label: "Is only found in rocks", correct: false },
+      { id: "c", label: "Is a type of sugar used for fuel only", correct: false },
+    ],
+    explainCorrect: "DNA stores genetic instructions passed between generations.",
+    explainWrong: "DNA is the molecule of heredity in cells, not rocks.",
   },
   // Phase 1 question bank (docs/CURRICULUM_RESEARCH.md): about 5 more items per skill.
   ...QUESTION_BANK,

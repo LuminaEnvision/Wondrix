@@ -56,7 +56,28 @@ export const SKILL_GRAPH: SkillNode[] = [
     title: "Simple algebra",
     subject: "math",
     prerequisites: ["multiply-basics"],
-    fromGrade: "y7+",
+    fromGrade: "y7",
+  },
+  {
+    id: "equations-linear",
+    title: "Linear equations",
+    subject: "math",
+    prerequisites: ["algebra-intro"],
+    fromGrade: "y8",
+  },
+  {
+    id: "ratio-rate",
+    title: "Ratio and rate",
+    subject: "math",
+    prerequisites: ["percentages"],
+    fromGrade: "y9",
+  },
+  {
+    id: "stats-data",
+    title: "Data and averages",
+    subject: "math",
+    prerequisites: ["percentages"],
+    fromGrade: "y10",
   },
   {
     id: "living-things",
@@ -105,7 +126,28 @@ export const SKILL_GRAPH: SkillNode[] = [
     title: "Cells and microbes",
     subject: "science",
     prerequisites: ["living-things"],
-    fromGrade: "y7+",
+    fromGrade: "y7",
+  },
+  {
+    id: "energy-electricity",
+    title: "Energy and electricity",
+    subject: "science",
+    prerequisites: ["forces-motion"],
+    fromGrade: "y8",
+  },
+  {
+    id: "chemical-reactions",
+    title: "Chemical reactions",
+    subject: "science",
+    prerequisites: ["materials"],
+    fromGrade: "y9",
+  },
+  {
+    id: "genetics-intro",
+    title: "Genes and inheritance",
+    subject: "science",
+    prerequisites: ["cells-micro"],
+    fromGrade: "y10",
   },
 ];
 
@@ -128,11 +170,16 @@ export function skillsFromParentNote(note: string): SkillId[] {
   if (/measur|ruler|length|cm|meter/.test(n)) hits.push("measure-length");
   if (/add|plus|sum|number/.test(n)) hits.push("add-within-100");
   if (/times|multipl|product/.test(n)) hits.push("multiply-basics");
-  if (/algebra|equation|variable|x\s*=/.test(n)) hits.push("algebra-intro");
+  if (/algebra|equation|variable|x\s*=|linear/.test(n)) hits.push("algebra-intro", "equations-linear");
+  if (/ratio|rate|proportion/.test(n)) hits.push("ratio-rate");
+  if (/average|mean|median|data|statistic|graph/.test(n)) hits.push("stats-data");
   if (/shape|angle|turn|robot|path/.test(n)) hits.push("shapes-angles");
   if (/living|animal|plant/.test(n)) hits.push("living-things");
   if (/material|solid|liquid|matter/.test(n)) hits.push("materials");
   if (/force|motion|push|pull|gravity/.test(n)) hits.push("forces-motion");
+  if (/electric|circuit|energy|current|voltage/.test(n)) hits.push("energy-electricity");
+  if (/reaction|acid|alkali|chemical|oxid/.test(n)) hits.push("chemical-reactions");
+  if (/gene|dna|inherit|genetic/.test(n)) hits.push("genetics-intro");
   if (/moon|sun|night|day|sky|earth|spin|planet|solar/.test(n))
     hits.push("day-night", "solar-system");
   if (/habitat|home|forest|ocean/.test(n)) hits.push("habitats");

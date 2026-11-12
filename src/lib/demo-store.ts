@@ -1,6 +1,7 @@
-import { gradeFromLabel, skillAllowedForGrade } from "./grades";
+import { clampSubjectsToProgramme } from "./curriculum";
+import { defaultAgeMode, gradeFromLabel, skillAllowedForGrade } from "./grades";
 import { skillsFromParentNote, skillTitle as skillName, SKILL_GRAPH } from "./skills";
-import type { MasteryLevel, ParentProfile, SkillId } from "./types";
+import type { AgeMode, MasteryLevel, ParentProfile, SkillId } from "./types";
 import { notifyProfileChanged } from "./types";
 
 export const PROFILE_KEY = "wondrix-profile";
@@ -11,12 +12,20 @@ const SAFETY_KEY = "wondrix-safety-redirects";
 export const DEFAULT_PROFILE: ParentProfile = {
   childNickname: "Alex",
   ageBand: "young",
+  ageMode: "explorer",
+  teenDark: false,
   gradeLabel: "Year 3",
   curriculum: "uk",
   subjects: ["math", "science"],
   oneLiner: "",
+  unitNote: "",
   calmMode: false,
 };
+
+function normalizeAgeMode(value: unknown, gradeLabel: string): AgeMode {
+  if (value === "explorer" || value === "teen") return value;
+  return defaultAgeMode(gradeLabel);
+}
 
 export function loadProfile(): ParentProfile {
   if (typeof window === "undefined") return DEFAULT_PROFILE;
@@ -25,7 +34,16 @@ export function loadProfile(): ParentProfile {
     if (!raw) return DEFAULT_PROFILE;
     const parsed = { ...DEFAULT_PROFILE, ...JSON.parse(raw) } as ParentProfile;
     const grade = gradeFromLabel(parsed.gradeLabel);
-    return { ...parsed, ageBand: grade.ageBand, gradeLabel: grade.label };
+    return {
+      ...parsed,
+      ageBand: grade.ageBand,
+      // Normalize legacy "Year 7+" (and other aliases) to the current menu label.
+      gradeLabel: grade.label,
+      ageMode: normalizeAgeMode(parsed.ageMode, grade.label),
+      teenDark: Boolean(parsed.teenDark),
+      unitNote: typeof parsed.unitNote === "string" ? parsed.unitNote : "",
+      subjects: clampSubjectsToProgramme(parsed.subjects, parsed.curriculum, grade.label),
+    };
   } catch {
     return DEFAULT_PROFILE;
   }
@@ -33,9 +51,22 @@ export function loadProfile(): ParentProfile {
 
 export function saveProfile(profile: ParentProfile) {
   const grade = gradeFromLabel(profile.gradeLabel);
-  const next = { ...profile, ageBand: grade.ageBand, gradeLabel: grade.label };
+  const next: ParentProfile = {
+    ...profile,
+    ageBand: grade.ageBand,
+    gradeLabel: grade.label,
+    ageMode: normalizeAgeMode(profile.ageMode, grade.label),
+    teenDark: Boolean(profile.teenDark),
+    unitNote: typeof profile.unitNote === "string" ? profile.unitNote : "",
+    subjects: clampSubjectsToProgramme(profile.subjects, profile.curriculum, grade.label),
+  };
   localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
   notifyProfileChanged();
+}
+
+/** Resolved UI mode for chrome (never undefined). */
+export function profileAgeMode(profile: ParentProfile = loadProfile()): AgeMode {
+  return normalizeAgeMode(profile.ageMode, profile.gradeLabel);
 }
 
 export function loadMastery(): Partial<Record<SkillId, MasteryLevel>> {
@@ -72,7 +103,7 @@ export function skillsForProfile(
 
 /**
  * Pick 1–2 focus skills.
- * Grade defaults come first so changing Year 3 → Year 7+ actually changes practice.
+ * Grade defaults come first so changing Year 3 → Year 10 actually changes practice.
  * Teacher note and shaky skills (only if still grade-appropriate) refine the pick.
  */
 export function pickFocusSkills(
@@ -189,7 +220,7 @@ const CHATS_KEY = "wondrix-extra-chats";
 const ACTIVE_CHAT_KEY = "wondrix-extra-active";
 const LEGACY_CHAT_KEY = "wondrix-extra-chat"; // single-chat format before history existed
 
-/** Kept on the device: the 20 most recent chats, 30 messages each (browser storage is small). */
+/** Kept on the device: the 20 most recent chats per language, 30 messages each. */
 export const MAX_SAVED_CHATS = 20;
 export const MAX_SAVED_MESSAGES = 30;
 
@@ -206,11 +237,31 @@ export type SavedChat = {
   createdAt: number;
   updatedAt: number;
   messages: SavedChatMessage[];
+  /** App language when the chat was saved. Missing on older chats → guessed from text. */
+  lang?: "en" | "ar";
 };
 
 function isMessage(m: unknown): m is SavedChatMessage {
   const x = m as SavedChatMessage;
   return Boolean(x) && typeof x.id === "number" && (x.role === "child" || x.role === "agent") && typeof x.text === "string";
+}
+
+/** Guess language for chats saved before we stored `lang`. */
+function guessChatLang(messages: SavedChatMessage[]): "en" | "ar" {
+  const sample = messages.map((m) => m.text).join(" ");
+  return /[\u0600-\u06FF]/.test(sample) ? "ar" : "en";
+}
+
+export function chatLang(chat: SavedChat): "en" | "ar" {
+  return chat.lang === "ar" || chat.lang === "en" ? chat.lang : guessChatLang(chat.messages);
+}
+
+function profileLang(): "en" | "ar" {
+  try {
+    return loadProfile().language === "ar" ? "ar" : "en";
+  } catch {
+    return "en";
+  }
 }
 
 function readChats(): SavedChat[] {
@@ -219,7 +270,10 @@ function readChats(): SavedChat[] {
     if (!Array.isArray(raw)) return [];
     return raw
       .filter((c): c is SavedChat => Boolean(c) && typeof c.id === "string" && Array.isArray(c.messages))
-      .map((c) => ({ ...c, messages: c.messages.filter(isMessage) }));
+      .map((c) => {
+        const messages = c.messages.filter(isMessage);
+        return { ...c, messages, lang: c.lang === "ar" || c.lang === "en" ? c.lang : guessChatLang(messages) };
+      });
   } catch {
     return [];
   }
@@ -248,40 +302,52 @@ export function newChatId(): string {
   return `c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-/** All saved chats, most recent first. */
-export function listChats(): SavedChat[] {
+/** Every saved chat (all languages), most recent first. */
+export function listAllChats(): SavedChat[] {
   if (typeof window === "undefined") return [];
   migrateLegacyChat();
   return readChats().sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-export function loadChat(id: string): SavedChat | undefined {
-  return listChats().find((c) => c.id === id);
+/**
+ * Saved chats for one language (defaults to the profile language), most recent first.
+ * Switching English ↔ Arabic must not surface the other language's history.
+ */
+export function listChats(lang: "en" | "ar" = profileLang()): SavedChat[] {
+  return listAllChats().filter((c) => chatLang(c) === lang);
 }
 
-/** Create or update a chat. Empty chats are not stored. Keeps the newest MAX_SAVED_CHATS. */
-export function saveChat(id: string, messages: SavedChatMessage[]) {
+export function loadChat(id: string): SavedChat | undefined {
+  if (typeof window === "undefined") return undefined;
+  migrateLegacyChat();
+  return readChats().find((c) => c.id === id);
+}
+
+/** Create or update a chat. Empty chats are not stored. Caps per language. */
+export function saveChat(id: string, messages: SavedChatMessage[], lang: "en" | "ar" = profileLang()) {
   if (typeof window === "undefined" || !messages.length) return;
   const slim = messages
     .slice(-MAX_SAVED_MESSAGES)
     .map(({ id: mid, role, text, visual }) => ({ id: mid, role, text, visual: visual ?? null }));
   const now = Date.now();
-  const chats = listChats();
-  const existing = chats.find((c) => c.id === id);
+  const all = readChats();
+  const existing = all.find((c) => c.id === id);
   const updated: SavedChat = {
     id,
     title: chatTitle(slim),
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
     messages: slim,
+    lang,
   };
-  const rest = chats.filter((c) => c.id !== id);
-  writeChats([updated, ...rest].slice(0, MAX_SAVED_CHATS));
+  const sameLang = [updated, ...all.filter((c) => c.id !== id && chatLang(c) === lang)].slice(0, MAX_SAVED_CHATS);
+  const otherLang = all.filter((c) => c.id !== id && chatLang(c) !== lang);
+  writeChats([...sameLang, ...otherLang]);
 }
 
 export function deleteChat(id: string) {
   if (typeof window === "undefined") return;
-  writeChats(listChats().filter((c) => c.id !== id));
+  writeChats(readChats().filter((c) => c.id !== id));
 }
 
 /** Parent control: remove every saved chat on this device. */
@@ -326,7 +392,8 @@ function migrateLegacyChat() {
     if (!msgs.length) return;
     const id = newChatId();
     const now = Date.now();
-    writeChats([{ id, title: chatTitle(msgs), createdAt: now, updatedAt: now, messages: msgs }, ...readChats()].slice(0, MAX_SAVED_CHATS));
+    const lang = guessChatLang(msgs);
+    writeChats([{ id, title: chatTitle(msgs), createdAt: now, updatedAt: now, messages: msgs, lang }, ...readChats()].slice(0, MAX_SAVED_CHATS * 2));
     if (!sessionStorage.getItem(ACTIVE_CHAT_KEY)) sessionStorage.setItem(ACTIVE_CHAT_KEY, id);
   } catch {
     /* ignore */

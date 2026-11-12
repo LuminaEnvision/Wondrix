@@ -6,7 +6,7 @@
  * metric units, AED, local + global contexts, names from many nationalities.
  * Wrong choices are real misconceptions so the "explainWrong" text can teach.
  *
- * Grade ids follow the app's UK "Year" scale (y1-2, y3 ... y7+).
+ * Grade ids follow the app's UK "Year" scale (y1-2, y3 … y11+).
  * Every item is checked by tests/unit/curriculum.test.ts (one correct choice, valid grades, unique ids).
  */
 
@@ -244,7 +244,7 @@ export const QUESTION_BANK: RadarItem[] = [
     explainWrong: "When the bottom numbers match, compare the top numbers: 3 quarters is more than 2.",
   }),
   q({
-    id: "q-frac-cmp-5", skillId: "fractions-compare", grades: ["y6", "y7+"],
+    id: "q-frac-cmp-5", skillId: "fractions-compare", grades: ["y6", "y7", "y8", "y9", "y10", "y11+"],
     prompt: "Which is bigger: 2/3 or 3/5?",
     choices: ["2/3", "3/5", "They are equal"], correct: 0,
     explainCorrect: "Change both to fifteenths: 2/3 = 10/15 and 3/5 = 9/15. 2/3 is bigger.",
@@ -267,7 +267,7 @@ export const QUESTION_BANK: RadarItem[] = [
     explainWrong: "Per cent means out of 100. 25/100 simplifies to 1/4.",
   }),
   q({
-    id: "q-pct-3", skillId: "percentages", grades: ["y6", "y7+"],
+    id: "q-pct-3", skillId: "percentages", grades: ["y6", "y7", "y8", "y9", "y10", "y11+"],
     prompt: "A toy costs 80 AED. The shop takes 10% off. How much money is taken off?",
     choices: ["8 AED", "10 AED", "72 AED"], correct: 0,
     explainCorrect: "10% is one tenth. 80 ÷ 10 = 8 AED off.",
@@ -281,7 +281,7 @@ export const QUESTION_BANK: RadarItem[] = [
     explainWrong: "25% is one quarter. 75% is three quarters.",
   }),
   q({
-    id: "q-pct-5", skillId: "percentages", grades: ["y7+"],
+    id: "q-pct-5", skillId: "percentages", grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "In a class of 20 children, 5 wear glasses. What percentage is that?",
     choices: ["5%", "20%", "25%"], correct: 2,
     explainCorrect: "5 out of 20 is 1/4, which is 25%.",
@@ -290,35 +290,35 @@ export const QUESTION_BANK: RadarItem[] = [
 
   /* ---------------- Simple algebra ---------------- */
   q({
-    id: "q-alg-1", skillId: "algebra-intro", grades: ["y7+"],
+    id: "q-alg-1", skillId: "algebra-intro", grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "If n + 7 = 15, what is n?",
     choices: ["7", "8", "22"], correct: 1,
     explainCorrect: "Take 7 away from both sides: n = 15 − 7 = 8.",
     explainWrong: "22 comes from adding. To find n, undo the + 7: 15 − 7 = 8.",
   }),
   q({
-    id: "q-alg-2", skillId: "algebra-intro", grades: ["y7+"],
+    id: "q-alg-2", skillId: "algebra-intro", grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "What is 3n when n = 4?",
     choices: ["7", "12", "34"], correct: 1,
     explainCorrect: "3n means 3 × n, so 3 × 4 = 12.",
     explainWrong: "3n does not mean writing 3 next to 4. It means 3 × n = 12.",
   }),
   q({
-    id: "q-alg-3", skillId: "algebra-intro", grades: ["y7+"],
+    id: "q-alg-3", skillId: "algebra-intro", grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "Which expression means \"double a number, then add 5\"?",
     choices: ["2n + 5", "2(n + 5)", "n + 10"], correct: 0,
     explainCorrect: "Double n is 2n, then add 5: 2n + 5.",
     explainWrong: "n + 10 doubles the 5 instead of the number, and 2(n + 5) adds 5 before doubling. Double the number first: 2n + 5.",
   }),
   q({
-    id: "q-alg-4", skillId: "algebra-intro", grades: ["y7+"],
+    id: "q-alg-4", skillId: "algebra-intro", grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "What comes next: 3, 7, 11, 15, …?",
     choices: ["18", "19", "20"], correct: 1,
     explainCorrect: "The pattern adds 4 each time: 15 + 4 = 19.",
     explainWrong: "Look at the gaps: each step adds 4, so the next number is 19.",
   }),
   q({
-    id: "q-alg-5", skillId: "algebra-intro", grades: ["y7+"],
+    id: "q-alg-5", skillId: "algebra-intro", grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "If 2x = 18, what is x?",
     choices: ["9", "16", "36"], correct: 0,
     explainCorrect: "Divide both sides by 2: x = 9.",
@@ -503,7 +503,7 @@ export const QUESTION_BANK: RadarItem[] = [
     explainWrong: "Try it: pushing near the hinges is hard. Far from the hinges your push turns the door more easily.",
   }),
   q({
-    id: "q-forces-5", skillId: "forces-motion", grades: ["y6", "y7+"],
+    id: "q-forces-5", skillId: "forces-motion", grades: ["y6", "y7", "y8", "y9", "y10", "y11+"],
     prompt: "Two children push a box from opposite sides with the same force. What happens?",
     choices: ["It moves towards the stronger-looking child", "It stays still", "It moves up"], correct: 1,
     explainCorrect: "Equal forces in opposite directions are balanced, so the box does not move.",
@@ -540,7 +540,7 @@ export const QUESTION_BANK: RadarItem[] = [
     explainWrong: "The Moon is a rocky ball, not a star. It has no light of its own: sunlight bounces off it.",
   }),
   q({
-    id: "q-solar-5", skillId: "solar-system", grades: ["y6", "y7+"],
+    id: "q-solar-5", skillId: "solar-system", grades: ["y6", "y7", "y8", "y9", "y10", "y11+"],
     prompt: "The UAE's Hope Probe was sent to study which planet?",
     choices: ["Mars", "Venus", "Jupiter"], correct: 0,
     explainCorrect: "The Emirates Mars Mission's Hope Probe studies the weather and air of Mars.",
@@ -549,38 +549,218 @@ export const QUESTION_BANK: RadarItem[] = [
 
   /* ---------------- Cells and microbes ---------------- */
   q({
-    id: "q-cells-1", skillId: "cells-micro", grades: ["y7+"],
+    id: "q-cells-1", skillId: "cells-micro", grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "Which part of a plant cell holds chlorophyll for photosynthesis?",
     choices: ["Nucleus", "Cell wall", "Chloroplast"], correct: 2,
     explainCorrect: "Chloroplasts contain green chlorophyll, which captures light to make food.",
     explainWrong: "The nucleus controls the cell and the cell wall gives it shape. Photosynthesis happens in the chloroplasts.",
   }),
   q({
-    id: "q-cells-2", skillId: "cells-micro", grades: ["y7+"],
+    id: "q-cells-2", skillId: "cells-micro", grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "Which part is found in plant cells but NOT in animal cells?",
     choices: ["Cell wall", "Nucleus", "Cell membrane"], correct: 0,
     explainCorrect: "Plant cells have a stiff cell wall. Animal cells do not.",
     explainWrong: "Both plant and animal cells have a nucleus and a membrane. Only plants have a cell wall.",
   }),
   q({
-    id: "q-cells-3", skillId: "cells-micro", grades: ["y7+"],
+    id: "q-cells-3", skillId: "cells-micro", grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "A microscope has a x10 eyepiece lens and a x40 objective lens. What is the total magnification?",
     choices: ["x50", "x400", "x4,000"], correct: 1,
     explainCorrect: "Total magnification = eyepiece × objective = 10 × 40 = 400.",
     explainWrong: "Multiply the two lenses, do not add them: 10 × 40 = 400.",
   }),
   q({
-    id: "q-cells-4", skillId: "cells-micro", grades: ["y7+"],
+    id: "q-cells-4", skillId: "cells-micro", grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "Which of these is made of just one cell?",
     choices: ["A bee", "A bacterium", "A palm tree"], correct: 1,
     explainCorrect: "A bacterium is a single-celled microbe.",
     explainWrong: "Bees and palm trees are made of millions of cells. A bacterium is just one cell.",
   }),
   q({
-    id: "q-cells-5", skillId: "cells-micro", grades: ["y7+"],
+    id: "q-cells-5", skillId: "cells-micro", grades: ["y7", "y8", "y9", "y10", "y11+"],
     prompt: "Which tiny living thing helps bread dough rise?",
     choices: ["Flour", "Yeast", "Sugar"], correct: 1,
     explainCorrect: "Yeast is a microbe. It makes gas bubbles that make dough rise.",
     explainWrong: "Flour and sugar are not alive. Yeast is a living microbe that makes bread rise.",
+  }),
+
+  /* ---------------- Linear equations (Y8+) ---------------- */
+  q({
+    id: "q-eq-1", skillId: "equations-linear", grades: ["y8", "y9", "y10", "y11+"],
+    prompt: "Solve 2x + 3 = 11. What is x?",
+    choices: ["4", "7", "14"], correct: 0,
+    explainCorrect: "Subtract 3: 2x = 8. Divide by 2: x = 4.",
+    explainWrong: "Undo +3 first, then divide by 2. x = 4.",
+  }),
+  q({
+    id: "q-eq-2", skillId: "equations-linear", grades: ["y8", "y9", "y10", "y11+"],
+    prompt: "If 5x − 10 = 0, what is x?",
+    choices: ["0", "2", "10"], correct: 1,
+    explainCorrect: "Add 10: 5x = 10. Divide by 5: x = 2.",
+    explainWrong: "Add 10 to both sides, then divide: x = 2.",
+  }),
+  q({
+    id: "q-eq-3", skillId: "equations-linear", grades: ["y8", "y9", "y10", "y11+"],
+    prompt: "Which step keeps an equation balanced?",
+    choices: ["Add the same number to both sides", "Add a number to only one side", "Ignore the equals sign"], correct: 0,
+    explainCorrect: "Whatever you do to one side, do to the other to keep both sides equal.",
+    explainWrong: "An equation is a balance. Change both sides the same way.",
+  }),
+  q({
+    id: "q-eq-4", skillId: "equations-linear", grades: ["y8", "y9", "y10", "y11+"],
+    prompt: "Solve 3x = 21. What is x?",
+    choices: ["7", "18", "63"], correct: 0,
+    explainCorrect: "Divide both sides by 3: x = 7.",
+    explainWrong: "3x means 3 times x. Divide 21 by 3 to get x = 7.",
+  }),
+
+  /* ---------------- Ratio and rate (Y9+) ---------------- */
+  q({
+    id: "q-ratio-1", skillId: "ratio-rate", grades: ["y9", "y10", "y11+"],
+    prompt: "Simplify the ratio 8:12.",
+    choices: ["2:3", "4:6", "8:12"], correct: 0,
+    explainCorrect: "Divide both parts by 4: 8÷4 = 2 and 12÷4 = 3.",
+    explainWrong: "Find a common factor. Dividing by 4 gives 2:3.",
+  }),
+  q({
+    id: "q-ratio-2", skillId: "ratio-rate", grades: ["y9", "y10", "y11+"],
+    prompt: "A car travels 120 km in 2 hours. What is its average speed?",
+    choices: ["60 km/h", "122 km/h", "240 km/h"], correct: 0,
+    explainCorrect: "Speed = distance ÷ time = 120 ÷ 2 = 60 km/h.",
+    explainWrong: "Divide distance by time: 120 km ÷ 2 h = 60 km/h.",
+  }),
+  q({
+    id: "q-ratio-3", skillId: "ratio-rate", grades: ["y9", "y10", "y11+"],
+    prompt: "Paint is mixed red:blue = 1:2. How much blue for 3 litres of red?",
+    choices: ["1.5 L", "6 L", "3 L"], correct: 1,
+    explainCorrect: "Blue is twice red: 3 × 2 = 6 litres.",
+    explainWrong: "The ratio 1:2 means blue is double the red amount.",
+  }),
+  q({
+    id: "q-ratio-4", skillId: "ratio-rate", grades: ["y9", "y10", "y11+"],
+    prompt: "Map scale 1:100 means 1 cm on the map is…",
+    choices: ["100 cm in real life", "1 cm in real life", "100 km always"], correct: 0,
+    explainCorrect: "1:100 means real lengths are 100 times the map lengths.",
+    explainWrong: "The second number is how many times bigger the real world is.",
+  }),
+
+  /* ---------------- Data and averages (Y10+) ---------------- */
+  q({
+    id: "q-stats-1", skillId: "stats-data", grades: ["y10", "y11+"],
+    prompt: "What is the mean of 2, 4, 6, 8?",
+    choices: ["4", "5", "6"], correct: 1,
+    explainCorrect: "Add them (20) and divide by 4: mean = 5.",
+    explainWrong: "Mean = total ÷ how many numbers. 20 ÷ 4 = 5.",
+  }),
+  q({
+    id: "q-stats-2", skillId: "stats-data", grades: ["y10", "y11+"],
+    prompt: "In 3, 5, 5, 9, what is the median?",
+    choices: ["3", "5", "9"], correct: 1,
+    explainCorrect: "Already ordered; the middle values are both 5, so median = 5.",
+    explainWrong: "Median is the middle value once ordered. Here it is 5.",
+  }),
+  q({
+    id: "q-stats-3", skillId: "stats-data", grades: ["y10", "y11+"],
+    prompt: "Which average is most pulled by a very large outlier?",
+    choices: ["The mean", "The mode", "The median"], correct: 0,
+    explainCorrect: "The mean uses every value, so a huge outlier shifts it a lot.",
+    explainWrong: "Mode and median are more resistant; the mean moves with outliers.",
+  }),
+  q({
+    id: "q-stats-4", skillId: "stats-data", grades: ["y10", "y11+"],
+    prompt: "In 2, 2, 2, 9, what is the mode?",
+    choices: ["2", "9", "3.75"], correct: 0,
+    explainCorrect: "Mode is the value that appears most often - here, 2.",
+    explainWrong: "Mode means most frequent. 2 appears three times.",
+  }),
+
+  /* ---------------- Energy and electricity (Y8+) ---------------- */
+  q({
+    id: "q-energy-1", skillId: "energy-electricity", grades: ["y8", "y9", "y10", "y11+"],
+    prompt: "In a simple circuit, what does a battery provide?",
+    choices: ["A push of electrical energy", "Only light", "Only sound"], correct: 0,
+    explainCorrect: "A battery supplies electrical energy that can drive a current.",
+    explainWrong: "Light and sound need devices. The battery's job is to provide energy.",
+  }),
+  q({
+    id: "q-energy-2", skillId: "energy-electricity", grades: ["y8", "y9", "y10", "y11+"],
+    prompt: "Why does a lamp go out if the circuit has a gap?",
+    choices: ["Current needs a complete loop", "The wire is too short", "Batteries only work in the dark"], correct: 0,
+    explainCorrect: "Electric current needs a closed path from one battery terminal back to the other.",
+    explainWrong: "A break stops the flow. Circuits must be complete loops.",
+  }),
+  q({
+    id: "q-energy-3", skillId: "energy-electricity", grades: ["y8", "y9", "y10", "y11+"],
+    prompt: "Which energy store does a moving bike have?",
+    choices: ["Kinetic (movement) energy", "Only chemical energy", "No energy at all"], correct: 0,
+    explainCorrect: "Anything moving has kinetic energy.",
+    explainWrong: "Moving objects store energy as kinetic energy.",
+  }),
+  q({
+    id: "q-energy-4", skillId: "energy-electricity", grades: ["y8", "y9", "y10", "y11+"],
+    prompt: "A series circuit with one broken bulb usually…",
+    choices: ["Goes dark for every bulb in that loop", "Keeps other bulbs bright anyway", "Makes the battery recharge"], correct: 0,
+    explainCorrect: "In series, one break stops current for the whole loop.",
+    explainWrong: "Series means one path - a break turns the whole chain off.",
+  }),
+
+  /* ---------------- Chemical reactions (Y9+) ---------------- */
+  q({
+    id: "q-chem-1", skillId: "chemical-reactions", grades: ["y9", "y10", "y11+"],
+    prompt: "In a chemical reaction, atoms are…",
+    choices: ["Rearranged into new substances", "Destroyed forever", "Created from nothing"], correct: 0,
+    explainCorrect: "Reactions rearrange atoms; mass is conserved.",
+    explainWrong: "Atoms are not created or destroyed - they regroup.",
+  }),
+  q({
+    id: "q-chem-2", skillId: "chemical-reactions", grades: ["y9", "y10", "y11+"],
+    prompt: "Burning wood is mainly a…",
+    choices: ["Chemical change", "Physical change only", "Change of state only"], correct: 0,
+    explainCorrect: "New substances (ash, gases) form - a chemical change.",
+    explainWrong: "Melting is physical. Burning makes new substances.",
+  }),
+  q({
+    id: "q-chem-3", skillId: "chemical-reactions", grades: ["y9", "y10", "y11+"],
+    prompt: "Acids typically taste sour and can…",
+    choices: ["Turn litmus red", "Turn litmus blue", "Never react with metals"], correct: 0,
+    explainCorrect: "Acids turn blue litmus paper red.",
+    explainWrong: "Alkalis turn litmus blue. Acids turn it red.",
+  }),
+  q({
+    id: "q-chem-4", skillId: "chemical-reactions", grades: ["y9", "y10", "y11+"],
+    prompt: "Rust forming on iron is…",
+    choices: ["A chemical reaction with oxygen", "Only water drying", "A change of shape only"], correct: 0,
+    explainCorrect: "Iron reacts with oxygen (and moisture) to make rust - a new substance.",
+    explainWrong: "Rust is a new compound, not just wet metal.",
+  }),
+
+  /* ---------------- Genetics intro (Y10+) ---------------- */
+  q({
+    id: "q-gene-1", skillId: "genetics-intro", grades: ["y10", "y11+"],
+    prompt: "Where is genetic information stored in most cells?",
+    choices: ["In DNA in the nucleus", "Only in the blood", "Only in the stomach"], correct: 0,
+    explainCorrect: "DNA in the nucleus carries the instructions for traits.",
+    explainWrong: "DNA is the hereditary material, usually inside the nucleus.",
+  }),
+  q({
+    id: "q-gene-2", skillId: "genetics-intro", grades: ["y10", "y11+"],
+    prompt: "Offspring get genes from…",
+    choices: ["Both parents", "Only the mother", "Only friends"], correct: 0,
+    explainCorrect: "Each parent contributes genetic material.",
+    explainWrong: "Sexual reproduction combines genes from both parents.",
+  }),
+  q({
+    id: "q-gene-3", skillId: "genetics-intro", grades: ["y10", "y11+"],
+    prompt: "A gene is best described as…",
+    choices: ["A section of DNA that affects a trait", "A type of bone", "A kind of food"], correct: 0,
+    explainCorrect: "Genes are DNA segments that help determine characteristics.",
+    explainWrong: "Genes are instructions in DNA, not bones or food.",
+  }),
+  q({
+    id: "q-gene-4", skillId: "genetics-intro", grades: ["y10", "y11+"],
+    prompt: "Why can siblings look different even with the same parents?",
+    choices: ["They inherit different mixes of genes", "They never share any DNA", "Genes change every hour"], correct: 0,
+    explainCorrect: "Each child gets a different combination of parental genes.",
+    explainWrong: "Siblings share parents but not the exact same gene mix.",
   }),
 ];

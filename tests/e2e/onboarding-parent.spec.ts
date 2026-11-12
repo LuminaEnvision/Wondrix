@@ -54,20 +54,20 @@ test.describe("first run + parent controls", () => {
     );
 
     await page.goto("/parent");
-    await page.locator('select[name="grade"]').selectOption("Year 7+");
+    await page.locator('select[name="grade"]').selectOption("Year 10");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText(/Saved\. Open School/)).toBeVisible();
-    await expect(page.getByText(/Sara \(Year 7\+\) practiced:/)).toBeVisible();
+    await expect(page.getByText(/Sara \(Year 10\) practiced:/)).toBeVisible();
 
     await page.goto("/school");
-    await expect(page.getByText("Year 7+ ·")).toBeVisible();
-    const y7Focus = await page.getByRole("link", { name: "Start" }).evaluateAll((els) =>
+    await expect(page.getByText("Year 10 ·")).toBeVisible();
+    const y10Focus = await page.getByRole("link", { name: "Start" }).evaluateAll((els) =>
       els.map((e) => e.getAttribute("href")),
     );
-    expect(y7Focus).not.toEqual(y3Focus);
+    expect(y10Focus).not.toEqual(y3Focus);
 
     await page.goto("/school/radar");
-    await expect(page.getByText("Short checks for Year 7+.")).toBeVisible();
+    await expect(page.getByText("Short checks for Year 10.")).toBeVisible();
   });
 
   test("choosing the American curriculum shows US grade names everywhere", async ({ page }) => {

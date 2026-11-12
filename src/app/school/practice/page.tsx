@@ -1,13 +1,13 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { SpeakButton } from "@/components/SpeakButton";
 import { gradeName } from "@/lib/curriculum";
 import { loadMastery, loadProfile, setSkillMastery } from "@/lib/demo-store";
-import type { SchoolGradeResult, SchoolQuestionPayload } from "@/lib/school-agent";
+import { PRACTICE_SESSION_LIMIT, type SchoolGradeResult, type SchoolQuestionPayload } from "@/lib/school-agent";
 import type { SkillId } from "@/lib/types";
 import { skillTitle } from "@/lib/skills";
 import { useLang, useT } from "@/lib/use-client-state";
@@ -15,15 +15,15 @@ import { useLang, useT } from "@/lib/use-client-state";
 function PracticeInner() {
   const params = useSearchParams();
   const skillId = (params.get("skill") as SkillId) || "measure-length";
-  // A new skill remounts the session, so its state starts fresh.
   return <PracticeSession key={skillId} skillId={skillId} />;
 }
 
 type QuestionResult = { question: SchoolQuestionPayload | null; gradeLabel: string };
 
-/** Ask the School agent for a question (pure: no React state). */
 async function requestQuestion(skillId: SkillId, avoid: string[]): Promise<QuestionResult> {
   const profile = loadProfile();
+  const lang = profile.language === "ar" ? "ar" : "en";
+  const gradeLabel = gradeName(profile.gradeLabel, profile.curriculum, lang);
   try {
     const res = await fetch("/api/school/session", {
       method: "POST",
@@ -31,10 +31,9 @@ async function requestQuestion(skillId: SkillId, avoid: string[]): Promise<Quest
       body: JSON.stringify({ action: "question", profile, skillId, avoidIds: avoid }),
     });
     if (!res.ok) throw new Error("fail");
-    const lang = profile.language === "ar" ? "ar" : "en";
-    return { question: (await res.json()) as SchoolQuestionPayload, gradeLabel: gradeName(profile.gradeLabel, profile.curriculum, lang) };
+    return { question: (await res.json()) as SchoolQuestionPayload, gradeLabel };
   } catch {
-    return { question: null, gradeLabel: gradeName(profile.gradeLabel, profile.curriculum, profile.language === "ar" ? "ar" : "en") };
+    return { question: null, gradeLabel };
   }
 }
 
@@ -49,13 +48,15 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
   const [grading, setGrading] = useState(false);
   const [gradeLabel, setGradeLabel] = useState("");
 
+  const answered = avoidIds.length;
+  const sessionDone = !loading && !question && answered > 0;
+
   const showQuestion = useCallback((r: QuestionResult) => {
     setGradeLabel(r.gradeLabel);
     setQuestion(r.question);
     setLoading(false);
   }, []);
 
-  // First question for this skill. setState only runs in the promise callback.
   useEffect(() => {
     let cancelled = false;
     void requestQuestion(skillId, []).then((r) => {
@@ -65,10 +66,6 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
       cancelled = true;
     };
   }, [skillId, showQuestion]);
-
-  function fetchQuestion(avoid: string[]) {
-    void requestQuestion(skillId, avoid).then(showQuestion);
-  }
 
   async function choose(choiceId: string | "idk") {
     if (!question || grading || result) return;
@@ -108,70 +105,75 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
   }
 
   function nextRound() {
-    if (result?.nextQuestion) {
-      setAvoidIds((prev) => [...prev, question!.questionId]);
-      setQuestion(result.nextQuestion);
+    if (answered >= PRACTICE_SESSION_LIMIT || !result?.nextQuestion) {
+      setQuestion(null);
       setPicked(null);
       setResult(null);
       return;
     }
-    setLoading(true);
+    setQuestion(result.nextQuestion);
     setPicked(null);
     setResult(null);
-    fetchQuestion([...avoidIds, question?.questionId ?? ""]);
   }
 
+  const canContinue =
+    Boolean(result?.nextQuestion) && answered < PRACTICE_SESSION_LIMIT;
+
   return (
-    <AppShell backHref="/school">
+    <AppShell backHref="/school" world="school">
       <div className="space-y-6">
         <div>
-          <p className="text-sm font-bold uppercase tracking-wide text-school">
-            {tr("practice.kicker")}
-          </p>
+          <p className="text-sm font-bold text-school">{tr("practice.kicker")}</p>
           <h1 className="font-display mt-1 text-3xl font-semibold">
             {question ? skillTitle(question.skillId, lang) : tr("practice.title")}
           </h1>
           <p className="mt-2 text-ink-soft">
             {gradeLabel ? `${gradeLabel}. ` : ""}
             {tr("practice.idkOk")}
+            {answered > 0
+              ? ` · ${tr("practice.progress", { n: answered, max: PRACTICE_SESSION_LIMIT })}`
+              : ""}
           </p>
         </div>
 
         {loading ? (
           <p className="text-ink-soft">{tr("practice.picking")}</p>
+        ) : sessionDone ? (
+          <div className="space-y-3 rounded-3xl border border-stroke bg-card p-6">
+            <p className="font-display text-xl font-semibold text-ink">{tr("practice.allDone")}</p>
+            <p className="text-sm text-ink-soft">{tr("practice.sessionTip")}</p>
+            <Link
+              href="/school"
+              className="inline-flex font-bold text-school underline-offset-4 hover:underline"
+            >
+              {tr("practice.backWeek")}
+            </Link>
+          </div>
         ) : !question ? (
-          avoidIds.length ? (
-            <div className="space-y-3 rounded-3xl border border-stroke bg-card p-6">
-              <p className="font-display text-xl font-semibold text-ink">
-                {tr("practice.allDone")}
-              </p>
-              <Link
-                href="/school"
-                className="inline-flex font-bold text-school underline-offset-4 hover:underline"
-              >
-                {tr("practice.backWeek")}
-              </Link>
-            </div>
-          ) : (
-            <p className="text-ink-soft">
-              {tr("practice.noQuestions")}
-            </p>
-          )
+          <p className="text-ink-soft">{tr("practice.noQuestions")}</p>
         ) : (
           <div className="rounded-3xl border border-stroke bg-card p-6">
-            {question.coachLead ? (
-              <p className="text-sm text-ink-soft">{question.coachLead}</p>
-            ) : null}
-            <p className={`text-lg font-semibold text-ink ${question.coachLead ? "mt-3" : ""}`}>
-              {question.prompt}
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <p className="text-lg font-semibold text-ink">{question.prompt}</p>
+              <SpeakButton
+                id={`q-${question.questionId}`}
+                text={question.prompt}
+                tone="brand"
+                label={tr("practice.listenQuestion")}
+              />
+            </div>
             <div className="mt-5 space-y-3">
               {question.choices.map((choice) => {
                 const selected = picked === choice.id;
+                const showRight =
+                  Boolean(result) &&
+                  !result!.correct &&
+                  result!.correctChoiceId === choice.id;
                 let tone = "border-stroke bg-bg/60";
                 if (result) {
-                  if (result.correct && selected) tone = "border-brand bg-bg-deep";
-                  if (!result.correct && selected) tone = "border-extra/50 bg-extra/10";
+                  if (result.correct && selected) tone = "border-brand bg-brand/10";
+                  else if (!result.correct && selected) tone = "border-extra/50 bg-[var(--world-surface)]";
+                  if (showRight) tone = "border-brand bg-brand/15 ring-1 ring-brand/25";
                 }
                 return (
                   <button
@@ -182,6 +184,11 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
                     className={`block w-full rounded-2xl border px-4 py-3 text-start font-semibold text-ink ${tone}`}
                   >
                     {choice.label}
+                    {showRight ? (
+                      <span className="ms-2 text-xs font-bold text-brand">
+                        {tr("practice.correctMark")}
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}
@@ -196,30 +203,48 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
             </div>
 
             {result ? (
-              <div className="mt-6 space-y-3 rounded-2xl bg-bg-deep/60 p-4">
-                <div className="relative mx-auto h-36 w-36 overflow-hidden rounded-2xl">
-                  <Image
-                    src={
-                      result.correct ? "/art/state-growth.jpg" : "/art/state-idontknow.jpg"
-                    }
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="144px"
-                  />
-                </div>
+              <div
+                className={`mt-6 space-y-3 rounded-2xl p-4 ${
+                  result.correct
+                    ? "border border-brand/25 bg-brand/5"
+                    : "border border-stroke bg-[var(--world-bg)]"
+                }`}
+              >
+                <p
+                  className={`text-sm font-bold ${
+                    result.correct ? "text-brand" : "text-[var(--world-ink-soft)]"
+                  }`}
+                >
+                  {result.correct ? tr("practice.feedbackOk") : tr("practice.feedbackLook")}
+                </p>
                 <p className="font-semibold text-ink">{result.explanation}</p>
+                <SpeakButton
+                  id={`explain-${question.questionId}`}
+                  text={result.explanation}
+                  tone="brand"
+                  label={tr("practice.listenExplain")}
+                />
                 {result.nextCoach ? (
                   <p className="text-sm text-ink-soft">{result.nextCoach}</p>
                 ) : null}
                 <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={nextRound}
-                    className="rounded-full bg-school px-4 py-2 text-sm font-bold text-white"
-                  >
-                    {tr("practice.next")}
-                  </button>
+                  {canContinue ? (
+                    <button
+                      type="button"
+                      onClick={nextRound}
+                      className="rounded-full bg-school px-4 py-2 text-sm font-bold text-white"
+                    >
+                      {tr("practice.next")}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={nextRound}
+                      className="rounded-full bg-school px-4 py-2 text-sm font-bold text-white"
+                    >
+                      {tr("practice.finishSession")}
+                    </button>
+                  )}
                   <Link
                     href="/school"
                     className="inline-flex items-center font-bold text-school underline-offset-4 hover:underline"
@@ -241,7 +266,7 @@ export default function PracticePage() {
   return (
     <Suspense
       fallback={
-        <AppShell backHref="/school">
+        <AppShell backHref="/school" world="school">
           <p className="text-ink-soft">{tr("practice.loading")}</p>
         </AppShell>
       }

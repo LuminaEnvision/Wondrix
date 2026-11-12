@@ -6,6 +6,7 @@ import {
   localNextQuestion,
   localSchoolPlan,
   nextMastery,
+  PRACTICE_SESSION_LIMIT,
 } from "@/lib/school-agent";
 import type { ParentProfile } from "@/lib/types";
 
@@ -94,27 +95,30 @@ describe("local School plan and questions", () => {
   });
 });
 
-describe("localNextQuestion recycling", () => {
+describe("localNextQuestion session limit", () => {
   const y6 = { ...profile, gradeLabel: "Year 6" };
 
-  it("serves every question once, then recycles without repeating the last one", () => {
+  it("serves distinct questions without repeating within a sitting", () => {
     const pool = itemsForGrade("Year 6", "forces-motion").map((r) => r.id);
     expect(pool.length).toBeGreaterThanOrEqual(3);
     const seen: string[] = [];
-    for (let i = 0; i < pool.length; i++) {
+    const cap = Math.min(pool.length, PRACTICE_SESSION_LIMIT);
+    for (let i = 0; i < cap; i++) {
       const next = localNextQuestion(y6, "forces-motion", seen)!;
       expect(seen).not.toContain(next.questionId);
       seen.push(next.questionId);
     }
-    expect([...seen].sort()).toEqual([...pool].sort());
-    const recycled = localNextQuestion(y6, "forces-motion", seen)!;
-    expect(recycled.questionId).not.toBe(seen.at(-1));
   });
 
-  it("after seeing every item, the next one is never the question just answered (Year 7+ algebra)", () => {
-    const only = { ...profile, gradeLabel: "Year 7+" };
-    const all = itemsForGrade("Year 7+", "algebra-intro").map((r) => r.id);
-    const next = localNextQuestion(only, "algebra-intro", all)!;
-    expect(next.questionId).not.toBe(all.at(-1));
+  it("stops after PRACTICE_SESSION_LIMIT answers (no recycle)", () => {
+    const fakeAvoid = Array.from({ length: PRACTICE_SESSION_LIMIT }, (_, i) => `q-${i}`);
+    expect(localNextQuestion(y6, "forces-motion", fakeAvoid)).toBeNull();
+  });
+
+  it("grade result reveals correctChoiceId after answering", () => {
+    const q = localNextQuestion(y6, "forces-motion", [])!;
+    const graded = localGradeAnswer(y6, q.questionId, "idk", [q.questionId], "unknown")!;
+    expect(graded.correct).toBe(false);
+    expect(graded.correctChoiceId).toBeTruthy();
   });
 });

@@ -112,7 +112,8 @@ export function VoiceLoadingBubble({ enabled }: { enabled: boolean }) {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-sm rounded-2xl border border-stroke bg-card px-4 py-3 shadow-lg sm:start-auto sm:end-4 sm:mx-0"
+      className="fixed inset-x-4 z-50 mx-auto max-w-sm rounded-2xl border border-stroke bg-card px-4 py-3 shadow-lg sm:start-auto sm:end-4 sm:mx-0"
+      style={{ bottom: "calc(var(--nav-h) + 5.5rem)" }}
     >
       <div className="flex items-start gap-3">
         <span

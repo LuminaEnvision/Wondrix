@@ -7,7 +7,7 @@ import {
   localNextQuestion,
   localSchoolPlan,
 } from "@/lib/school-agent";
-import { aiExplain, aiLeadIn, aiPlanFocus, type MasteryMap } from "@/lib/school-agent-ai";
+import { aiExplain, aiPlanFocus, type MasteryMap } from "@/lib/school-agent-ai";
 import { getSkill } from "@/lib/skills";
 import type { ParentProfile, SkillId } from "@/lib/types";
 
@@ -83,17 +83,11 @@ export async function POST(request: Request) {
     if (!skillId) {
       return NextResponse.json({ error: "Missing skillId" }, { status: 400 });
     }
+    // Return the bank question immediately — never block the child on AI lead-in.
+    // Coach wording can stay empty; the prompt and choices are what unlock practice.
     const local = localNextQuestion(profile, skillId, body.avoidIds ?? []);
     if (!local) {
       return NextResponse.json({ error: "No questions for skill" }, { status: 404 });
-    }
-
-    if (provider) {
-      const item = RADAR_BANK.find((r) => r.id === local.questionId);
-      const lead = item ? await aiLeadIn(profile, item) : null;
-      if (lead) {
-        return NextResponse.json({ ...local, coachLead: lead, source: provider.id });
-      }
     }
     return NextResponse.json(local);
   }

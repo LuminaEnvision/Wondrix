@@ -9,7 +9,8 @@ describe("curriculum grade names", () => {
     expect(gradeName("Year 4", "ib")).toBe("Grade 3");
     expect(gradeName("Year 4", "uae")).toBe("Grade 3");
     expect(gradeName("Year 4", "indian")).toBe("Class 3");
-    expect(gradeName("Year 7+", "us")).toBe("Grade 6+");
+    expect(gradeName("Year 7", "us")).toBe("Grade 6");
+    expect(gradeName("Year 11–13", "us")).toBe("Grade 10–12");
     expect(gradeName("Year 1–2", "indian")).toBe("UKG–Class 1");
   });
 

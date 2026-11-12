@@ -10,7 +10,7 @@
 import { useSyncExternalStore } from "react";
 import { gradeName } from "./curriculum";
 import { asLang, t, type Lang, type MessageKey } from "./i18n";
-import { loadProfile, MASTERY_KEY, PROFILE_KEY, saveProfile } from "./demo-store";
+import { loadProfile, MASTERY_KEY, PROFILE_KEY, saveProfile, setActiveChatId } from "./demo-store";
 import { PROFILE_CHANGED_EVENT } from "./types";
 
 const noopSubscribe = () => () => {};
@@ -87,5 +87,8 @@ export function useT(): (key: MessageKey, vars?: Record<string, string | number>
 
 /** Save only the language (applies at once, without the Parent form's Save button). */
 export function saveLanguage(lang: Lang) {
+  const prev = asLang(loadProfile().language);
   saveProfile({ ...loadProfile(), language: lang });
+  // Do not keep an English chat open after switching to Arabic (and vice versa).
+  if (prev !== lang) setActiveChatId(null);
 }

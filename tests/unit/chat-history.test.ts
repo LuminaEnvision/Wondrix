@@ -69,6 +69,16 @@ describe("Extra chat history", () => {
     expect(store.listChats()).toHaveLength(1); // not imported twice
   });
 
+  it("keeps English and Arabic histories separate", async () => {
+    const store = await import("@/lib/demo-store");
+    store.saveChat("en1", [msg(1, "child", "why is the sky blue?")], "en");
+    store.saveChat("ar1", [msg(1, "child", "لماذا السماء زرقاء؟")], "ar");
+    expect(store.listChats("en").map((c) => c.id)).toEqual(["en1"]);
+    expect(store.listChats("ar").map((c) => c.id)).toEqual(["ar1"]);
+    expect(store.listAllChats()).toHaveLength(2);
+    expect(store.chatLang(store.loadChat("ar1")!)).toBe("ar");
+  });
+
   it("long titles are shortened", async () => {
     const { chatTitle } = await import("@/lib/demo-store");
     expect(chatTitle([msg(1, "child", "x".repeat(100))])).toHaveLength(58);

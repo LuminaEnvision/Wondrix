@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { useT } from "@/lib/use-client-state";
+import { useLang, useT } from "@/lib/use-client-state";
 import { getServerSpeech, getSpeech, speak, stopSpeaking, subscribeSpeech } from "@/lib/voice";
 
 /** Animated equalizer bars shown while Wondrix is talking. */
@@ -42,9 +42,11 @@ export function SpeakButton({
   label?: string;
 }) {
   const tr = useT();
+  const lang = useLang();
   const s = useSyncExternalStore(subscribeSpeech, getSpeech, getServerSpeech);
   const mine = "id" in s && s.id === id;
   const color = tone === "extra" ? "text-extra border-extra/30" : "text-brand border-brand/30";
+  const unavailableHint = lang === "ar" ? tr("speak.noArabicVoice") : tr("speak.noSound");
 
   if (mine && (s.state === "preparing" || s.state === "speaking")) {
     return (
@@ -82,7 +84,7 @@ export function SpeakButton({
       </button>
       {mine && s.state === "unavailable" ? (
         <span className="text-xs text-ink-soft" role="status">
-          {tr("speak.noSound")}
+          {unavailableHint}
         </span>
       ) : null}
     </span>

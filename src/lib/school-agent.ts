@@ -36,6 +36,8 @@ export type SchoolGradeResult = {
   nextCoach: string;
   nextQuestion: SchoolQuestionPayload | null;
   source: AgentSource;
+  /** Set after grading so the UI can mark the right option (never sent before answer). */
+  correctChoiceId?: string;
 };
 
 function whyForSkill(id: SkillId, profile: ParentProfile): string {
@@ -57,6 +59,9 @@ function skillsMentioned(note: string, id: SkillId): boolean {
     "fractions-compare": /fraction|compare/,
     percentages: /percent|%/,
     "algebra-intro": /algebra|equation/,
+    "equations-linear": /linear|equation|solve/,
+    "ratio-rate": /ratio|rate|proportion/,
+    "stats-data": /average|mean|data|statistic/,
     "living-things": /living|animal|plant/,
     materials: /material|solid|liquid/,
     "day-night": /day|night|earth|spin/,
@@ -64,6 +69,9 @@ function skillsMentioned(note: string, id: SkillId): boolean {
     "forces-motion": /force|motion|gravity/,
     "solar-system": /planet|solar|moon|space/,
     "cells-micro": /cell|microbe/,
+    "energy-electricity": /electric|energy|circuit/,
+    "chemical-reactions": /reaction|chemical|acid/,
+    "genetics-intro": /gene|dna|inherit/,
   };
   return map[id]?.test(note) ?? false;
 }
@@ -111,17 +119,17 @@ export function toQuestionPayload(
   };
 }
 
+/** Soft cap so a sitting ends even when the bank is deep. */
+export const PRACTICE_SESSION_LIMIT = 5;
+
 export function localNextQuestion(
   profile: ParentProfile,
   skillId: SkillId,
   avoidIds: string[] = [],
 ): SchoolQuestionPayload | null {
-  let item = pickQuestion(profile.gradeLabel, skillId, avoidIds);
-  // Small banks (1-2 items per skill): once every question was seen, recycle
-  // the earlier ones instead of hitting a dead end. Never repeat the last one.
-  if (!item && avoidIds.length) {
-    item = pickQuestion(profile.gradeLabel, skillId, avoidIds.slice(-1));
-  }
+  // Session over: do not recycle forever — the child should see "enough for today".
+  if (avoidIds.length >= PRACTICE_SESSION_LIMIT) return null;
+  const item = pickQuestion(profile.gradeLabel, skillId, avoidIds);
   if (!item) return null;
   return toQuestionPayload(item, "");
 }
@@ -151,6 +159,8 @@ export function localGradeAnswer(
   const item = RADAR_BANK.find((r) => r.id === questionId);
   if (!item) return null;
 
+  const correctChoiceId = item.choices.find((c) => c.correct)?.id;
+
   if (choiceId === "idk") {
     const next = localNextQuestion(profile, item.skillId, [...avoidIds, questionId]);
     return {
@@ -160,6 +170,7 @@ export function localGradeAnswer(
       nextCoach: "Want another try?",
       nextQuestion: next,
       source: "local",
+      correctChoiceId,
     };
   }
 
@@ -174,6 +185,7 @@ export function localGradeAnswer(
     nextCoach: correct ? "Nice. One more?" : "Try another?",
     nextQuestion: next,
     source: "local",
+    correctChoiceId,
   };
 }
 

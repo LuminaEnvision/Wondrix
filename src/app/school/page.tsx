@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { loadExtraTopic, loadMastery, loadProfile, pickFocusSkills } from "@/lib/demo-store";
+import { loadExtraTopic, loadMastery, loadProfile, pickFocusSkills, profileAgeMode } from "@/lib/demo-store";
 import { gradeBlurb, gradeName } from "@/lib/curriculum";
 import { gradeFromLabel } from "@/lib/grades";
 import type { SchoolPlan } from "@/lib/school-agent";
@@ -13,7 +13,6 @@ import type { SkillId } from "@/lib/types";
 import { useLang, useProfileKey, useT } from "@/lib/use-client-state";
 
 type PlanView = {
-  /** Profile snapshot this plan belongs to (stale plans are ignored). */
   key: string;
   focus: SkillId[];
   why: Partial<Record<SkillId, string>>;
@@ -21,12 +20,10 @@ type PlanView = {
 };
 
 export default function SchoolHomePage() {
-  // Changes when the parent saves the profile (this tab or another tab).
   const profileKey = useProfileKey();
   const tr = useT();
   const lang = useLang();
 
-  // Local state of the child, derived during render (no setState in an effect).
   const local = useMemo(() => {
     if (!profileKey) return null;
     const profile = loadProfile();
@@ -36,10 +33,10 @@ export default function SchoolHomePage() {
       mastery,
       grade: gradeFromLabel(profile.gradeLabel),
       focusIds: pickFocusSkills(mastery, profile),
+      ageMode: profileAgeMode(profile),
     };
   }, [profileKey]);
 
-  // The agent's plan arrives async; setState only happens in the fetch callbacks.
   const [plan, setPlan] = useState<PlanView | null>(null);
 
   useEffect(() => {
@@ -69,7 +66,6 @@ export default function SchoolHomePage() {
           key: profileKey,
           coachNote: data.coachNote,
           focus: hasFocus ? data.focus.map((f) => f.id) : local.focusIds,
-          // Only show reasons the live agent wrote (local "why" is generic).
           why:
             hasFocus && data.source !== "local"
               ? Object.fromEntries(data.focus.map((f) => [f.id, f.why]))
@@ -82,7 +78,6 @@ export default function SchoolHomePage() {
       });
 
     return () => controller.abort();
-    // tr changes with the language; the plan text itself comes from the agent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [local, profileKey]);
 
@@ -95,114 +90,135 @@ export default function SchoolHomePage() {
   // Grade shown in the family's curriculum ("Year 4" / "Grade 3" / "Class 3").
   const gradeLabel = local ? gradeName(local.grade.label, local.profile.curriculum, lang) : "";
   const blurb = local ? gradeBlurb(local.grade.id, lang) : "";
+  const teen = local?.ageMode === "teen";
+  const primaryId = focus[0];
+  const primarySkill = primaryId ? getSkill(primaryId) : null;
+  const primaryTitle = primaryId ? skillTitle(primaryId, lang) : "";
 
   return (
-    <AppShell backHref="/">
-      <div className="space-y-6">
-        <div className="flex items-end gap-3 sm:gap-5">
-          <div className="relative min-w-0 flex-1 rounded-3xl border border-stroke bg-card px-5 py-5 sm:px-6 sm:py-6">
+    <AppShell backHref="/" world="school" dense={teen}>
+      <div className="wx-enter space-y-4">
+        <div className={`flex items-end gap-3 ${teen ? "" : "sm:gap-5"}`}>
+          <div className="wx-surface relative min-w-0 flex-1 px-4 py-4 sm:px-5">
             <span
-              className="absolute -end-2 bottom-10 hidden h-4 w-4 rotate-45 border-r border-t border-stroke bg-card rtl:rotate-[225deg] sm:block"
+              className="absolute -end-2 bottom-10 hidden h-4 w-4 rotate-45 border-e border-t border-stroke bg-[var(--world-surface)] rtl:rotate-[225deg] sm:block"
               aria-hidden
             />
-            <p className="text-sm font-bold uppercase tracking-wide text-school">{tr("school.kicker")}</p>
-            <h1 className="font-display mt-1 text-3xl font-semibold text-ink">
+            <h1 className={`font-display font-semibold text-[var(--world-ink)] ${teen ? "text-2xl" : "text-3xl"}`}>
               {tr("school.weekFor", { name: nickname })}
             </h1>
-            <p className="mt-1 text-sm font-semibold text-school">
+            <p className="mt-1 text-sm font-semibold text-[var(--world-accent)]">
               {gradeLabel}
               {blurb ? ` · ${blurb}` : ""}
             </p>
-            <p className="mt-2 text-ink-soft">
+            <p className={`mt-2 text-[var(--world-ink-soft)] ${teen ? "text-sm" : "text-base"}`}>
               {coachNote || (calm ? tr("school.softDay") : tr("school.pickSkill"))}
             </p>
             {lang === "ar" ? <p className="mt-2 text-xs font-semibold text-ink-soft">{tr("school.englishNote")}</p> : null}
           </div>
-          <div className="relative h-28 w-24 shrink-0 sm:h-40 sm:w-36">
-            <Image
-              src="/art/mascot-hero.png"
-              alt="Wondrix"
-              fill
-              className="object-contain object-bottom"
-              sizes="144px"
-              priority
-            />
-          </div>
+          {!teen ? (
+            <div className="relative h-28 w-24 shrink-0 sm:h-36 sm:w-32">
+              <Image
+                src="/art/mascot-hero.png"
+                alt="Wondrix"
+                fill
+                className="object-contain object-bottom"
+                sizes="128px"
+                priority
+              />
+            </div>
+          ) : (
+            <div className="relative h-14 w-12 shrink-0">
+              <Image src="/art/mascot-icon.jpg" alt="" fill className="rounded-full object-cover" sizes="48px" />
+            </div>
+          )}
         </div>
 
-        <div className="space-y-3 rounded-3xl border border-stroke bg-card p-5">
-          <p className="text-sm font-bold text-ink-soft">{tr("school.focusFor", { grade: gradeLabel })}</p>
-          {focus.length === 0 ? (
-            <p className="text-ink-soft">{tr("common.loading")}</p>
-          ) : (
-            focus.map((id) => {
+        {teen ? (
+          <div className="flex gap-2 rounded-full border border-stroke bg-[var(--world-surface)] p-1">
+            <span className="flex-1 rounded-full bg-[var(--world-accent)] px-3 py-2 text-center text-sm font-bold text-white">
+              {tr("school.segmentPractice")}
+            </span>
+            <Link
+              href="/school/radar"
+              className="flex-1 rounded-full px-3 py-2 text-center text-sm font-bold text-[var(--world-ink-soft)]"
+            >
+              {tr("school.segmentCheck")}
+            </Link>
+          </div>
+        ) : null}
+
+        {primarySkill && primaryId ? (
+          <div className="wx-surface-lift wx-enter wx-enter-delay-1 space-y-3 border-[var(--world-accent)]/25 p-5">
+            <p className="text-sm font-bold text-[var(--world-ink-soft)]">{tr("school.nextSkill")}</p>
+            <h2 className={`font-display font-semibold text-[var(--world-ink)] ${teen ? "text-2xl" : "text-3xl"}`}>
+              {primaryTitle}
+            </h2>
+            <p className="text-sm text-[var(--world-ink-soft)]">
+              {tr(primarySkill.subject === "math" ? "subject.math" : "subject.science")}
+              {whyById[primaryId] ? ` · ${whyById[primaryId]}` : ""}
+            </p>
+            <Link
+              href={`/school/practice?skill=${primaryId}`}
+              className="wx-cta w-full text-base"
+            >
+              {tr("school.startSkill", { skill: primaryTitle })}
+            </Link>
+          </div>
+        ) : (
+          <p className="text-[var(--world-ink-soft)]">{tr("common.loading")}</p>
+        )}
+
+        {focus.length > 1 ? (
+          <div className="space-y-2">
+            {focus.slice(1).map((id) => {
               const skill = getSkill(id);
               return (
                 <div
                   key={id}
-                  className="flex items-center justify-between gap-3 rounded-2xl bg-bg-deep/50 px-4 py-3"
+                  className="wx-surface flex items-center justify-between gap-3 px-4 py-3"
                 >
-                  <div>
-                    <p className="font-semibold text-ink">{skillTitle(id, lang)}</p>
-                    <p className="text-sm text-ink-soft">{tr(skill.subject === "math" ? "subject.math" : "subject.science")}</p>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[var(--world-ink)]">{skillTitle(id, lang)}</p>
+                    <p className="text-sm text-[var(--world-ink-soft)]">
+                      {tr(skill.subject === "math" ? "subject.math" : "subject.science")}
+                    </p>
                     {whyById[id] ? (
-                      <p className="mt-1 text-xs text-ink-soft">{whyById[id]}</p>
+                      <p className="mt-1 text-xs text-[var(--world-ink-soft)]">{whyById[id]}</p>
                     ) : null}
                   </div>
                   <Link
                     href={`/school/practice?skill=${id}`}
-                    className="rounded-full bg-school px-4 py-2 text-sm font-bold text-white"
+                    className="inline-flex min-h-11 items-center rounded-full border border-stroke px-4 text-sm font-bold text-[var(--world-accent)]"
                   >
                     {tr("school.start")}
                   </Link>
                 </div>
               );
-            })
-          )}
-        </div>
+            })}
+          </div>
+        ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Link
-            href="/school/radar"
-            className="overflow-hidden rounded-3xl border border-stroke bg-card transition hover:border-school/40"
-          >
-            <div className="relative h-28 w-full">
-              <Image
-                src="/art/radar-lighthouse.jpg"
-                alt=""
-                fill
-                className="object-cover"
-                sizes="(max-width: 640px) 100vw, 320px"
-              />
-            </div>
-            <div className="px-5 py-4">
-              <p className="font-display text-xl font-semibold text-ink">{tr("school.radarTitle")}</p>
-              <p className="mt-1 text-sm text-ink-soft">
-                {tr("school.radarBlurb")}
-              </p>
-            </div>
-          </Link>
-          <Link
-            href="/parent"
-            className="overflow-hidden rounded-3xl border border-stroke bg-card transition hover:border-brand/40"
-          >
-            <div className="relative h-28 w-full bg-bg-deep">
-              <Image
-                src="/art/parent-phone.jpg"
-                alt=""
-                fill
-                className="object-contain p-3"
-                sizes="(max-width: 640px) 100vw, 320px"
-              />
-            </div>
-            <div className="px-5 py-4">
-              <p className="font-display text-xl font-semibold text-ink">{tr("school.parentNote")}</p>
-              <p className="mt-1 text-sm text-ink-soft">
-                {tr("school.parentNoteBlurb")}
-              </p>
-            </div>
-          </Link>
-        </div>
+        <Link
+          href="/school/radar"
+          className="wx-door wx-surface flex items-center gap-4 overflow-hidden p-0 transition active:scale-[0.99]"
+        >
+          <div className="relative h-20 w-24 shrink-0 sm:h-24 sm:w-28">
+            <Image
+              src="/art/radar-lighthouse.jpg"
+              alt=""
+              fill
+              className="object-cover"
+              sizes="112px"
+            />
+          </div>
+          <div className="min-w-0 flex-1 py-3 pe-4">
+            <p className="font-display text-lg font-semibold text-[var(--world-ink)]">
+              {teen ? tr("school.radarTitleTeen") : tr("school.radarTitle")}
+            </p>
+            <p className="mt-0.5 text-sm text-[var(--world-ink-soft)]">{tr("school.radarBlurb")}</p>
+          </div>
+        </Link>
       </div>
     </AppShell>
   );

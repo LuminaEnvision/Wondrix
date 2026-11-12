@@ -58,7 +58,7 @@ function RadarRun({ gradeLabel }: { gradeLabel: string }) {
   }
 
   return (
-    <AppShell backHref="/school">
+    <AppShell backHref="/school" world="school">
       <div className="space-y-6">
         <div className="relative h-40 overflow-hidden rounded-3xl border border-stroke">
           <Image
@@ -71,7 +71,7 @@ function RadarRun({ gradeLabel }: { gradeLabel: string }) {
           />
         </div>
         <div>
-          <p className="text-sm font-bold uppercase tracking-wide text-school">{tr("radar.kicker")}</p>
+          <p className="text-sm font-bold text-school">{tr("radar.kicker")}</p>
           <h1 className="font-display mt-1 text-3xl font-semibold">{tr("radar.title")}</h1>
           <p className="mt-2 text-ink-soft">
             {tr("radar.intro", { grade: gradeShown || tr("radar.yourGrade") })}
