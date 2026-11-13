@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { allowRequest, clientIp } from "@/lib/rate-limit";
 import { aiEnabled } from "@/lib/ai";
 import { aiExtraVisual } from "@/lib/extra-agent";
 import { safetyCheck } from "@/lib/safety";
@@ -10,6 +11,10 @@ import { visualText } from "@/lib/visual";
  * The client calls this only when /api/extra/chat said draw=true.
  */
 export async function POST(request: Request) {
+  // Public test link: cap AI calls per device (the app falls back to offline answers).
+  if (!allowRequest(`visual:${clientIp(request)}`)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   let body: { question?: string; answer?: string; profile?: ParentProfile };
   try {
     body = await request.json();

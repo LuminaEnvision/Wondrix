@@ -5,6 +5,9 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 
 ## [Unreleased]
 
+### Added (phone testers)
+- Installable on phones with the owl icon (full screen). Phones use the device voice (no 80 MB download). 40 AI calls per minute per device on the public link. Deploy guide and tester checklist: [docs/DEPLOY.md](./docs/DEPLOY.md).
+
 ### Added
 - `src/lib/ai.ts`: single server-side AI client (timeout, JSON mode, `[ai]` logs, safety check, house-style cleanup). Any failure returns `null` so routes keep the local fallback.
 - **Z.ai as default LLM provider** (`ZAI_API_KEY`, free `glm-4.5-flash`, thinking off). OpenAI stays as an alternative (`OPENAI_API_KEY` / `AI_PROVIDER`).

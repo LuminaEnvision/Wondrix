@@ -51,12 +51,22 @@ const KOKORO_FIRST_CHUNK_MS = 9000;
 
 const KOKORO_VOICE = process.env.NEXT_PUBLIC_KOKORO_VOICE || "af_heart";
 
+/**
+ * Phones and tablets: skip Kokoro (an 80 MB download on mobile data, slow on phone CPUs);
+ * the phone's own voice is quick and often good. NEXT_PUBLIC_KOKORO_ON_MOBILE=1 turns it back on.
+ */
+function isMobileDevice(): boolean {
+  if (typeof navigator === "undefined" || process.env.NEXT_PUBLIC_KOKORO_ON_MOBILE === "1") return false;
+  const uaData = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData;
+  return Boolean(uaData?.mobile) || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
 function engineChain(): Engine[] {
   const primary = (process.env.NEXT_PUBLIC_TTS_ENGINE || "kokoro").toLowerCase() as Engine;
   if (currentLang() !== "en") return primary === "azure" ? ["azure", "browser"] : ["browser"];
   if (primary === "browser") return ["browser"];
-  if (primary === "azure") return ["azure", "kokoro", "browser"];
-  return ["kokoro", "browser"];
+  if (primary === "azure") return isMobileDevice() ? ["azure", "browser"] : ["azure", "kokoro", "browser"];
+  return isMobileDevice() ? ["browser"] : ["kokoro", "browser"];
 }
 
 /* ------------------------------------------------------------------ */

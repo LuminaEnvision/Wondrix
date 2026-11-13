@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { allowRequest, clientIp } from "@/lib/rate-limit";
 import { aiProvider } from "@/lib/ai";
 import { RADAR_BANK } from "@/lib/radar";
 import {
@@ -32,6 +33,10 @@ type Body = {
 };
 
 export async function POST(request: Request) {
+  // Public test link: cap AI calls per device (the app falls back to offline answers).
+  if (!allowRequest(`school:${clientIp(request)}`)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   let body: Body;
   try {
     body = await request.json();

@@ -119,7 +119,9 @@ test.describe("Extra door", () => {
     expect(await page.evaluate(() => localStorage.getItem("wondrix-extra-topic"))).toBe("Rain");
   });
 
-  test("voice bubble explains a slow first download, then the fallback", async ({ page }) => {
+  test("voice bubble explains a slow first download, then the fallback", async ({ page, isMobile }) => {
+    // Phones skip the 80 MB natural voice and use the device voice, so no download bubble there.
+    test.skip(isMobile, "natural voice is desktop-only");
     await page.unroute(/huggingface\.co/);
     await page.route(/huggingface\.co/, async (route) => {
       await new Promise((r) => setTimeout(r, 2500));
@@ -131,7 +133,9 @@ test.describe("Extra door", () => {
     await expect(page.getByText("Natural voice not available here")).toBeVisible({ timeout: 10_000 });
   });
 
-  test("turning voice off hides the voice bubble", async ({ page }) => {
+  test("turning voice off hides the voice bubble", async ({ page, isMobile }) => {
+    // Phones skip the 80 MB natural voice and use the device voice, so no download bubble there.
+    test.skip(isMobile, "natural voice is desktop-only");
     await page.unroute(/huggingface\.co/);
     await page.route(/huggingface\.co/, async (route) => {
       await new Promise((r) => setTimeout(r, 4000));
@@ -270,5 +274,31 @@ test.describe("conversation memory + chat history", () => {
     await page.goto("/extra");
     await page.getByRole("button", { name: "Past chats" }).click();
     await expect(page.getByText("No saved chats yet.", { exact: false })).toBeVisible();
+  });
+});
+
+test.describe("phones", () => {
+  test("no 80 MB natural-voice download on a phone", async ({ page, isMobile }) => {
+    test.skip(!isMobile, "phone only");
+    await skipSetup(page);
+    let hfRequests = 0;
+    await page.route(/huggingface\.co/, (route) => {
+      hfRequests++;
+      return route.abort();
+    });
+    await page.goto("/extra");
+    await expect(page.getByRole("button", { name: "Ask the owl" })).toBeVisible();
+    await page.waitForTimeout(1500);
+    expect(hfRequests).toBe(0);
+    await expect(page.getByText("Getting Wondrix's voice ready…")).toHaveCount(0);
+  });
+
+  test("installable: manifest with the owl icon", async ({ request }) => {
+    const res = await request.get("/manifest.webmanifest");
+    expect(res.ok()).toBe(true);
+    const m = await res.json();
+    expect(m.name).toBe("Wondrix");
+    expect(m.display).toBe("standalone");
+    expect(m.icons.some((i: { src: string }) => i.src.includes("icon-512"))).toBe(true);
   });
 });

@@ -13,6 +13,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { allowRequest, clientIp } from "@/lib/rate-limit";
 import { safetyCheck } from "@/lib/safety";
 
 const MAX_CHARS = 800;
@@ -27,6 +28,10 @@ function escapeXml(text: string) {
 }
 
 export async function POST(request: Request) {
+  // Public test link: cap AI calls per device (the app falls back to offline answers).
+  if (!allowRequest(`tts:${clientIp(request)}`)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   const key = process.env.AZURE_SPEECH_KEY;
   const region = process.env.AZURE_SPEECH_REGION;
   if (!key || !region) {
