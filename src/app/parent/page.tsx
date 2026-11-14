@@ -10,6 +10,7 @@ import {
   buildDaySummary,
   loadExtraTopic,
   loadSafetyRedirects,
+  loadPracticeSessions,
   clearAllChats,
   listChats,
   MAX_SAVED_CHATS,
@@ -69,6 +70,7 @@ function daySummaryFor(p: ParentProfile, lang: Lang): string {
     calmMode: p.calmMode,
     extraTopic: loadExtraTopic(),
     safetyRedirects: loadSafetyRedirects(),
+    sessions: loadPracticeSessions(),
   });
 }
 

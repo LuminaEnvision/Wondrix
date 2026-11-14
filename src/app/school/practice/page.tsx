@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { SpeakButton } from "@/components/SpeakButton";
 import { gradeName } from "@/lib/curriculum";
-import { loadMastery, loadProfile, setSkillMastery } from "@/lib/demo-store";
+import { loadMastery, loadProfile, recordPracticeSession, setSkillMastery } from "@/lib/demo-store";
 import { PRACTICE_SESSION_LIMIT, type SchoolGradeResult, type SchoolQuestionPayload } from "@/lib/school-agent";
 import type { SkillId } from "@/lib/types";
 import { skillTitle } from "@/lib/skills";
@@ -49,6 +49,12 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
   const [gradeLabel, setGradeLabel] = useState("");
 
   const answered = avoidIds.length;
+  // Which question is on screen, so a late AI explanation never lands on the next one.
+  const questionRef = useRef<string | null>(null);
+  useEffect(() => {
+    questionRef.current = question?.questionId ?? null;
+  }, [question]);
+  const [correctCount, setCorrectCount] = useState(0);
   const sessionDone = !loading && !question && answered > 0;
 
   const showQuestion = useCallback((r: QuestionResult) => {
@@ -78,6 +84,8 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "grade",
+          // The bank's explanation comes back at once; the model's gentler one follows.
+          ai: false,
           profile,
           mastery: loadMastery(),
           questionId: question.questionId,
@@ -90,6 +98,19 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
       setResult(data);
       setSkillMastery(skillId, data.mastery);
       setAvoidIds((prev) => [...prev, question.questionId]);
+      if (data.correct) setCorrectCount((n) => n + 1);
+      const qid = question.questionId;
+      void fetch("/api/school/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "explain", profile, questionId: qid, choiceId }),
+      })
+        .then((r) => (r.ok ? (r.json() as Promise<{ explanation: string | null }>) : null))
+        .then((r) => {
+          // Swap in only while the child is still on this question.
+          if (r?.explanation) setResult((cur) => (cur && questionRef.current === qid ? { ...cur, explanation: r.explanation! } : cur));
+        })
+        .catch(() => {});
     } catch {
       setResult({
         correct: false,
@@ -106,6 +127,8 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
 
   function nextRound() {
     if (answered >= PRACTICE_SESSION_LIMIT || !result?.nextQuestion) {
+      // Session over: the parent summary says how many were done today.
+      recordPracticeSession({ skillId, answered, correct: correctCount });
       setQuestion(null);
       setPicked(null);
       setResult(null);
@@ -179,6 +202,8 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
                   <button
                     key={choice.id}
                     type="button"
+                    data-testid="choice"
+                    data-correct={result ? String(result.correctChoiceId === choice.id) : undefined}
                     disabled={Boolean(result) || grading}
                     onClick={() => void choose(choice.id)}
                     className={`block w-full rounded-2xl border px-4 py-3 text-start font-semibold text-ink ${tone}`}
@@ -210,13 +235,20 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
                     : "border border-stroke bg-[var(--world-bg)]"
                 }`}
               >
-                <p
-                  className={`text-sm font-bold ${
-                    result.correct ? "text-brand" : "text-[var(--world-ink-soft)]"
-                  }`}
-                >
-                  {result.correct ? tr("practice.feedbackOk") : tr("practice.feedbackLook")}
-                </p>
+                <div className="flex items-center gap-3">
+                  {result.correct ? null : (
+                    // Calm owl for "look again" (docs/ART_NEEDED.md): not praise, not a scold.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src="/art/owl/calm.webp" alt="" className="h-16 w-14 shrink-0 object-contain" data-testid="owl-calm" />
+                  )}
+                  <p
+                    className={`text-sm font-bold ${
+                      result.correct ? "text-brand" : "text-[var(--world-ink-soft)]"
+                    }`}
+                  >
+                    {result.correct ? tr("practice.feedbackOk") : tr("practice.feedbackLook")}
+                  </p>
+                </div>
                 <p className="font-semibold text-ink">{result.explanation}</p>
                 <SpeakButton
                   id={`explain-${question.questionId}`}

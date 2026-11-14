@@ -51,7 +51,7 @@ test.describe("tap-to-talk mic", () => {
     await fakeRecognition(page);
   });
 
-  test("one tap starts; live words + meter; keeps listening through a pause; Done sends", async ({ page }) => {
+  test("one tap starts; live words + meter; a short pause after speaking sends the question", async ({ page }) => {
     await page.goto("/extra");
     await page.getByRole("button", { name: "Voice answers on" }).click();
     await page.getByRole("button", { name: "Ask with your voice" }).click();
@@ -70,15 +70,9 @@ test.describe("tap-to-talk mic", () => {
       )
       .toBe(true);
 
-    // After the browser's own "end", we restarted and are still listening (nothing sent).
-    await page.waitForTimeout(1500);
-    expect(await page.evaluate(() => (window as unknown as { __recStarts: number }).__recStarts)).toBeGreaterThanOrEqual(2);
-    await expect(panel).toBeVisible();
-    await expect(page.locator(".ms-auto.bg-extra", { hasText: "how do plants drink water" })).toHaveCount(0);
-
-    await panel.getByRole("button", { name: /Done, send my question/ }).click();
-    await expect(panel).toHaveCount(0);
-    await expect(page.locator(".ms-auto.bg-extra", { hasText: "how do plants drink water" })).toBeVisible();
+    // About 2 s of quiet after the words: the question is sent on its own (Done is optional).
+    await expect(panel).toHaveCount(0, { timeout: 8000 });
+    await expect(page.locator('[data-role="child"]', { hasText: "how do plants drink water" })).toBeVisible();
     await expect(page.getByText(/Roots drink water from the soil/)).toBeVisible();
   });
 
@@ -89,6 +83,6 @@ test.describe("tap-to-talk mic", () => {
     await expect(page.getByTestId("dictation-text")).toContainText("how do plants");
     await page.getByRole("button", { name: /Cancel/ }).click();
     await expect(page.getByRole("region", { name: "Voice question recording" })).toHaveCount(0);
-    await expect(page.locator(".ms-auto.bg-extra")).toHaveCount(0);
+    await expect(page.locator('[data-role="child"]')).toHaveCount(0);
   });
 });

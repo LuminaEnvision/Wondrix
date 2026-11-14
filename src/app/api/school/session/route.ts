@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { allowRequest, clientIp } from "@/lib/rate-limit";
 import { aiProvider } from "@/lib/ai";
 import { RADAR_BANK } from "@/lib/radar";
 import {
@@ -12,7 +13,13 @@ import { getSkill } from "@/lib/skills";
 import type { ParentProfile, SkillId } from "@/lib/types";
 
 type Body = {
-  action?: "plan" | "question" | "grade";
+  action?: "plan" | "question" | "grade" | "explain";
+  /**
+   * false = grade from the bank only and answer at once; the app then asks
+   * "explain" separately and swaps the model's gentler text in when it arrives.
+   * Default true keeps the one-call behaviour for other clients and the eval.
+   */
+  ai?: boolean;
   profile?: ParentProfile;
   focusIds?: SkillId[];
   /** Child's mastery map from localStorage (canvas loop step 1: read state). */
@@ -26,6 +33,10 @@ type Body = {
 };
 
 export async function POST(request: Request) {
+  // Public test link: cap AI calls per device (the app falls back to offline answers).
+  if (!allowRequest(`school:${clientIp(request)}`)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   let body: Body;
   try {
     body = await request.json();
@@ -113,7 +124,7 @@ export async function POST(request: Request) {
       `[agent] school.grade ${item ? getSkill(item.skillId).id : body.questionId} correct=${result.correct} → ${result.mastery}`,
     );
 
-    if (provider) {
+    if (provider && body.ai !== false) {
       const tip = await aiExplain({
         profile,
         questionId: body.questionId,
@@ -125,6 +136,15 @@ export async function POST(request: Request) {
       }
     }
     return NextResponse.json(result);
+  }
+
+  // Second step after an answer: the model's gentle explanation (correctness stays local).
+  if (action === "explain") {
+    const item = RADAR_BANK.find((r) => r.id === body.questionId);
+    if (!item || !body.choiceId) return NextResponse.json({ error: "Unknown question" }, { status: 404 });
+    const correct = body.choiceId !== "idk" && Boolean(item.choices.find((c) => c.id === body.choiceId)?.correct);
+    const tip = provider ? await aiExplain({ profile, questionId: item.id, choiceId: body.choiceId, correct }) : null;
+    return NextResponse.json({ explanation: tip ?? null, source: tip && provider ? provider.id : "local" });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });

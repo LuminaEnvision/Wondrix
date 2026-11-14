@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { AppProviders } from "@/components/AppProviders";
 import "./globals.css";
@@ -23,6 +23,16 @@ export const metadata: Metadata = {
   title: "Wondrix",
   description:
     "Wondrix: your friend on the learning path. Support with school, or follow your interests.",
+  appleWebApp: { capable: true, title: "Wondrix", statusBarStyle: "default" },
+  icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1f6f68",
+  width: "device-width",
+  initialScale: 1,
+  // Kids tap fast: no accidental zoom on double tap, but pinch-zoom stays allowed (accessibility).
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

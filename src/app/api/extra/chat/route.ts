@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { allowRequest, clientIp } from "@/lib/rate-limit";
 import { aiProvider, hasFastModeration, isFlagged } from "@/lib/ai";
 import { aiExtraReply, type ExtraChatMessage } from "@/lib/extra-agent";
 import { localExtraReply } from "@/lib/extra-reply";
@@ -16,6 +17,10 @@ type Body = {
 };
 
 export async function POST(request: Request) {
+  // Public test link: cap AI calls per device (the app falls back to offline answers).
+  if (!allowRequest(`chat:${clientIp(request)}`)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   let body: Body;
   try {
     body = await request.json();

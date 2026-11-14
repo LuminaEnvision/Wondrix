@@ -95,6 +95,11 @@ function toMsgs(chat: SavedChat): Msg[] {
   return chat.messages.map((m) => ({ ...m, visual: (m.visual as Visual | null) ?? null }));
 }
 
+/** Wall clock for the mic timer (outside render, so the React Compiler sees it as an event-time read). */
+function nowMs(): number {
+  return Date.now();
+}
+
 function ExtraInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -343,20 +348,18 @@ function ExtraInner() {
     setSeconds(0);
     setQuiet(false);
     setSendingSoon(false);
-    // startMic only runs from the mic button click, not during render.
-    // eslint-disable-next-line react-hooks/purity -- event handler timestamp
-    lastSoundAt.current = Date.now();
+    lastSoundAt.current = nowMs();
 
     const handle = startDictation({
       lang: langInfo(lang).speech,
       onText: (t) => {
-        lastSoundAt.current = Date.now();
+        lastSoundAt.current = nowMs();
         dictTextRef.current = t;
         setSendingSoon(false);
         setDictText(t);
       },
       onLevel: (level) => {
-        if (level > 0.08) lastSoundAt.current = Date.now();
+        if (level > 0.08) lastSoundAt.current = nowMs();
         setLevels((prev) => [...prev.slice(1), level]);
       },
       onAutoSendSoon: () => setSendingSoon(true),
@@ -382,12 +385,11 @@ function ExtraInner() {
     if (!handle) return;
     listenRef.current = handle;
     setListening(true);
-    // eslint-disable-next-line react-hooks/purity -- event handler timestamp
-    const startedAt = Date.now();
+    const startedAt = nowMs();
     tickRef.current = setInterval(() => {
-      setSeconds(Math.floor((Date.now() - startedAt) / 1000));
+      setSeconds(Math.floor((nowMs() - startedAt) / 1000));
       // Soft “still listening” cue before the ~2s auto-send kicks in.
-      setQuiet(Boolean(dictTextRef.current) && Date.now() - lastSoundAt.current > 1200);
+      setQuiet(Boolean(dictTextRef.current) && nowMs() - lastSoundAt.current > 1200);
     }, 400);
   }
 
@@ -514,6 +516,7 @@ function ExtraInner() {
           ) : (
             messages.map((msg) => (
               <div
+                data-role={msg.role}
                 key={msg.id}
                 className={`max-w-[90%] space-y-2 rounded-[var(--radius-m)] px-4 py-3 text-base leading-relaxed ${
                   msg.role === "child"

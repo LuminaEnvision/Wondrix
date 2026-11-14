@@ -218,3 +218,12 @@ describe("cleanKidText", () => {
     expect(cleanKidText("`code`  and   spaces")).toBe("code and spaces");
   });
 });
+
+describe("rate limit for the public link", () => {
+  it("allows up to the limit per key in a minute, then refuses; other keys are separate", async () => {
+    const { allowRequest } = await import("@/lib/rate-limit");
+    for (let i = 0; i < 3; i++) expect(allowRequest("t:1.1.1.1", 3)).toBe(true);
+    expect(allowRequest("t:1.1.1.1", 3)).toBe(false);
+    expect(allowRequest("t:2.2.2.2", 3)).toBe(true);
+  });
+});

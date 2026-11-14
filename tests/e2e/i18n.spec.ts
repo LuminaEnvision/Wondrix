@@ -10,7 +10,7 @@ test.describe("language switch (English / Arabic)", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "ar");
     await page.getByRole("button", { name: "تخطَّ الآن، دعني أستكشف" }).click();
     await expect(page.getByRole("heading", { name: "المدرسة" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "إضافي" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "استكشاف" })).toBeVisible();
     // Remembered after a reload.
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
@@ -32,8 +32,8 @@ test.describe("language switch (English / Arabic)", () => {
 
     await page.goto("/extra");
     await page.getByRole("button", { name: "الإجابات الصوتية تعمل" }).click();
-    await page.getByPlaceholder("اسأل عن أي شيء يثير فضولك…").fill("لماذا السماء زرقاء؟");
-    await page.getByRole("button", { name: "أرسل" }).click();
+    await page.getByRole("textbox", { name: "سؤالك لووندريكس" }).fill("لماذا السماء زرقاء؟");
+    await page.getByRole("button", { name: "اسأل البومة" }).click();
     await expect(page.getByText("هل تريد تجربة؟", { exact: false })).toBeVisible();
     expect(languages).toEqual(["ar"]);
 
