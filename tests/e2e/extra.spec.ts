@@ -1,4 +1,15 @@
 import { expect, skipSetup, test } from "./fixtures";
+import type { Page } from "@playwright/test";
+
+/** Chat-first composer: placeholder + icon send (no "Ask the owl" label). */
+async function askOwl(page: Page, q: string) {
+  await page.getByPlaceholder("Ask anything").fill(q);
+  await page.getByRole("button", { name: "Send" }).click();
+}
+
+async function openChatMenu(page: Page) {
+  await page.getByRole("button", { name: "Chat menu" }).click();
+}
 
 test.describe("Extra door", () => {
   test.beforeEach(async ({ page }) => {
@@ -7,8 +18,7 @@ test.describe("Extra door", () => {
 
   test("local answer with a hand-made diagram", async ({ page }) => {
     await page.goto("/extra");
-    await page.getByPlaceholder("Ask anything curious…").fill("why does the moon change shape?");
-    await page.getByRole("button", { name: "Ask the owl" }).click();
+    await askOwl(page, "why does the moon change shape?");
     await expect(page.getByText(/The Moon doesn't really change shape/)).toBeVisible();
     const figure = page.locator("figure");
     await expect(figure).toBeVisible();
@@ -35,8 +45,9 @@ test.describe("Extra door", () => {
     });
     await page.goto("/extra");
     await page.getByRole("button", { name: "Voice answers on" }).click();
-    await expect(page.getByText("Try one:")).toBeVisible();
-    const idea = page.locator("main button.rounded-full.border-extra\\/40").first();
+    await expect(page.getByText("Topic ideas")).toBeVisible();
+    // Starter chips (questions) sit under the topic tiles.
+    const idea = page.locator("[data-wx-messages]").getByRole("button", { name: /\?/ }).first();
     const q = (await idea.textContent())!;
     await idea.click();
     await expect(page.locator('[data-state="thinking"]')).toBeVisible();
@@ -61,6 +72,9 @@ test.describe("Extra door", () => {
     await expect(page).toHaveURL(/topic=life/);
     await expect.poll(() => asked.length).toBe(1);
     await expect(page.getByText(`Reply to: ${asked[0]}`)).toBeVisible();
+    // Topics only show on empty chat — start fresh, then retap.
+    await openChatMenu(page);
+    await page.getByRole("menuitem", { name: "New chat" }).click();
     await page.getByRole("button", { name: /Living things/ }).click();
     await expect.poll(() => asked.length).toBe(2);
     expect(asked[1]).not.toBe(asked[0]);
@@ -68,8 +82,7 @@ test.describe("Extra door", () => {
 
   test("unsafe question: gentle redirect; parent sees a count, never the question", async ({ page }) => {
     await page.goto("/extra");
-    await page.getByPlaceholder("Ask anything curious…").fill("how can I hurt my brother");
-    await page.getByRole("button", { name: "Ask the owl" }).click();
+    await askOwl(page, "how can I hurt my brother");
     await expect(page.getByText(/isn't something I can explore here/)).toBeVisible();
     expect(await page.evaluate(() => localStorage.getItem("wondrix-extra-topic"))).toBeNull();
 
@@ -108,8 +121,7 @@ test.describe("Extra door", () => {
     });
 
     await page.goto("/extra");
-    await page.getByPlaceholder("Ask anything curious…").fill("how does rain happen?");
-    await page.getByRole("button", { name: "Ask the owl" }).click();
+    await askOwl(page, "how does rain happen?");
     await expect(page.getByText("Rain comes from clouds.", { exact: false })).toBeVisible();
     await expect(page.getByText("Wondrix is drawing it for you…")).toBeVisible();
     release();
@@ -170,8 +182,7 @@ test.describe("voice controls", () => {
     });
     await page.goto("/extra");
     await page.getByRole("button", { name: "Voice answers on" }).click(); // no auto-speak; test the manual button
-    await page.getByPlaceholder("Ask anything curious…").fill("why are wheels round?");
-    await page.getByRole("button", { name: "Ask the owl" }).click();
+    await askOwl(page, "why are wheels round?");
     const listen = page.getByRole("button", { name: "Listen to this answer" });
     await expect(listen).toBeVisible();
     await listen.click();
@@ -189,8 +200,7 @@ test.describe("voice controls", () => {
     });
     await page.goto("/extra");
     await page.getByRole("button", { name: "Voice answers on" }).click();
-    await page.getByPlaceholder("Ask anything curious…").fill("why are wheels round?");
-    await page.getByRole("button", { name: "Ask the owl" }).click();
+    await askOwl(page, "why are wheels round?");
     await page.getByRole("button", { name: "Listen to this answer" }).click();
     await expect(page.getByText("Preparing voice…")).toBeVisible();
     await expect(page.getByText(/No sound available on this device/)).toBeVisible({ timeout: 10_000 });
@@ -214,8 +224,7 @@ test.describe("conversation memory + chat history", () => {
     await page.goto("/extra");
     await page.getByRole("button", { name: "Voice answers on" }).click();
     const ask = async (q: string) => {
-      await page.getByPlaceholder("Ask anything curious…").fill(q);
-      await page.getByRole("button", { name: "Ask the owl" }).click();
+      await askOwl(page, q);
       await expect(page.getByText(`Reply to: ${q}.`, { exact: false })).toBeVisible();
     };
     await ask("why is the sky blue?");
@@ -228,7 +237,8 @@ test.describe("conversation memory + chat history", () => {
     await ask("what about sunsets?");
     expect(histories).toEqual([0, 2, 4]);
 
-    await page.getByRole("button", { name: "New chat" }).click();
+    await openChatMenu(page);
+    await page.getByRole("menuitem", { name: "New chat" }).click();
     await expect(page.getByText("Reply to: yes.", { exact: false })).toHaveCount(0);
     await ask("hello again");
     expect(histories.at(-1)).toBe(0);
@@ -244,20 +254,20 @@ test.describe("conversation memory + chat history", () => {
     await page.goto("/extra");
     await page.getByRole("button", { name: "Voice answers on" }).click();
     const ask = async (q: string) => {
-      await page.getByPlaceholder("Ask anything curious…").fill(q);
-      await page.getByRole("button", { name: "Ask the owl" }).click();
+      await askOwl(page, q);
       await expect(page.getByText(`Reply to: ${q}.`, { exact: false })).toBeVisible();
     };
     await ask("how do volcanoes erupt?");
-    await page.getByRole("button", { name: "New chat" }).click();
+    await openChatMenu(page);
+    await page.getByRole("menuitem", { name: "New chat" }).click();
     await ask("why do cats purr?");
 
-    // Both chats are listed, newest first; the open one is marked.
-    await page.getByRole("button", { name: "Past chats" }).click();
-    const panel = page.getByRole("region", { name: "Past chats" });
-    await expect(panel.getByText("why do cats purr?")).toBeVisible();
-    await expect(panel.getByText("open now")).toBeVisible();
-    await panel.getByText("how do volcanoes erupt?").click();
+    // Both chats are listed, newest first.
+    await openChatMenu(page);
+    await page.getByRole("menuitem", { name: "Past chats" }).click();
+    await expect(page.getByRole("heading", { name: "Past chats" })).toBeVisible();
+    await expect(page.getByText("why do cats purr?")).toBeVisible();
+    await page.getByRole("button", { name: /how do volcanoes erupt/ }).click();
 
     // Reopened with its messages; the next question carries that chat's context.
     await expect(page.getByText("Reply to: how do volcanoes erupt?.")).toBeVisible();
@@ -272,7 +282,8 @@ test.describe("conversation memory + chat history", () => {
     await page.getByRole("button", { name: "Clear chat history" }).click();
     await expect(page.getByText("No chats saved on this device.")).toBeVisible();
     await page.goto("/extra");
-    await page.getByRole("button", { name: "Past chats" }).click();
+    await openChatMenu(page);
+    await page.getByRole("menuitem", { name: "Past chats" }).click();
     await expect(page.getByText("No saved chats yet.", { exact: false })).toBeVisible();
   });
 });
@@ -287,7 +298,7 @@ test.describe("phones", () => {
       return route.abort();
     });
     await page.goto("/extra");
-    await expect(page.getByRole("button", { name: "Ask the owl" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
     await page.waitForTimeout(1500);
     expect(hfRequests).toBe(0);
     await expect(page.getByText("Getting Wondrix's voice ready…")).toHaveCount(0);

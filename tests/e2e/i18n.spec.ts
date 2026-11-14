@@ -33,7 +33,7 @@ test.describe("language switch (English / Arabic)", () => {
     await page.goto("/extra");
     await page.getByRole("button", { name: "الإجابات الصوتية تعمل" }).click();
     await page.getByRole("textbox", { name: "سؤالك لووندريكس" }).fill("لماذا السماء زرقاء؟");
-    await page.getByRole("button", { name: "اسأل البومة" }).click();
+    await page.getByRole("button", { name: "أرسل" }).click();
     await expect(page.getByText("هل تريد تجربة؟", { exact: false })).toBeVisible();
     expect(languages).toEqual(["ar"]);
 
