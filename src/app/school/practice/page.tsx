@@ -46,6 +46,7 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
   const [result, setResult] = useState<SchoolGradeResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [grading, setGrading] = useState(false);
+  const [explaining, setExplaining] = useState(false);
   const [gradeLabel, setGradeLabel] = useState("");
 
   const answered = avoidIds.length;
@@ -95,11 +96,14 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
       });
       if (!res.ok) throw new Error("fail");
       const data = (await res.json()) as SchoolGradeResult;
-      setResult(data);
+      const qid = question.questionId;
+      // Show correct/incorrect at once, but hold the explanation until AI arrives
+      // so the child never sees bank text flash into a different AI rewrite.
+      setResult({ ...data, explanation: "" });
+      setExplaining(true);
       setSkillMastery(skillId, data.mastery);
       setAvoidIds((prev) => [...prev, question.questionId]);
       if (data.correct) setCorrectCount((n) => n + 1);
-      const qid = question.questionId;
       void fetch("/api/school/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,11 +111,19 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
       })
         .then((r) => (r.ok ? (r.json() as Promise<{ explanation: string | null }>) : null))
         .then((r) => {
-          // Swap in only while the child is still on this question.
-          if (r?.explanation) setResult((cur) => (cur && questionRef.current === qid ? { ...cur, explanation: r.explanation! } : cur));
+          if (questionRef.current !== qid) return;
+          const tip = r?.explanation?.trim();
+          setResult((cur) => (cur ? { ...cur, explanation: tip || data.explanation } : cur));
         })
-        .catch(() => {});
+        .catch(() => {
+          if (questionRef.current !== qid) return;
+          setResult((cur) => (cur ? { ...cur, explanation: data.explanation } : cur));
+        })
+        .finally(() => {
+          if (questionRef.current === qid) setExplaining(false);
+        });
     } catch {
+      setExplaining(false);
       setResult({
         correct: false,
         explanation: tr("practice.error"),
@@ -132,11 +144,13 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
       setQuestion(null);
       setPicked(null);
       setResult(null);
+      setExplaining(false);
       return;
     }
     setQuestion(result.nextQuestion);
     setPicked(null);
     setResult(null);
+    setExplaining(false);
   }
 
   const canContinue =
@@ -249,13 +263,21 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
                     {result.correct ? tr("practice.feedbackOk") : tr("practice.feedbackLook")}
                   </p>
                 </div>
-                <p className="font-semibold text-ink">{result.explanation}</p>
-                <SpeakButton
-                  id={`explain-${question.questionId}`}
-                  text={result.explanation}
-                  tone="brand"
-                  label={tr("practice.listenExplain")}
-                />
+                {explaining || !result.explanation ? (
+                  <p className="text-sm font-semibold text-ink-soft" role="status">
+                    {tr("practice.explaining")}
+                  </p>
+                ) : (
+                  <>
+                    <p className="font-semibold text-ink">{result.explanation}</p>
+                    <SpeakButton
+                      id={`explain-${question.questionId}`}
+                      text={result.explanation}
+                      tone="brand"
+                      label={tr("practice.listenExplain")}
+                    />
+                  </>
+                )}
                 {result.nextCoach ? (
                   <p className="text-sm text-ink-soft">{result.nextCoach}</p>
                 ) : null}

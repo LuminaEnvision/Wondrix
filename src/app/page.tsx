@@ -29,13 +29,13 @@ function DoorCard({
   return (
     <Link
       href={href}
-      className={`wx-door wx-enter ${delayClass} group flex flex-col border border-stroke bg-[var(--world-surface)] text-[var(--world-ink)] transition active:scale-[0.99] ${
+      className={`wx-door wx-enter ${delayClass} group flex min-h-0 flex-col overflow-hidden border border-stroke bg-[var(--world-surface)] text-[var(--world-ink)] transition active:scale-[0.99] ${
         explorer ? "rounded-[var(--radius-l)]" : "rounded-[var(--radius-m)]"
       }`}
     >
       <div
-        className={`relative w-full overflow-hidden ${
-          explorer ? "h-24 rounded-t-[var(--radius-l)] sm:h-28" : "h-16 rounded-t-[var(--radius-m)]"
+        className={`relative w-full shrink-0 overflow-hidden ${
+          explorer ? "h-14 rounded-t-[var(--radius-l)]" : "h-11 rounded-t-[var(--radius-m)]"
         }`}
         style={{ background: accent }}
       >
@@ -44,7 +44,7 @@ function DoorCard({
           alt=""
           fill
           className="object-cover opacity-90 transition duration-500 group-active:scale-105"
-          sizes="(max-width: 640px) 100vw, 320px"
+          sizes="(max-width: 640px) 50vw, 160px"
           priority
         />
         <div
@@ -55,24 +55,26 @@ function DoorCard({
           aria-hidden
         />
       </div>
-      <div className={`flex flex-col ${explorer ? "gap-2 px-4 py-4" : "gap-1.5 px-3 py-3"}`}>
+      <div className={`flex min-h-0 flex-1 flex-col ${explorer ? "gap-1 px-3 py-2.5" : "gap-0.5 px-2.5 py-2"}`}>
         <h2
-          className={`font-display font-semibold leading-normal tracking-tight ${
-            explorer ? "text-2xl sm:text-3xl" : "text-lg"
+          className={`font-display font-semibold leading-tight tracking-tight ${
+            explorer ? "text-xl" : "text-base"
           }`}
           style={{ color: accent }}
         >
           {title}
         </h2>
         <p
-          className={`leading-snug text-[var(--world-ink-soft)] ${
-            explorer ? "text-sm sm:text-base" : "text-xs"
+          className={`line-clamp-2 leading-snug text-[var(--world-ink-soft)] ${
+            explorer ? "text-xs" : "text-[0.7rem]"
           }`}
         >
           {blurb}
         </p>
         <span
-          className="mt-1 inline-flex min-h-11 w-fit items-center rounded-full px-4 text-sm font-bold text-white"
+          className={`mt-auto inline-flex w-fit items-center rounded-full font-bold text-white ${
+            explorer ? "min-h-9 px-3 text-xs" : "min-h-8 px-2.5 text-[0.7rem]"
+          }`}
           style={{ background: accent }}
         >
           {cta}
@@ -89,58 +91,36 @@ export default function HomePage() {
   const explorer = mode === "explorer";
 
   return (
-    <AppShell world="home">
-      <section className="flex flex-1 flex-col gap-3">
-        <div
-          className={`wx-enter flex items-end gap-3 ${explorer ? "min-h-[6.5rem]" : "min-h-[4.5rem]"}`}
-        >
-          <div className="wx-surface relative min-w-0 flex-1 px-4 py-3 sm:px-5">
-            <span
-              className="absolute -end-1.5 bottom-8 hidden size-3 rotate-45 border-e border-t border-stroke bg-[var(--world-surface)] rtl:rotate-[225deg] sm:block"
-              aria-hidden
-            />
-            <p className="font-display text-2xl font-semibold leading-normal text-[var(--world-ink)] sm:text-3xl">
+    <AppShell world="home" layout="fill" dense={!explorer}>
+      <section className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden pb-[calc(var(--nav-h)+0.35rem)]">
+        {/* Ask row — compact */}
+        <div className={`wx-enter flex shrink-0 items-end gap-2 ${explorer ? "min-h-0" : ""}`}>
+          <div className="wx-surface relative min-w-0 flex-1 px-3 py-2.5 sm:px-4">
+            <p
+              className={`font-display font-semibold leading-tight text-[var(--world-ink)] ${
+                explorer ? "text-xl sm:text-2xl" : "text-lg"
+              }`}
+            >
               {explorer ? tr("home.askWhat") : tr("home.askWhatTeen")}
             </p>
-            <p className="mt-1 text-sm font-semibold text-[var(--world-accent)] sm:text-base">
+            <p className="mt-0.5 text-xs font-semibold text-[var(--world-accent)] sm:text-sm">
               {tr("home.tagline")}
             </p>
           </div>
-          <div
-            className={`wx-breathe relative shrink-0 ${explorer ? "h-28 w-24" : "h-16 w-14"}`}
-          >
+          <div className={`wx-breathe relative shrink-0 ${explorer ? "h-16 w-14" : "h-12 w-11"}`}>
             <Image
               src="/art/mascot-hero.png"
               alt=""
               fill
               className="object-contain object-bottom"
-              sizes={explorer ? "96px" : "56px"}
+              sizes={explorer ? "56px" : "44px"}
               priority
             />
           </div>
         </div>
 
-        {/* Path scene: full-bleed inside the device — Wondrix walking toward School / Curiosity */}
-        {explorer ? (
-          <div className="wx-enter wx-enter-delay-1 relative -mx-4 min-h-[28dvh] flex-1 overflow-hidden sm:mx-0 sm:rounded-[var(--radius-l)]">
-            <Image
-              src="/art/mascot-path-hero.jpg"
-              alt={tr("home.heroAlt")}
-              fill
-              className="object-cover object-[center_40%]"
-              sizes="(max-width: 640px) 100vw, 672px"
-              priority
-            />
-          </div>
-        ) : null}
-
-        <div
-          className={
-            explorer
-              ? "mt-0 flex shrink-0 flex-col gap-3"
-              : "mt-2 grid grid-cols-2 gap-3"
-          }
-        >
+        {/* Doors — left / right, under ask, above path art */}
+        <div className="grid shrink-0 grid-cols-2 gap-2">
           <DoorCard
             href="/school"
             title={tr("home.school")}
@@ -148,7 +128,7 @@ export default function HomePage() {
             cta={tr("home.openSchool")}
             art="/art/door-school.jpg"
             accentVar="--school"
-            delayClass="wx-enter-delay-2"
+            delayClass="wx-enter-delay-1"
             explorer={explorer}
           />
           <DoorCard
@@ -158,8 +138,24 @@ export default function HomePage() {
             cta={tr("home.openWonder")}
             art="/art/door-extra.jpg"
             accentVar="--extra"
-            delayClass="wx-enter-delay-3"
+            delayClass="wx-enter-delay-2"
             explorer={explorer}
+          />
+        </div>
+
+        {/* Path scene — bottom of screen, fills leftover height */}
+        <div
+          className={`wx-enter wx-enter-delay-3 relative min-h-0 flex-1 overflow-hidden ${
+            explorer ? "-mx-4 sm:mx-0 sm:rounded-[var(--radius-l)]" : "rounded-[var(--radius-m)]"
+          }`}
+        >
+          <Image
+            src="/art/mascot-path-hero.jpg"
+            alt={tr("home.heroAlt")}
+            fill
+            className="object-cover object-[center_35%]"
+            sizes="(max-width: 640px) 100vw, 672px"
+            priority
           />
         </div>
       </section>

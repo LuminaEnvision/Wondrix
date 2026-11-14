@@ -225,6 +225,7 @@ export const en = {
   "practice.listenQuestion": "Listen to the question",
   "practice.listenExplain": "Listen to the explanation",
   "practice.error": "Something went wrong. Try again in a moment.",
+  "practice.explaining": "Wondrix is explaining…",
   "practice.loading": "Loading practice…",
 
   "radar.kicker": "Quick check",

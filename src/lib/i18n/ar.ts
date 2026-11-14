@@ -228,6 +228,7 @@ export const ar: Record<MessageKey, string> = {
   "practice.listenQuestion": "استمع إلى السؤال",
   "practice.listenExplain": "استمع إلى الشرح",
   "practice.error": "حدث خطأ ما. حاول مرة أخرى بعد لحظة.",
+  "practice.explaining": "ووندريكس يشرح…",
   "practice.loading": "جارٍ تحميل التدريب…",
 
   "radar.kicker": "فحص سريع",
