@@ -34,7 +34,18 @@ function warmFrames() {
  * idle · happy · listening · thinking · speaking (beak open/close).
  * One opaque image at a time — no cross-fades (those washed the colors out).
  */
-export function Mascot({ busy, listening, happy = false }: { busy: boolean; listening: boolean; happy?: boolean }) {
+export function Mascot({
+  busy,
+  listening,
+  happy = false,
+  size = "lg",
+}: {
+  busy: boolean;
+  listening: boolean;
+  happy?: boolean;
+  /** lg = chat hero; sm = header / bubble avatar */
+  size?: "lg" | "sm";
+}) {
   const speech = useSyncExternalStore(subscribeSpeech, getSpeech, getServerSpeech);
   const state: MascotState = listening
     ? "listening"
@@ -71,10 +82,16 @@ export function Mascot({ busy, listening, happy = false }: { busy: boolean; list
   // Side poses (think / listen) are drawn looking right; the bubble sits on the start side,
   // so mirror them in LTR so Wondrix looks toward the chat (RTL undoes the flip).
   const faceChat = frame === "think" || frame === "listen";
+  const box =
+    size === "sm"
+      ? "h-9 w-9 shrink-0"
+      : "h-28 w-24 shrink-0 sm:h-40 sm:w-36";
 
   return (
-    <div className={`wx-mascot wx-mascot-${state} relative h-28 w-24 shrink-0 sm:h-40 sm:w-36`} data-state={state} data-frame={frame}>
-      <div className="wx-mascot-glow absolute inset-x-2 bottom-2 top-6 rounded-full" aria-hidden />
+    <div className={`wx-mascot wx-mascot-${state} relative ${box}`} data-state={state} data-frame={frame} data-size={size}>
+      {size === "lg" ? (
+        <div className="wx-mascot-glow absolute inset-x-2 bottom-2 top-6 rounded-full" aria-hidden />
+      ) : null}
       <div className="wx-mascot-body absolute inset-0" role="img" aria-label="Wondrix">
         {/* Single opaque img — hard-cut src swap. Stacked opacity fades made the owl look washed out. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -87,14 +104,14 @@ export function Mascot({ busy, listening, happy = false }: { busy: boolean; list
           }`}
         />
       </div>
-      {state === "thinking" ? (
+      {size === "lg" && state === "thinking" ? (
         <div className="wx-mascot-dots absolute -top-1 start-0 flex gap-1 rounded-full bg-card px-2 py-1 shadow" aria-hidden>
           <span />
           <span />
           <span />
         </div>
       ) : null}
-      {state === "speaking" ? (
+      {size === "lg" && state === "speaking" ? (
         <svg className="wx-mascot-waves absolute -end-3 top-6 h-10 w-6 text-extra" viewBox="0 0 24 40" aria-hidden>
           <path d="M4 14 q6 6 0 12" />
           <path d="M10 9 q10 11 0 22" />
