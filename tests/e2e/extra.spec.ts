@@ -267,7 +267,8 @@ test.describe("conversation memory + chat history", () => {
     await page.getByRole("menuitem", { name: "Past chats" }).click();
     await expect(page.getByRole("heading", { name: "Past chats" })).toBeVisible();
     await expect(page.getByText("why do cats purr?")).toBeVisible();
-    await page.getByRole("button", { name: /how do volcanoes erupt/ }).click();
+    // Open the chat row (not the sibling Delete button, which also matches the title).
+    await page.getByRole("button", { name: /^how do volcanoes erupt\?/ }).click();
 
     // Reopened with its messages; the next question carries that chat's context.
     await expect(page.getByText("Reply to: how do volcanoes erupt?.")).toBeVisible();
