@@ -1,6 +1,6 @@
 ---
 name: School dashboard Explorer and Teen
-overview: Your build is the shared School plan model plus Explorer and Teen School homes. Jorge owns models, PR #13 CI/follow-ups, owl art, and post-answer explain. Homework upload stays post-demo.
+overview: Shared plan-item model and gap events feed Explorer and Teen School homes. Build this after deploy and the first Founding Tester week (Jorge next-stage item 10). Homework upload stays later.
 todos:
   - id: plan-model-shared
     content: Shared PlanItem model + gap-events store for all ages + unit tests
@@ -21,35 +21,26 @@ isProject: false
 
 One School product, two age skins. Same data. Different layout.
 
+**When:** after deploy and the first Founding Tester week — see `docs/NEXT_STAGE_NOTES.md` (next-stage item 11 / Jorge’s list item 10). Do not start this before the public test link is live and the first week of feedback is in.
+
+**Already done elsewhere (PR #14):** GLM-5.3 Flash default path, explain-after-answer, parent session count, owl art frames, CI green on new UI. Do not rebuild those here.
+
 ---
 
 ## Who builds what
 
-### Your build (this plan)
+### Your build (this plan — after first feedback)
 
 1. Shared plan-item model + gap-events store (all ages).
 2. Explorer School home: big Up next with owl, today’s 3 with pictures, one Quick check door.
 3. Teen School home: Up next, Practice | Gap radar tabs, intro sheet; remove Skill check duplicate.
 4. EN/AR copy for the above, 390px screenshots, self-critique pass.
 
-Do **not** include in this build: homework photo upload, model provider switch, owl frame wiring, practice “explain after answer”, parent session count, e2e/lint CI fixes.
+Do **not** include here: homework photo upload, provider/env keys, Report-a-problem (that’s first tester week), Supabase.
 
-### Leave to Jorge
+### Later (not this plan)
 
-| Item | Note |
-|------|------|
-| Model primary → GLM-5.3 Flash (OpenRouter); backups Haiku 5.5 / Gemini 2.5 Flash-Lite | His eval; see `docs/MODEL_TEST_RESULTS.md` |
-| Drop free Z.ai as happy path | Provider / env lane |
-| PR #13 CI: ~16 e2e old labels (“Extra”, old buttons, mic auto-send) | He fixes after merge (lint `Date.now` / unused Image fixed on our side before merge) |
-| AI explanation after the answer (child does not wait) | Practice UX + API |
-| Session count in parent summary | Parent summary |
-| Owl art drop-in (thinking wing-on-chin, 3 talk frames, calm wrong face) | Send frames as-is; he wires |
-
-Process only (not code in this plan): merge PR #13 when ready so he can land the above on top.
-
-### Post-demo (neither builds now)
-
-Homework upload (camera / library / PDF), vision model, guide-never-solve + decline log, parent “sees subject only” toggle. Sensitive photos + hard safety guarantee — after demo.
+Homework upload (camera / library / PDF), vision model, guide-never-solve + decline log, parent “sees subject only” toggle. After accounts / stronger safety story.
 
 ---
 
@@ -60,7 +51,7 @@ Gap radar   = map of what needs work
               (teacher recommendations, parent notes, skill checks)
 Practice    = work the skills the plan lists, in order
 Skill check = short quiz that updates the gap map
-Homework    = post-demo only
+Homework    = later (guide, never solve)
 ```
 
 **Up next** = first unfinished plan item. Explorer “today’s 3”, Teen “Your plan”, and Gap radar bars all read the same plan.
@@ -81,11 +72,11 @@ Homework    = post-demo only
 | Rest of plan | “Today’s 3” picture tiles | Practice tab: ordered list, quiet Open |
 | Gap map | One Quick check door | Gap radar tab + Take a skill check |
 | Intro | Keep first visit simple | Bottom sheet once, reopen from ? |
-| Homework | Not in this build | Not in this build |
+| Homework | Not in this plan | Not in this plan |
 
 Skill check stays at [`/school/radar`](src/app/school/radar/page.tsx). No second Skill check card on either home.
 
-Use existing mascot/icon assets for Explorer Up next. Do not wait on Jorge’s new owl frames.
+Use shipped owl frames from PR #14 for Explorer Up next / look-again.
 
 ---
 
@@ -168,9 +159,10 @@ Use existing mascot/icon assets for Explorer Up next. Do not wait on Jorge’s n
 - Shared plan is the point: one model, two skins. Do not fork focus-picking per age.
 - Explorer home changes (Up next + today’s 3); practice/radar question flows stay.
 - Teen drops Skill check tab/door duplicate; Explorer keeps one Quick check door.
-- No homework, no provider switch, no new owl frames in this pass.
+- No homework in this pass.
 - Teen gap visual = mastery bars, not a decorative radar chart.
 - Gap events need dates for “Where this comes from.”
+- Build only after Founding Tester week so real “where kids get lost” notes shape the chrome.
 
 ```mermaid
 flowchart LR
@@ -187,7 +179,7 @@ flowchart LR
 
 ---
 
-## Implementation (your build only)
+## Implementation (when this stage starts)
 
 ### 1. Shared plan — [`src/lib/school-plan.ts`](src/lib/school-plan.ts)
 ```ts
@@ -213,14 +205,14 @@ type PlanItem = {
 
 ### 3. Explorer home — `ExplorerSchoolHome`
 - [`src/app/school/page.tsx`](src/app/school/page.tsx) when `ageMode === "explorer"`.
-- Big Up next + existing owl art + single Start practice.
-- Today’s 3 picture tiles from the same plan (skill art or subject fallback).
+- Big Up next + owl + single Start practice.
+- Today’s 3 picture tiles from the same plan.
 - One Quick check door → `/school/radar`.
 
 ### 4. Teen home — `TeenSchoolHome`
 - When `ageMode === "teen"`.
 - Header, ?, Up next, tabs Practice | Gap radar.
-- Source chips; filled CTA only on Up next / Take a skill check; rows use quiet Open.
+- Source chips; filled CTA only on Up next / Take a skill check.
 - Remove Practice | Skill check segment and bottom Skill check door.
 
 ### 5. Teen intro — [`src/components/BottomSheet.tsx`](src/components/BottomSheet.tsx)
@@ -228,13 +220,12 @@ type PlanItem = {
 
 ### 6. Copy + shots + critique
 - EN + AR: `school.plan.*`, `school.explorer.*`, `school.teen.*`, `school.intro.*`.
-- Screenshots at 390px: Explorer home, Teen Practice, Teen Gap radar, Teen intro, empty gap state.
-- Checklist: one primary CTA per home, shared plan agrees, no Skill check duplicate, Explorer pictures clear, AA contrast, dark tokens on Teen.
+- Screenshots at 390px for both ages.
 
 ---
 
-## Files (your build)
+## Files (this stage)
 
 - New: `school-plan.ts`, `ExplorerSchoolHome.tsx`, `TeenSchoolHome.tsx`, `BottomSheet.tsx`, unit tests
 - Edit: `school/page.tsx`, `radar/page.tsx` (emit gap event), `demo-store.ts`, `en.ts`, `ar.ts`
-- Out of scope: provider env, homework API, mascot frame pack, practice explain timing, parent session count, e2e/lint
+- Out of scope: provider env, homework API, Report-a-problem, Supabase
