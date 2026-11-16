@@ -132,7 +132,7 @@ describe("focus picking (local School plan)", () => {
     });
     expect(s).toContain("Sara (Year 4)");
     expect(s).toContain("Halves and quarters");
-    expect(s).toContain("Extra explored: Moon phases.");
+    expect(s).toContain("Wonder: explored “Moon phases”.");
     expect(s).toContain("Calm mode was on.");
     expect(s).not.toMatch(/redirected/);
   });

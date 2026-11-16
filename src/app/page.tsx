@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import { useActionGate } from "@/components/ActionGate";
 import { AppShell } from "@/components/AppShell";
 import { profileAgeMode, loadProfile } from "@/lib/demo-store";
 import { useHydrated, useT } from "@/lib/use-client-state";
@@ -25,11 +25,13 @@ function DoorCard({
   delayClass: string;
   explorer: boolean;
 }) {
+  const { requestNavigate } = useActionGate();
   const accent = `var(${accentVar})`;
   return (
-    <Link
-      href={href}
-      className={`wx-door wx-enter ${delayClass} group flex min-h-0 flex-col overflow-hidden border border-stroke bg-[var(--world-surface)] text-[var(--world-ink)] transition active:scale-[0.99] ${
+    <button
+      type="button"
+      onClick={() => requestNavigate(href)}
+      className={`wx-door wx-enter ${delayClass} group flex min-h-0 flex-col overflow-hidden border border-stroke bg-[var(--world-surface)] text-start text-[var(--world-ink)] transition active:scale-[0.99] ${
         explorer ? "rounded-[var(--radius-l)]" : "rounded-[var(--radius-m)]"
       }`}
     >
@@ -80,7 +82,7 @@ function DoorCard({
           {cta}
         </span>
       </div>
-    </Link>
+    </button>
   );
 }
 
@@ -93,7 +95,6 @@ export default function HomePage() {
   return (
     <AppShell world="home" layout="fill" dense={!explorer}>
       <section className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden pb-[calc(var(--nav-h)+0.35rem)]">
-        {/* Ask row — compact */}
         <div className={`wx-enter flex shrink-0 items-end gap-2 ${explorer ? "min-h-0" : ""}`}>
           <div className="wx-surface relative min-w-0 flex-1 px-3 py-2.5 sm:px-4">
             <p
@@ -119,7 +120,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Doors — left / right, under ask, above path art */}
         <div className="grid shrink-0 grid-cols-2 gap-2">
           <DoorCard
             href="/school"
@@ -143,7 +143,6 @@ export default function HomePage() {
           />
         </div>
 
-        {/* Path scene — bottom of screen, fills leftover height */}
         <div
           className={`wx-enter wx-enter-delay-3 relative min-h-0 flex-1 overflow-hidden ${
             explorer ? "-mx-4 sm:mx-0 sm:rounded-[var(--radius-l)]" : "rounded-[var(--radius-m)]"

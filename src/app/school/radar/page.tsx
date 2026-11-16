@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { saveMastery, loadMastery } from "@/lib/demo-store";
 import { radarForGrade, seededRandom, shuffleChoices } from "@/lib/radar";
@@ -21,10 +21,14 @@ function RadarRun({ gradeLabel }: { gradeLabel: string }) {
   const gradeShown = useProfileGradeName();
   const tr = useT();
   const lang = useLang();
-  // One random seed per radar run: options are shuffled once and stay put while answering.
-  const [seed] = useState(() => Math.floor(Math.random() * 2 ** 31));
+  // Seed after mount so prerender does not call Math.random in a Client Component.
+  const [seed, setSeed] = useState<number | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- random seed must wait for the client
+    setSeed(Math.floor(Math.random() * 2 ** 31));
+  }, []);
   const bank = useMemo(() => {
-    if (!gradeLabel) return [];
+    if (!gradeLabel || seed === null) return [];
     const rand = seededRandom(seed);
     return radarForGrade(gradeLabel, 5).map((item) => ({ ...item, choices: shuffleChoices(item.choices, rand) }));
   }, [gradeLabel, seed]);
@@ -33,6 +37,14 @@ function RadarRun({ gradeLabel }: { gradeLabel: string }) {
   const [shaky, setShaky] = useState<SkillId[]>([]);
 
   const item = bank[index];
+
+  if (seed === null) {
+    return (
+      <AppShell backHref="/school" world="school">
+        <p className="text-ink-soft">{tr("common.loading")}</p>
+      </AppShell>
+    );
+  }
 
   function answer(choiceId: string | "idk") {
     if (!item) return;

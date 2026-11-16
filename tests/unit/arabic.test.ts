@@ -49,7 +49,7 @@ describe("Arabic is real for the content children and parents read", () => {
     });
     expect(s).toContain("ريان (الروضة 3–الصف 1)");
     expect(s).toContain("الكائنات الحية، قياس الطول");
-    expect(s).toContain("لم يُفتح قسم إضافي اليوم");
+    expect(s).toContain("لم يُفتح محادثة اليوم");
     expect(s).toContain("2 أسئلة");
     expect(s).not.toMatch(/[A-Za-z]{3,}/);
   });

@@ -12,6 +12,7 @@ import {
   type UIEvent,
 } from "react";
 import { AppShell } from "@/components/AppShell";
+import { LanguageIcon } from "@/components/LanguageIcon";
 import {
   chatLang,
   deleteChat,
@@ -536,6 +537,7 @@ function ExtraInner() {
       <h1 className="font-display min-w-0 flex-1 truncate text-lg font-semibold text-[var(--world-ink)]">
         {topic ? tr(topic.label) : tr("extra.kicker")}
       </h1>
+      <LanguageIcon />
       <button
         type="button"
         onClick={() => {

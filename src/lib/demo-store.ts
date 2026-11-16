@@ -1,79 +1,37 @@
-import { clampSubjectsToProgramme } from "./curriculum";
-import { defaultAgeMode, gradeFromLabel, skillAllowedForGrade } from "./grades";
+import { gradeFromLabel, skillAllowedForGrade } from "./grades";
+import { childStorageKey, loadProfile } from "./household";
 import { skillsFromParentNote, skillTitle as skillName, SKILL_GRAPH } from "./skills";
-import type { AgeMode, MasteryLevel, ParentProfile, SkillId } from "./types";
-import { notifyProfileChanged } from "./types";
+import type { MasteryLevel, ParentProfile, SkillId } from "./types";
 
-export const PROFILE_KEY = "wondrix-profile";
+export {
+  addChild,
+  childIsFilled,
+  DEFAULT_PROFILE,
+  getChild,
+  isFamilySetupComplete,
+  listChildren,
+  loadHousehold,
+  loadProfile,
+  PROFILE_KEY,
+  profileAgeMode,
+  removeChild,
+  saveHousehold,
+  saveProfile,
+  setActiveChild,
+  updateChild,
+} from "./household";
+
+export { HOUSEHOLD_KEY, childStorageKey } from "./household";
+
 export const MASTERY_KEY = "wondrix-mastery";
 const EXTRA_TOPIC_KEY = "wondrix-extra-topic";
 const SAFETY_KEY = "wondrix-safety-redirects";
 const PRACTICE_KEY = "wondrix-practice-today";
 
-export const DEFAULT_PROFILE: ParentProfile = {
-  childNickname: "Alex",
-  ageBand: "young",
-  ageMode: "explorer",
-  teenDark: false,
-  gradeLabel: "Year 3",
-  curriculum: "uk",
-  subjects: ["math", "science"],
-  oneLiner: "",
-  unitNote: "",
-  calmMode: false,
-};
-
-function normalizeAgeMode(value: unknown, gradeLabel: string): AgeMode {
-  if (value === "explorer" || value === "teen") return value;
-  return defaultAgeMode(gradeLabel);
-}
-
-export function loadProfile(): ParentProfile {
-  if (typeof window === "undefined") return DEFAULT_PROFILE;
-  try {
-    const raw = localStorage.getItem(PROFILE_KEY);
-    if (!raw) return DEFAULT_PROFILE;
-    const parsed = { ...DEFAULT_PROFILE, ...JSON.parse(raw) } as ParentProfile;
-    const grade = gradeFromLabel(parsed.gradeLabel);
-    return {
-      ...parsed,
-      ageBand: grade.ageBand,
-      // Normalize legacy "Year 7+" (and other aliases) to the current menu label.
-      gradeLabel: grade.label,
-      ageMode: normalizeAgeMode(parsed.ageMode, grade.label),
-      teenDark: Boolean(parsed.teenDark),
-      unitNote: typeof parsed.unitNote === "string" ? parsed.unitNote : "",
-      subjects: clampSubjectsToProgramme(parsed.subjects, parsed.curriculum, grade.label),
-    };
-  } catch {
-    return DEFAULT_PROFILE;
-  }
-}
-
-export function saveProfile(profile: ParentProfile) {
-  const grade = gradeFromLabel(profile.gradeLabel);
-  const next: ParentProfile = {
-    ...profile,
-    ageBand: grade.ageBand,
-    gradeLabel: grade.label,
-    ageMode: normalizeAgeMode(profile.ageMode, grade.label),
-    teenDark: Boolean(profile.teenDark),
-    unitNote: typeof profile.unitNote === "string" ? profile.unitNote : "",
-    subjects: clampSubjectsToProgramme(profile.subjects, profile.curriculum, grade.label),
-  };
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
-  notifyProfileChanged();
-}
-
-/** Resolved UI mode for chrome (never undefined). */
-export function profileAgeMode(profile: ParentProfile = loadProfile()): AgeMode {
-  return normalizeAgeMode(profile.ageMode, profile.gradeLabel);
-}
-
 export function loadMastery(): Partial<Record<SkillId, MasteryLevel>> {
   if (typeof window === "undefined") return {};
   try {
-    const raw = localStorage.getItem(MASTERY_KEY);
+    const raw = localStorage.getItem(childStorageKey(MASTERY_KEY));
     if (!raw) return {};
     return JSON.parse(raw);
   } catch {
@@ -82,7 +40,7 @@ export function loadMastery(): Partial<Record<SkillId, MasteryLevel>> {
 }
 
 export function saveMastery(mastery: Partial<Record<SkillId, MasteryLevel>>) {
-  localStorage.setItem(MASTERY_KEY, JSON.stringify(mastery));
+  localStorage.setItem(childStorageKey(MASTERY_KEY), JSON.stringify(mastery));
 }
 
 export function setSkillMastery(skillId: SkillId, level: MasteryLevel) {
@@ -139,9 +97,10 @@ export type PracticeSession = { skillId: SkillId; answered: number; correct: num
 export function recordPracticeSession(session: PracticeSession) {
   if (typeof window === "undefined") return;
   try {
-    const raw = JSON.parse(localStorage.getItem(PRACTICE_KEY) || "{}") as { day?: string; sessions?: PracticeSession[] };
+    const key = childStorageKey(PRACTICE_KEY);
+    const raw = JSON.parse(localStorage.getItem(key) || "{}") as { day?: string; sessions?: PracticeSession[] };
     const sessions = raw.day === todayKey() ? (raw.sessions ?? []) : [];
-    localStorage.setItem(PRACTICE_KEY, JSON.stringify({ day: todayKey(), sessions: [...sessions, session] }));
+    localStorage.setItem(key, JSON.stringify({ day: todayKey(), sessions: [...sessions, session] }));
   } catch {
     // storage unavailable: nothing to keep
   }
@@ -150,7 +109,10 @@ export function recordPracticeSession(session: PracticeSession) {
 export function loadPracticeSessions(): PracticeSession[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = JSON.parse(localStorage.getItem(PRACTICE_KEY) || "{}") as { day?: string; sessions?: PracticeSession[] };
+    const raw = JSON.parse(localStorage.getItem(childStorageKey(PRACTICE_KEY)) || "{}") as {
+      day?: string;
+      sessions?: PracticeSession[];
+    };
     return raw.day === todayKey() ? (raw.sessions ?? []) : [];
   } catch {
     return [];
@@ -169,41 +131,54 @@ export function buildDaySummary(input: {
   lang?: "en" | "ar";
   /** Practice sessions finished today. */
   sessions?: PracticeSession[];
+  /** Parent / teacher notes (optional). */
+  notes?: string;
 }): string {
   if (input.lang === "ar") return buildDaySummaryAr(input);
   const focusText = input.focus.map(skillTitle).join(", ") || "general practice";
-  const extra = input.extraTopic
-    ? `Extra explored: ${input.extraTopic}.`
-    : "Extra: not opened today.";
+  const done = input.sessions ?? [];
+  const answered = done.reduce((k, s) => k + s.answered, 0);
+  const school = done.length
+    ? `School: finished ${done.length === 1 ? "1 practice session" : `${done.length} practice sessions`} (${answered} questions) on ${focusText}.`
+    : `School focus ready: ${focusText}. No practice session finished yet today.`;
+  const wonder = input.extraTopic
+    ? `Wonder: explored “${input.extraTopic}”.`
+    : "Wonder: no chat opened today.";
+  const notes = input.notes?.trim()
+    ? `Notes on file: ${input.notes.trim()}.`
+    : "No teacher or parent notes saved yet.";
+  const gaps =
+    "Gaps Radar: detailed skill gaps will appear here once that section ships; use This week's skill map below for now.";
   const calm = input.calmMode ? " Calm mode was on." : "";
   const n = input.safetyRedirects ?? 0;
   const safety =
     n > 0
-      ? ` Wondrix gently redirected ${n === 1 ? "1 question" : `${n} questions`} to safer topics today; a calm chat about it may help.`
+      ? ` Wondrix gently redirected ${n === 1 ? "1 question" : `${n} questions`} to safer topics today.`
       : "";
-  const done = input.sessions ?? [];
-  const answered = done.reduce((k, s) => k + s.answered, 0);
-  const finished = done.length
-    ? ` Finished ${done.length === 1 ? "1 practice session" : `${done.length} practice sessions`} (${answered} questions).`
-    : "";
-  return `${input.nickname} (${input.gradeLabel}) practiced: ${focusText}.${finished} ${extra}${calm}${safety} Tip: ask one dinner question about today's focus.`;
+  return `${input.nickname} (${input.gradeLabel}). ${school} ${wonder} ${notes} ${gaps}${calm}${safety}`;
 }
 
 function buildDaySummaryAr(input: Parameters<typeof buildDaySummary>[0]): string {
   const focusText = input.focus.map((id) => skillName(id, "ar")).join("، ") || "تدريب عام";
-  const extra = input.extraTopic ? `استكشف في قسم إضافي: ${input.extraTopic}.` : "لم يُفتح قسم إضافي اليوم.";
+  const done = input.sessions ?? [];
+  const answered = done.reduce((k, s) => k + s.answered, 0);
+  const school = done.length
+    ? `المدرسة: أنهى ${done.length === 1 ? "جلسة تدريب واحدة" : `${done.length} جلسات تدريب`} (${answered} أسئلة) في ${focusText}.`
+    : `تركيز المدرسة جاهز: ${focusText}. لم تُنهَ جلسة تدريب اليوم بعد.`;
+  const wonder = input.extraTopic
+    ? `دهشة: استكشف «${input.extraTopic}».`
+    : "دهشة: لم يُفتح محادثة اليوم.";
+  const notes = input.notes?.trim()
+    ? `ملاحظات محفوظة: ${input.notes.trim()}.`
+    : "لا توجد ملاحظات من المعلم أو ولي الأمر بعد.";
+  const gaps = "رادار الفجوات: ستظهر الفجوات التفصيلية هنا لاحقًا؛ استخدم خريطة المهارات أدناه الآن.";
   const calm = input.calmMode ? " كان الوضع الهادئ مفعّلًا." : "";
   const n = input.safetyRedirects ?? 0;
   const safety =
     n > 0
-      ? ` وجّه ووندريكس بلطف ${n === 1 ? "سؤالًا واحدًا" : `${n} أسئلة`} إلى مواضيع أكثر أمانًا اليوم، وقد يفيد حديث هادئ عن ذلك.`
+      ? ` وجّه ووندريكس بلطف ${n === 1 ? "سؤالًا واحدًا" : `${n} أسئلة`} إلى مواضيع أكثر أمانًا اليوم.`
       : "";
-  const done = input.sessions ?? [];
-  const answered = done.reduce((k, s) => k + s.answered, 0);
-  const finished = done.length
-    ? ` أنهى ${done.length === 1 ? "جلسة تدريب واحدة" : `${done.length} جلسات تدريب`} (${answered} أسئلة).`
-    : "";
-  return `${input.nickname} (${input.gradeLabel}) تدرّب على: ${focusText}.${finished} ${extra}${calm}${safety} نصيحة: اطرح على العشاء سؤالًا واحدًا عن مهارة اليوم.`;
+  return `${input.nickname} (${input.gradeLabel}). ${school} ${wonder} ${notes} ${gaps}${calm}${safety}`;
 }
 
 function skillTitle(id: SkillId): string {
@@ -212,12 +187,12 @@ function skillTitle(id: SkillId): string {
 
 export function saveExtraTopic(label: string) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(EXTRA_TOPIC_KEY, label);
+  localStorage.setItem(childStorageKey(EXTRA_TOPIC_KEY), label);
 }
 
 export function loadExtraTopic(): string | undefined {
   if (typeof window === "undefined") return undefined;
-  return localStorage.getItem(EXTRA_TOPIC_KEY) || undefined;
+  return localStorage.getItem(childStorageKey(EXTRA_TOPIC_KEY)) || undefined;
 }
 
 /**
@@ -231,9 +206,10 @@ function todayKey(): string {
 export function recordSafetyRedirect() {
   if (typeof window === "undefined") return;
   try {
-    const raw = JSON.parse(localStorage.getItem(SAFETY_KEY) || "{}") as { day?: string; count?: number };
+    const key = childStorageKey(SAFETY_KEY);
+    const raw = JSON.parse(localStorage.getItem(key) || "{}") as { day?: string; count?: number };
     const count = raw.day === todayKey() ? (raw.count ?? 0) + 1 : 1;
-    localStorage.setItem(SAFETY_KEY, JSON.stringify({ day: todayKey(), count }));
+    localStorage.setItem(key, JSON.stringify({ day: todayKey(), count }));
   } catch {
     /* storage unavailable */
   }
@@ -242,7 +218,10 @@ export function recordSafetyRedirect() {
 export function loadSafetyRedirects(): number {
   if (typeof window === "undefined") return 0;
   try {
-    const raw = JSON.parse(localStorage.getItem(SAFETY_KEY) || "{}") as { day?: string; count?: number };
+    const raw = JSON.parse(localStorage.getItem(childStorageKey(SAFETY_KEY)) || "{}") as {
+      day?: string;
+      count?: number;
+    };
     return raw.day === todayKey() ? (raw.count ?? 0) : 0;
   } catch {
     return 0;
@@ -256,6 +235,13 @@ export function loadSafetyRedirects(): number {
 const CHATS_KEY = "wondrix-extra-chats";
 const ACTIVE_CHAT_KEY = "wondrix-extra-active";
 const LEGACY_CHAT_KEY = "wondrix-extra-chat"; // single-chat format before history existed
+
+function chatsKey() {
+  return childStorageKey(CHATS_KEY);
+}
+function activeChatKey() {
+  return childStorageKey(ACTIVE_CHAT_KEY);
+}
 
 /** Kept on the device: the 20 most recent chats per language, 30 messages each. */
 export const MAX_SAVED_CHATS = 20;
@@ -303,7 +289,7 @@ function profileLang(): "en" | "ar" {
 
 function readChats(): SavedChat[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(CHATS_KEY) || "[]") as unknown;
+    const raw = JSON.parse(localStorage.getItem(chatsKey()) || "[]") as unknown;
     if (!Array.isArray(raw)) return [];
     return raw
       .filter((c): c is SavedChat => Boolean(c) && typeof c.id === "string" && Array.isArray(c.messages))
@@ -317,12 +303,13 @@ function readChats(): SavedChat[] {
 }
 
 function writeChats(chats: SavedChat[]) {
+  const key = chatsKey();
   try {
-    localStorage.setItem(CHATS_KEY, JSON.stringify(chats));
+    localStorage.setItem(key, JSON.stringify(chats));
   } catch {
     /* storage full: drop the oldest chat and retry once */
     try {
-      localStorage.setItem(CHATS_KEY, JSON.stringify(chats.slice(0, -1)));
+      localStorage.setItem(key, JSON.stringify(chats.slice(0, -1)));
     } catch {
       /* give up silently; the current chat still works in memory */
     }
@@ -391,8 +378,8 @@ export function deleteChat(id: string) {
 export function clearAllChats() {
   if (typeof window === "undefined") return;
   try {
-    localStorage.removeItem(CHATS_KEY);
-    sessionStorage.removeItem(ACTIVE_CHAT_KEY);
+    localStorage.removeItem(chatsKey());
+    sessionStorage.removeItem(activeChatKey());
     sessionStorage.removeItem(LEGACY_CHAT_KEY);
   } catch {
     /* ignore */
@@ -403,7 +390,7 @@ export function clearAllChats() {
 export function getActiveChatId(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return sessionStorage.getItem(ACTIVE_CHAT_KEY);
+    return sessionStorage.getItem(activeChatKey());
   } catch {
     return null;
   }
@@ -412,8 +399,8 @@ export function getActiveChatId(): string | null {
 export function setActiveChatId(id: string | null) {
   if (typeof window === "undefined") return;
   try {
-    if (id) sessionStorage.setItem(ACTIVE_CHAT_KEY, id);
-    else sessionStorage.removeItem(ACTIVE_CHAT_KEY);
+    if (id) sessionStorage.setItem(activeChatKey(), id);
+    else sessionStorage.removeItem(activeChatKey());
   } catch {
     /* ignore */
   }
@@ -431,7 +418,7 @@ function migrateLegacyChat() {
     const now = Date.now();
     const lang = guessChatLang(msgs);
     writeChats([{ id, title: chatTitle(msgs), createdAt: now, updatedAt: now, messages: msgs, lang }, ...readChats()].slice(0, MAX_SAVED_CHATS * 2));
-    if (!sessionStorage.getItem(ACTIVE_CHAT_KEY)) sessionStorage.setItem(ACTIVE_CHAT_KEY, id);
+    if (!sessionStorage.getItem(activeChatKey())) sessionStorage.setItem(activeChatKey(), id);
   } catch {
     /* ignore */
   }

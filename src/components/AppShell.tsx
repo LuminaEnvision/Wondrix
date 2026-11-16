@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/BottomNav";
+import { LanguageIcon } from "@/components/LanguageIcon";
 import type { WorldId } from "@/lib/types";
 import { useT } from "@/lib/use-client-state";
 
@@ -49,10 +50,15 @@ export function AppShell({
     <div className="wx-shell" data-world={worldId}>
       <div className="wx-device wx-enter">
         <div
-          className={`wx-shell-inner flex min-h-0 flex-1 flex-col overflow-hidden ${
+          className={`wx-shell-inner relative flex min-h-0 flex-1 flex-col overflow-hidden ${
             hideHeader ? "px-0 pt-0" : "px-4 pt-4"
           }`}
         >
+          {hideHeader ? (
+            <div className="pointer-events-auto absolute end-3 top-3 z-30">
+              <LanguageIcon />
+            </div>
+          ) : null}
           {hideHeader ? null : (
             <header
               className={`mb-4 flex shrink-0 items-center gap-3 ${dense ? "min-h-11" : "min-h-14"}`}
@@ -87,7 +93,9 @@ export function AppShell({
                   )}
                 </Link>
               )}
-              <div className="ms-auto" />
+              <div className="ms-auto flex items-center gap-2">
+                <LanguageIcon />
+              </div>
             </header>
           )}
           <main

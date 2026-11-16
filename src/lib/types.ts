@@ -52,7 +52,11 @@ export type RadarItem = {
 };
 
 export type ParentProfile = {
+  /** Present when stored as a household child. */
+  id?: string;
   childNickname: string;
+  /** Parent-entered age (separate from grade/class). */
+  age?: string;
   /** School curriculum: changes grade names and AI wording only (see src/lib/curriculum.ts). */
   curriculum?: import("./curriculum").Curriculum;
   ageBand: AgeBand;
@@ -72,9 +76,21 @@ export type ParentProfile = {
    * Steers AI wording only — not a textbook catalogue.
    */
   unitNote?: string;
+  /** Up to five textbook / workbook photo data URLs. */
+  textbookPhotos?: string[];
   /** App language (UI + Extra answers). Missing = English. */
   language?: import("./i18n").Lang;
 };
+
+/** One child in the household store. */
+export type ChildProfile = ParentProfile & { id: string };
+
+export type Household = {
+  children: ChildProfile[];
+  activeChildId: string | null;
+};
+
+export const MAX_TEXTBOOK_PHOTOS = 5;
 
 /** Subject chip on Parent: practiceable now, or shown as coming later. */
 export type SubjectOffer = {

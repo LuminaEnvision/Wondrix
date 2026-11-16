@@ -10,8 +10,11 @@
 import { useSyncExternalStore } from "react";
 import { gradeName } from "./curriculum";
 import { asLang, t, type Lang, type MessageKey } from "./i18n";
-import { loadProfile, MASTERY_KEY, PROFILE_KEY, saveProfile, setActiveChatId } from "./demo-store";
+import { childStorageKey, HOUSEHOLD_KEY } from "./household";
+import { loadProfile, MASTERY_KEY, saveProfile, setActiveChatId } from "./demo-store";
 import { PROFILE_CHANGED_EVENT } from "./types";
+
+const LANG_KEY = "wondrix-language";
 
 const noopSubscribe = () => () => {};
 
@@ -36,7 +39,7 @@ function subscribeProfile(onChange: () => void) {
 function readProfileKey(): string {
   try {
     // Raw strings are stable snapshots (same value → no re-render).
-    return `${localStorage.getItem(PROFILE_KEY) ?? ""}|${localStorage.getItem(MASTERY_KEY) ?? ""}`;
+    return `${localStorage.getItem(HOUSEHOLD_KEY) ?? ""}|${localStorage.getItem(childStorageKey(MASTERY_KEY)) ?? ""}|${localStorage.getItem(LANG_KEY) ?? ""}`;
   } catch {
     return "|";
   }
@@ -71,6 +74,12 @@ export function useProfileGradeName(): string {
 }
 
 function readLang(): Lang {
+  try {
+    const stored = localStorage.getItem(LANG_KEY);
+    if (stored) return asLang(stored);
+  } catch {
+    /* ignore */
+  }
   return asLang(loadProfile().language);
 }
 
@@ -85,10 +94,35 @@ export function useT(): (key: MessageKey, vars?: Record<string, string | number>
   return (key, vars) => t(key, vars, lang);
 }
 
-/** Save only the language (applies at once, without the Parent form's Save button). */
+/** Save only the language (device-level; applies at once). */
 export function saveLanguage(lang: Lang) {
-  const prev = asLang(loadProfile().language);
-  saveProfile({ ...loadProfile(), language: lang });
+  const prev = readLang();
+  try {
+    localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    /* ignore */
+  }
+  // Keep active child profile.language in sync for API callers that read the profile blob.
+  try {
+    const profile = loadProfile();
+    if (profile.id || listHasChildren()) {
+      saveProfile({ ...profile, language: lang });
+    } else if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(PROFILE_CHANGED_EVENT));
+    }
+  } catch {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(PROFILE_CHANGED_EVENT));
+    }
+  }
   // Do not keep an English chat open after switching to Arabic (and vice versa).
   if (prev !== lang) setActiveChatId(null);
+}
+
+function listHasChildren(): boolean {
+  try {
+    return Boolean(localStorage.getItem(HOUSEHOLD_KEY)?.includes('"id"'));
+  } catch {
+    return false;
+  }
 }

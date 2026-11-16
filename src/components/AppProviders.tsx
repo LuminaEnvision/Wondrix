@@ -1,17 +1,17 @@
 "use client";
 
+import { ActionGate } from "@/components/ActionGate";
 import { AgeSkin } from "@/components/AgeSkin";
 import { LangSync } from "@/components/LangSync";
-import { SetupGate } from "@/components/SetupGate";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <>
       <LangSync />
-      <SetupGate>
+      <ActionGate>
         <AgeSkin />
         {children}
-      </SetupGate>
+      </ActionGate>
     </>
   );
 }

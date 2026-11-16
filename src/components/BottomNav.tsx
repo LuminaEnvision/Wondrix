@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useActionGate } from "@/components/ActionGate";
 import { useT } from "@/lib/use-client-state";
 
 const TABS = [
@@ -13,6 +13,7 @@ const TABS = [
 export function BottomNav() {
   const pathname = usePathname() || "/";
   const tr = useT();
+  const { requestNavigate } = useActionGate();
 
   return (
     <nav
@@ -26,8 +27,9 @@ export function BottomNav() {
           const Icon = tab.icon;
           return (
             <li key={tab.href} className="flex-1">
-              <Link
-                href={tab.href}
+              <button
+                type="button"
+                onClick={() => requestNavigate(tab.href)}
                 className={`wx-nav-tab wx-tap flex w-full flex-col items-center justify-center gap-0.5 px-2 py-1.5 text-center ${
                   active ? "wx-nav-tab-active" : ""
                 }`}
@@ -35,7 +37,7 @@ export function BottomNav() {
               >
                 <Icon active={active} />
                 <span className="text-[11px] font-bold leading-tight sm:text-xs">{tr(tab.key)}</span>
-              </Link>
+              </button>
             </li>
           );
         })}
