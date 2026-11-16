@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { LanguageIcon } from "@/components/LanguageIcon";
+import { HeaderTools } from "@/components/HeaderTools";
 import { useT } from "@/lib/use-client-state";
 
 /** Public marketing landing — not the in-app child hero. */
@@ -22,7 +22,7 @@ export default function WebsitePage() {
           />
           <span className="font-display text-xl font-semibold tracking-tight">{tr("website.title")}</span>
         </div>
-        <LanguageIcon />
+        <HeaderTools />
       </header>
 
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-5 pb-16 pt-6">
@@ -71,11 +71,26 @@ export default function WebsitePage() {
           </div>
         </section>
 
-        <p className="text-center text-sm">
+        <nav
+          className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm"
+          aria-label={tr("legal.nav")}
+        >
+          <Link href="/terms" className="font-bold text-[#276856] underline-offset-2 hover:underline">
+            {tr("parent.terms")}
+          </Link>
+          <span className="text-[#4a5c57]" aria-hidden>
+            ·
+          </span>
+          <Link href="/privacy" className="font-bold text-[#276856] underline-offset-2 hover:underline">
+            {tr("parent.privacy")}
+          </Link>
+          <span className="text-[#4a5c57]" aria-hidden>
+            ·
+          </span>
           <Link href="/" className="font-bold text-[#276856] underline-offset-2 hover:underline">
             {tr("website.backApp")}
           </Link>
-        </p>
+        </nav>
       </main>
     </div>
   );

@@ -19,12 +19,31 @@ const body = localFont({
   display: "swap",
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://wondrix.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "Wondrix",
   description:
     "Wondrix: your friend on the learning path. Support with school, or follow your interests.",
   appleWebApp: { capable: true, title: "Wondrix", statusBarStyle: "default" },
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
+  openGraph: {
+    title: "Wondrix",
+    description:
+      "Your friend on the learning path: school practice and curious questions.",
+    url: "/",
+    siteName: "Wondrix",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Wondrix" }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Wondrix",
+    description:
+      "Your friend on the learning path: school practice and curious questions.",
+    images: ["/og.png"],
+  },
 };
 
 export const viewport: Viewport = {

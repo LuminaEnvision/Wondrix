@@ -8,6 +8,7 @@ import { AppShell } from "@/components/AppShell";
 import { ParentLock } from "@/components/ParentLock";
 import {
   addChild,
+  buildDayPreview,
   buildDaySummary,
   childIsFilled,
   clearAllChats,
@@ -23,12 +24,8 @@ import {
   updateChild,
 } from "@/lib/demo-store";
 import { GRADE_OPTIONS } from "@/lib/grades";
-import {
-  clearParentPin,
-  hasParentPin,
-  lockParentSession,
-  setParentPin,
-} from "@/lib/parent-auth";
+import { pickDeviceLook } from "@/lib/age-preference";
+import { hasParentPin, setParentPin } from "@/lib/parent-auth";
 import {
   asCurriculum,
   CURRICULA,
@@ -53,6 +50,55 @@ const SUBJECT_LABEL: Record<SubjectOffer["id"], MessageKey> = {
   social: "subject.social",
 };
 
+const AVATAR_PRESETS = [
+  "/art/owl/happy.webp",
+  "/art/owl/calm.webp",
+  "/art/owl/think.webp",
+  "/art/mascot-icon.jpg",
+  "/art/logo-mark.jpg",
+] as const;
+
+function ChildAvatar({
+  src,
+  name,
+  size = 56,
+  className = "",
+}: {
+  src?: string;
+  name: string;
+  size?: number;
+  className?: string;
+}) {
+  const initial = (name.trim().charAt(0) || "?").toUpperCase();
+  if (src) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        width={size}
+        height={size}
+        className={`rounded-full object-cover ${className}`}
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-full font-display font-semibold text-[var(--world-accent)] ${className}`}
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.38,
+        background: "color-mix(in srgb, var(--world-accent) 18%, var(--world-surface))",
+      }}
+      aria-hidden
+    >
+      {initial}
+    </span>
+  );
+}
+
 function masteryBuckets(mastery: Partial<Record<SkillId, MasteryLevel>>) {
   const shaky: SkillId[] = [];
   const growing: SkillId[] = [];
@@ -70,6 +116,18 @@ function daySummaryFor(p: ParentProfile, lang: Lang): string {
     lang,
     nickname: p.childNickname,
     gradeLabel: gradeName(p.gradeLabel, p.curriculum, lang),
+    focus: pickFocusSkills(loadMastery(), p),
+    calmMode: p.calmMode,
+    extraTopic: loadExtraTopic(),
+    safetyRedirects: loadSafetyRedirects(),
+    sessions: loadPracticeSessions(),
+    notes: p.oneLiner,
+  });
+}
+
+function dayPreviewFor(p: ParentProfile, lang: Lang) {
+  return buildDayPreview({
+    lang,
     focus: pickFocusSkills(loadMastery(), p),
     calmMode: p.calmMode,
     extraTopic: loadExtraTopic(),
@@ -109,11 +167,15 @@ function ParentHome() {
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [pinSet, setPinSet] = useState(() => hasParentPin());
+  const [changingPin, setChangingPin] = useState(false);
   const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
   const [pinMsg, setPinMsg] = useState("");
+  const [showLatestSummary, setShowLatestSummary] = useState(false);
   const [chatCount, setChatCount] = useState(0);
   const [mastery, setMastery] = useState(() => loadMastery());
   const fileRef = useRef<HTMLInputElement>(null);
+  const avatarRef = useRef<HTMLInputElement>(null);
 
   const selected = children.find((c) => c.id === selectedId) ?? null;
 
@@ -129,7 +191,12 @@ function ParentHome() {
     setSaved(false);
     setMastery(loadMastery());
     setChatCount(listChats().length);
-    if (child) applyAgeChrome(child.ageMode === "teen" ? "teen" : "explorer", Boolean(child.teenDark));
+    if (child) {
+      applyAgeChrome(
+        child.ageMode === "teen" ? "teen" : "explorer",
+        Boolean(child.darkMode ?? child.teenDark),
+      );
+    }
   }
 
   function onAddChild() {
@@ -149,9 +216,12 @@ function ParentHome() {
     updateChild(selected.id, patch);
     refreshChildren();
     setSaved(false);
-    if (patch.ageMode !== undefined || patch.teenDark !== undefined) {
+    if (patch.ageMode !== undefined || patch.darkMode !== undefined || patch.teenDark !== undefined) {
       const next = { ...selected, ...patch };
-      applyAgeChrome(next.ageMode === "teen" ? "teen" : "explorer", Boolean(next.teenDark));
+      applyAgeChrome(
+        next.ageMode === "teen" ? "teen" : "explorer",
+        Boolean(next.darkMode ?? next.teenDark),
+      );
     }
   }
 
@@ -171,8 +241,16 @@ function ParentHome() {
     refreshChildren();
     setSaved(false);
     if (key === "ageMode") {
-      applyAgeChrome(value === "teen" ? "teen" : "explorer", false);
-      if (value === "explorer") updateChild(selected.id, { teenDark: false });
+      const mode = value === "teen" ? "teen" : "explorer";
+      const dark = Boolean(selected.darkMode ?? selected.teenDark);
+      pickDeviceLook(mode, dark);
+      applyAgeChrome(mode, dark);
+    }
+    if (key === "darkMode") {
+      const mode = selected.ageMode === "teen" ? "teen" : "explorer";
+      const dark = Boolean(value);
+      pickDeviceLook(mode, dark);
+      applyAgeChrome(mode, dark);
     }
   }
 
@@ -190,7 +268,33 @@ function ParentHome() {
     patchSelected({ textbookPhotos: [...current, ...urls].slice(0, MAX_TEXTBOOK_PHOTOS) });
   }
 
+  async function onPickAvatar(files: FileList | null) {
+    if (!selected || !files?.[0]) return;
+    const file = files[0];
+    if (!file.type.startsWith("image/")) return;
+    const url = await readFileAsDataUrl(file);
+    patchSelected({ avatarUrl: url });
+  }
+
+  function savePin(asUpdate: boolean) {
+    if (!/^\d{4}$/.test(newPin)) {
+      setPinMsg(tr("parent.pinUse4"));
+      return;
+    }
+    if (newPin !== confirmPin) {
+      setPinMsg(tr("parent.pinMismatch"));
+      return;
+    }
+    setParentPin(newPin);
+    setPinSet(true);
+    setChangingPin(false);
+    setNewPin("");
+    setConfirmPin("");
+    setPinMsg(asUpdate ? tr("parent.pinUpdated") : tr("parent.pinSaved"));
+  }
+
   const summary = selected ? daySummaryFor(selected, lang) : "";
+  const preview = selected ? dayPreviewFor(selected, lang) : null;
   const subjectOffers = selected
     ? subjectsForProgramme(selected.curriculum, selected.gradeLabel)
     : [];
@@ -210,36 +314,46 @@ function ParentHome() {
                 <p className="mt-1 text-sm text-[var(--world-ink-soft)]">{tr("parent.dashboardIntro")}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {children.map((child) => (
-                  <button
-                    key={child.id}
-                    type="button"
-                    onClick={() => openChild(child.id)}
-                    className="aspect-square rounded-2xl border border-stroke bg-[var(--world-surface)] p-3 text-start shadow-[var(--shadow-card)]"
-                  >
-                    <p className="font-display text-lg font-semibold text-[var(--world-ink)] line-clamp-1">
-                      {child.childNickname || tr("parent.yourChild")}
-                    </p>
-                    <p className="mt-2 text-xs text-[var(--world-ink-soft)]">
-                      {tr("parent.cardAge")}: {child.age || "—"}
-                    </p>
-                    <p className="text-xs text-[var(--world-ink-soft)]">
-                      {tr("parent.cardClass")}:{" "}
-                      {gradeName(child.gradeLabel, child.curriculum, lang)}
-                    </p>
-                    <p className="text-xs text-[var(--world-ink-soft)]">
-                      {tr("parent.cardCurriculum")}: {curriculumLabel(asCurriculum(child.curriculum), lang)}
-                    </p>
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                {children.map((child, index) => {
+                  const name = child.childNickname || tr("parent.yourChild");
+                  return (
+                    <button
+                      key={child.id}
+                      type="button"
+                      onClick={() => openChild(child.id)}
+                      className={`wx-child-card wx-enter flex flex-col items-center gap-1.5 rounded-[1.35rem] border border-stroke/80 px-2.5 pb-3 pt-3.5 text-center ${
+                        index === 0 ? "" : index === 1 ? "wx-enter-delay-1" : "wx-enter-delay-2"
+                      }`}
+                    >
+                      <span className="wx-child-avatar-ring inline-flex rounded-full p-0.5">
+                        <ChildAvatar src={child.avatarUrl} name={name} size={52} />
+                      </span>
+                      <p className="font-display text-[0.95rem] font-semibold leading-tight text-[var(--world-ink)] line-clamp-1">
+                        {name}
+                      </p>
+                      <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-[var(--world-accent)]">
+                        {tr("parent.cardAge")} {child.age || "·"}
+                      </p>
+                      <p className="text-[0.7rem] leading-snug text-[var(--world-ink-soft)] line-clamp-1">
+                        {gradeName(child.gradeLabel, child.curriculum, lang)}
+                      </p>
+                      <p className="text-[0.65rem] leading-snug text-[var(--world-ink-soft)]/80 line-clamp-1">
+                        {curriculumLabel(asCurriculum(child.curriculum), lang)}
+                      </p>
+                    </button>
+                  );
+                })}
                 <button
                   type="button"
                   onClick={onAddChild}
-                  className="flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-stroke bg-[var(--world-bg)] p-3 text-[var(--world-ink-soft)]"
+                  className="wx-child-card wx-child-card-add flex min-h-[9.5rem] flex-col items-center justify-center gap-1.5 rounded-[1.35rem] border border-dashed border-stroke/90 px-2.5 py-3 text-[var(--world-ink-soft)]"
                   aria-label={tr("parent.addChild")}
                 >
-                  <span className="text-3xl font-light leading-none" aria-hidden>
+                  <span
+                    className="flex size-11 items-center justify-center rounded-full border border-stroke bg-[var(--world-surface)] text-2xl font-light leading-none text-[var(--world-accent)]"
+                    aria-hidden
+                  >
                     +
                   </span>
                   <span className="text-sm font-bold">{tr("parent.addChild")}</span>
@@ -248,8 +362,15 @@ function ParentHome() {
             </>
           ) : selected ? (
             <>
-              <div className="flex items-start justify-between gap-3">
-                <div>
+              <div className="flex items-start gap-3">
+                <span className="wx-child-avatar-ring mt-1 shrink-0 rounded-full p-0.5">
+                  <ChildAvatar
+                    src={selected.avatarUrl}
+                    name={selected.childNickname || tr("parent.yourChild")}
+                    size={48}
+                  />
+                </span>
+                <div className="min-w-0">
                   <button
                     type="button"
                     onClick={() => setSelectedId(null)}
@@ -257,35 +378,115 @@ function ParentHome() {
                   >
                     {tr("parent.backToDashboard")}
                   </button>
-                  <h1 className="mt-1 font-display text-2xl font-semibold text-[var(--world-ink)]">
+                  <h1 className="mt-1 font-display text-2xl font-semibold text-[var(--world-ink)] line-clamp-1">
                     {selected.childNickname || tr("parent.yourChild")}
                   </h1>
                 </div>
               </div>
 
-              <div className="wx-surface-lift grid gap-4 p-4 sm:grid-cols-[120px_1fr] sm:items-center">
-                <div className="relative mx-auto h-36 w-24">
-                  <Image
-                    src="/art/parent-phone.jpg"
-                    alt=""
-                    fill
-                    className="object-contain"
-                    sizes="96px"
-                  />
+              <div className="wx-preview space-y-3 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="relative h-14 w-10 shrink-0">
+                    <Image
+                      src="/art/parent-phone.jpg"
+                      alt=""
+                      fill
+                      className="object-contain"
+                      sizes="40px"
+                    />
+                  </div>
+                  <h2 className="font-display text-xl font-semibold text-[var(--world-ink)]">
+                    {tr("parent.summaryLead")}
+                  </h2>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-[var(--world-accent)]">{tr("parent.summaryLead")}</p>
-                  <p className="mt-1 text-xs font-semibold text-[var(--world-ink-soft)]">
-                    {tr("parent.summaryTitle")}
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--world-ink)]">{summary}</p>
-                </div>
+
+                {preview ? (
+                  <div className="grid gap-2.5">
+                    <div className="wx-preview-tile wx-preview-school">
+                      <p className="text-[0.65rem] font-bold uppercase tracking-wide text-[var(--school)]">
+                        {tr("parent.previewSchool")}
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-[var(--world-ink-soft)]">
+                        {tr("parent.previewFocus")}
+                      </p>
+                      {preview.focusTitles.length ? (
+                        <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                          {preview.focusTitles.map((title) => (
+                            <li key={title} className="wx-preview-chip wx-preview-chip-school">
+                              {title}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      <p className="mt-2 text-sm font-semibold text-[var(--world-ink)]">
+                        {preview.sessionsDone === 0
+                          ? tr("parent.previewNoPractice")
+                          : preview.sessionsDone === 1
+                            ? tr("parent.previewPracticeOne", {
+                                questions: preview.questionsAnswered,
+                              })
+                            : tr("parent.previewPractice", {
+                                sessions: preview.sessionsDone,
+                                questions: preview.questionsAnswered,
+                              })}
+                      </p>
+                    </div>
+
+                    <div className="wx-preview-tile wx-preview-wonder">
+                      <p className="text-[0.65rem] font-bold uppercase tracking-wide text-[var(--extra)]">
+                        {tr("parent.previewWonder")}
+                      </p>
+                      {preview.wonderTopic ? (
+                        <>
+                          <p className="mt-1 text-xs font-semibold text-[var(--world-ink-soft)]">
+                            {tr("parent.previewExplored")}
+                          </p>
+                          <p className="mt-1 font-display text-base font-semibold leading-snug text-[var(--world-ink)]">
+                            {preview.wonderTopic}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mt-1.5 text-sm font-semibold text-[var(--world-ink)]">
+                          {tr("parent.previewNoWonder")}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="wx-preview-tile">
+                      <p className="text-[0.65rem] font-bold uppercase tracking-wide text-[var(--world-accent)]">
+                        {tr("parent.previewNotes")}
+                      </p>
+                      <p className="mt-1.5 text-sm leading-snug text-[var(--world-ink)]">
+                        {preview.notes || tr("parent.previewNoNotes")}
+                      </p>
+                    </div>
+
+                    {(preview.calmMode || preview.safetyRedirects > 0) && (
+                      <div className="flex flex-wrap gap-2">
+                        {preview.calmMode ? (
+                          <span className="rounded-full border border-stroke bg-[var(--world-surface)] px-3 py-1 text-xs font-bold text-[var(--world-ink-soft)]">
+                            {tr("parent.previewCalm")}
+                          </span>
+                        ) : null}
+                        {preview.safetyRedirects > 0 ? (
+                          <span className="rounded-full border border-stroke bg-[var(--world-surface)] px-3 py-1 text-xs font-bold text-[var(--world-ink-soft)]">
+                            {preview.safetyRedirects === 1
+                              ? tr("parent.previewSafetyOne")
+                              : tr("parent.previewSafety", { n: preview.safetyRedirects })}
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
               <div className="wx-surface space-y-4 p-4">
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="font-display text-lg font-semibold text-[var(--world-ink)]">
-                    {tr("parent.settingsTitle")}
+                    {!editing && childIsFilled(selected)
+                      ? tr("parent.profileTitle")
+                      : tr("parent.settingsTitle")}
                   </h2>
                   {childIsFilled(selected) && !editing ? (
                     <button
@@ -310,8 +511,20 @@ function ParentHome() {
 
                 {!editing && childIsFilled(selected) ? (
                   <div className="space-y-2 text-sm text-[var(--world-ink)]">
+                    <div className="mb-3 flex items-center gap-3">
+                      <span className="wx-child-avatar-ring rounded-full p-0.5">
+                        <ChildAvatar
+                          src={selected.avatarUrl}
+                          name={selected.childNickname || tr("parent.yourChild")}
+                          size={56}
+                        />
+                      </span>
+                      <p className="font-display text-base font-semibold">
+                        {selected.childNickname}
+                      </p>
+                    </div>
                     <p>
-                      <span className="font-bold text-[var(--world-ink-soft)]">{tr("parent.nickname")}: </span>
+                      <span className="font-bold text-[var(--world-ink-soft)]">{tr("parent.glanceName")}: </span>
                       {selected.childNickname}
                     </p>
                     <p>
@@ -319,10 +532,16 @@ function ParentHome() {
                       {selected.age}
                     </p>
                     <p>
-                      <span className="font-bold text-[var(--world-ink-soft)]">{tr("parent.ageMode")}: </span>
+                      <span className="font-bold text-[var(--world-ink-soft)]">{tr("parent.glanceLevel")}: </span>
                       {(selected.ageMode ?? "explorer") === "teen"
                         ? tr("parent.ageModeTeen")
                         : tr("parent.ageModeExplorer")}
+                    </p>
+                    <p>
+                      <span className="font-bold text-[var(--world-ink-soft)]">{tr("parent.theme")}: </span>
+                      {selected.darkMode || selected.teenDark
+                        ? tr("parent.themeDark")
+                        : tr("parent.themeLight")}
                     </p>
                     <p>
                       <span className="font-bold text-[var(--world-ink-soft)]">{tr("parent.curriculum")}: </span>
@@ -337,7 +556,7 @@ function ParentHome() {
                       {selected.subjects.map((s) => tr(SUBJECT_LABEL[s])).join(", ")}
                     </p>
                     <p>
-                      <span className="font-bold text-[var(--world-ink-soft)]">{tr("parent.unit")}: </span>
+                      <span className="font-bold text-[var(--world-ink-soft)]">{tr("parent.glanceUnit")}: </span>
                       {photos.length
                         ? tr("parent.unitPhotoCount", { n: photos.length })
                         : tr("parent.unitNone")}
@@ -345,6 +564,68 @@ function ParentHome() {
                   </div>
                 ) : (
                   <>
+                    <div className="space-y-2">
+                      <p className="text-sm font-bold text-ink-soft">{tr("parent.avatar")}</p>
+                      <p className="text-xs text-ink-soft">{tr("parent.avatarHelp")}</p>
+                      <div className="flex items-center gap-3">
+                        <span className="wx-child-avatar-ring rounded-full p-0.5">
+                          <ChildAvatar
+                            src={selected.avatarUrl}
+                            name={selected.childNickname || tr("parent.yourChild")}
+                            size={64}
+                          />
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          <input
+                            ref={avatarRef}
+                            type="file"
+                            accept="image/*"
+                            capture="user"
+                            className="hidden"
+                            onChange={(e) => {
+                              void onPickAvatar(e.target.files);
+                              e.target.value = "";
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => avatarRef.current?.click()}
+                            className="rounded-full bg-brand px-3 py-1.5 text-sm font-bold text-white"
+                          >
+                            {tr("parent.avatarUpload")}
+                          </button>
+                          {selected.avatarUrl ? (
+                            <button
+                              type="button"
+                              onClick={() => patchSelected({ avatarUrl: undefined })}
+                              className="rounded-full border border-stroke px-3 py-1.5 text-sm font-bold text-ink-soft"
+                            >
+                              {tr("parent.avatarRemove")}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                      <p className="text-xs font-semibold text-ink-soft">{tr("parent.avatarPick")}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {AVATAR_PRESETS.map((src) => (
+                          <button
+                            key={src}
+                            type="button"
+                            onClick={() => patchSelected({ avatarUrl: src })}
+                            className={`rounded-full p-0.5 ring-2 transition ${
+                              selected.avatarUrl === src
+                                ? "ring-[var(--world-accent)]"
+                                : "ring-transparent hover:ring-stroke"
+                            }`}
+                            aria-label={tr("parent.avatarPick")}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={src} alt="" className="size-10 rounded-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <fieldset className="space-y-2">
                       <legend className="text-sm font-bold text-[var(--world-ink-soft)]">
                         {tr("parent.ageMode")}
@@ -362,6 +643,29 @@ function ParentHome() {
                             }`}
                           >
                             {mode === "explorer" ? tr("parent.ageModeExplorer") : tr("parent.ageModeTeen")}
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
+
+                    <fieldset className="space-y-2">
+                      <legend className="text-sm font-bold text-[var(--world-ink-soft)]">
+                        {tr("parent.theme")}
+                      </legend>
+                      <p className="text-xs text-ink-soft">{tr("parent.themeHelp")}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {([false, true] as const).map((dark) => (
+                          <button
+                            key={dark ? "dark" : "light"}
+                            type="button"
+                            onClick={() => updateField("darkMode", dark)}
+                            className={`wx-tap rounded-[var(--radius-m)] border px-3 py-2 text-sm font-bold ${
+                              Boolean(selected.darkMode ?? selected.teenDark) === dark
+                                ? "border-[var(--world-accent)] bg-[var(--world-accent)] text-white"
+                                : "border-stroke bg-[var(--world-bg)] text-[var(--world-ink)]"
+                            }`}
+                          >
+                            {dark ? tr("parent.themeDark") : tr("parent.themeLight")}
                           </button>
                         ))}
                       </div>
@@ -618,75 +922,159 @@ function ParentHome() {
 
           <div className="space-y-3 rounded-3xl border border-stroke bg-card p-5">
             <p className="font-display text-lg font-semibold text-ink">{tr("parent.pinTitle")}</p>
-            {pinSet ? (
+            {pinSet && !changingPin ? (
               <>
                 <p className="text-sm text-ink-soft">{tr("parent.pinIsSet")}</p>
                 <button
                   type="button"
                   onClick={() => {
-                    clearParentPin();
-                    lockParentSession();
-                    setPinSet(false);
-                    setPinMsg(tr("parent.pinRemoved"));
+                    setChangingPin(true);
+                    setNewPin("");
+                    setConfirmPin("");
+                    setPinMsg("");
                   }}
-                  className="rounded-full border border-stroke px-4 py-2 text-sm font-bold text-ink-soft"
+                  className="rounded-full bg-brand px-4 py-2 text-sm font-bold text-white"
                 >
-                  {tr("parent.pinRemove")}
+                  {tr("parent.pinChange")}
                 </button>
               </>
             ) : (
               <>
-                <p className="text-sm text-ink-soft">{tr("parent.pinOptional")}</p>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={newPin}
-                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  className="w-full rounded-2xl border border-stroke bg-bg/40 px-4 py-3 tracking-[0.4em] outline-none"
-                  placeholder="••••"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!/^\d{4}$/.test(newPin)) {
-                      setPinMsg(tr("parent.pinUse4"));
-                      return;
-                    }
-                    setParentPin(newPin);
-                    setPinSet(true);
-                    setNewPin("");
-                    setPinMsg(tr("parent.pinSaved"));
-                  }}
-                  className="rounded-full bg-brand px-4 py-2 text-sm font-bold text-white"
-                >
-                  {tr("parent.pinSet")}
-                </button>
+                <p className="text-sm text-ink-soft">
+                  {pinSet ? tr("parent.pinChangeIntro") : tr("parent.pinOptional")}
+                </p>
+                <label className="block space-y-1">
+                  <span className="text-xs font-bold text-ink-soft">
+                    {pinSet ? tr("parent.pinNew") : tr("parent.pinTitle")}
+                  </span>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    className="w-full rounded-2xl border border-stroke bg-bg/40 px-4 py-3 tracking-[0.4em] outline-none"
+                    placeholder="••••"
+                    autoComplete="new-password"
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-xs font-bold text-ink-soft">{tr("parent.pinConfirm")}</span>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={confirmPin}
+                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    className="w-full rounded-2xl border border-stroke bg-bg/40 px-4 py-3 tracking-[0.4em] outline-none"
+                    placeholder="••••"
+                    autoComplete="new-password"
+                  />
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => savePin(pinSet)}
+                    className="rounded-full bg-brand px-4 py-2 text-sm font-bold text-white"
+                  >
+                    {pinSet ? tr("parent.pinChange") : tr("parent.pinSet")}
+                  </button>
+                  {pinSet ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChangingPin(false);
+                        setNewPin("");
+                        setConfirmPin("");
+                        setPinMsg("");
+                      }}
+                      className="rounded-full border border-stroke px-4 py-2 text-sm font-bold text-ink-soft"
+                    >
+                      {tr("parent.pinCancelChange")}
+                    </button>
+                  ) : null}
+                </div>
               </>
             )}
             {pinMsg ? <p className="text-sm font-semibold text-brand">{pinMsg}</p> : null}
           </div>
 
-          <div className="wx-surface mb-2 grid gap-4 p-4 sm:grid-cols-[120px_1fr] sm:items-center">
-            <div className="relative mx-auto h-28 w-28 overflow-hidden rounded-2xl">
-              <Image
-                src="/art/safety-trust.jpg"
-                alt=""
-                fill
-                className="object-cover"
-                sizes="112px"
-              />
-            </div>
-            <div>
-              <p className="font-display text-lg font-semibold text-[var(--world-ink)]">{tr("parent.safetyTitle")}</p>
-              <p className="mt-1 text-sm text-[var(--world-ink-soft)]">{tr("parent.safetyBody")}</p>
-            </div>
+          <div className="wx-surface mb-2 space-y-3 p-4">
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center gap-4 marker:content-none [&::-webkit-details-marker]:hidden">
+                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl">
+                  <Image
+                    src="/art/safety-trust.jpg"
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="64px"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-lg font-semibold text-[var(--world-ink)]">
+                    {tr("parent.safetyTitle")}
+                  </p>
+                </div>
+                <span
+                  className="text-xl text-[var(--world-ink-soft)] transition group-open:rotate-180"
+                  aria-hidden
+                >
+                  ▾
+                </span>
+              </summary>
+              <p className="mt-3 text-sm leading-relaxed text-[var(--world-ink-soft)]">
+                {tr("parent.safetyBody")}
+              </p>
+            </details>
+            <button
+              type="button"
+              onClick={() => setShowLatestSummary((v) => !v)}
+              className="rounded-full bg-brand px-4 py-2 text-sm font-bold text-white"
+            >
+              {tr("parent.safetyLatest")}
+            </button>
+            {showLatestSummary ? (
+              <div className="rounded-2xl border border-stroke bg-[var(--world-bg)]/60 p-3 text-sm leading-relaxed text-[var(--world-ink)]">
+                {selected ? (
+                  summary.trim() ? summary : tr("parent.safetyLatestEmpty")
+                ) : (
+                  tr("parent.safetyLatestEmpty")
+                )}
+              </div>
+            ) : null}
           </div>
 
-          <footer className="border-t border-stroke pt-4 text-center">
-            <Link href="/website" className="text-sm font-bold text-[var(--world-accent)] underline-offset-2 hover:underline">
-              {tr("parent.website")}
-            </Link>
+          <footer className="border-t border-stroke pt-4">
+            <nav
+              className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm"
+              aria-label={tr("legal.nav")}
+            >
+              <Link
+                href="/website"
+                className="font-bold text-[var(--world-accent)] underline-offset-2 hover:underline"
+              >
+                {tr("parent.website")}
+              </Link>
+              <span className="text-[var(--world-ink-soft)]" aria-hidden>
+                ·
+              </span>
+              <Link
+                href="/terms"
+                className="font-bold text-[var(--world-accent)] underline-offset-2 hover:underline"
+              >
+                {tr("parent.terms")}
+              </Link>
+              <span className="text-[var(--world-ink-soft)]" aria-hidden>
+                ·
+              </span>
+              <Link
+                href="/privacy"
+                className="font-bold text-[var(--world-accent)] underline-offset-2 hover:underline"
+              >
+                {tr("parent.privacy")}
+              </Link>
+            </nav>
           </footer>
         </div>
       </ParentLock>

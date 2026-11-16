@@ -38,6 +38,9 @@ export async function skipSetup(page: Page) {
     ({ hashed }) => {
       localStorage.setItem("wondrix-setup", "complete");
       localStorage.setItem("wondrix-parent-pin", hashed);
+      localStorage.setItem("wondrix-age-picked", "1");
+      localStorage.setItem("wondrix-device-age-mode", "explorer");
+      localStorage.setItem("wondrix-device-theme", "light");
       const id = "kid-e2e";
       if (!localStorage.getItem("wondrix-household")) {
         localStorage.setItem(
@@ -76,6 +79,9 @@ export async function seedProfile(page: Page, profile: Record<string, unknown>) 
       if (!localStorage.getItem("wondrix-parent-pin")) {
         localStorage.setItem("wondrix-parent-pin", hashed);
       }
+      localStorage.setItem("wondrix-age-picked", "1");
+      localStorage.setItem("wondrix-device-age-mode", "explorer");
+      localStorage.setItem("wondrix-device-theme", "light");
       sessionStorage.setItem("wondrix-parent-unlocked", "1");
       if (localStorage.getItem("wondrix-household")) return;
       const id = "kid-seed";

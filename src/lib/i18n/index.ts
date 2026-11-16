@@ -49,5 +49,12 @@ export function currentLang(): Lang {
 /** One line for agent prompts: which language to write in. Empty for English. */
 export function languagePromptLine(lang: Lang): string {
   if (lang !== "ar") return "";
-  return "Language: the child uses the app in Arabic. Write every text value (answer, followUp, topic, titles, labels) in simple Modern Standard Arabic for children in the UAE, even if the child writes in English or mixes languages. Keep JSON keys in English. Use Western digits (0-9). End questions with the Arabic question mark ؟.";
+  return [
+    "Language: the child uses the app in Arabic.",
+    "Write every text value (answer, followUp, topic, titles, labels) in warm, spoken-sounding Arabic for children in the UAE: short sentences a parent would say aloud, not formal textbook MSA or stiff machine translation.",
+    "Prefer everyday words over rare classical ones; keep science terms accurate but explain them simply.",
+    "Even if the child writes in English or mixes languages, reply in Arabic.",
+    "Keep JSON keys in English. Use Western digits (0-9). End questions with the Arabic question mark ؟.",
+    "Never sound like a translated brochure.",
+  ].join(" ");
 }

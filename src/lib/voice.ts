@@ -61,12 +61,22 @@ function isMobileDevice(): boolean {
   return Boolean(uaData?.mobile) || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 }
 
+/**
+ * Production order: Azure neural first (EN + AR, phones included), then Kokoro on
+ * desktop English, then browser. Mobile used to skip Azure entirely when the
+ * default engine was Kokoro — that left iPhone PWA on robotic system voices.
+ */
 function engineChain(): Engine[] {
   const primary = (process.env.NEXT_PUBLIC_TTS_ENGINE || "kokoro").toLowerCase() as Engine;
-  if (currentLang() !== "en") return primary === "azure" ? ["azure", "browser"] : ["browser"];
   if (primary === "browser") return ["browser"];
-  if (primary === "azure") return isMobileDevice() ? ["azure", "browser"] : ["azure", "kokoro", "browser"];
-  return isMobileDevice() ? ["browser"] : ["kokoro", "browser"];
+  const mobile = isMobileDevice();
+  if (currentLang() !== "en") {
+    // Kokoro has no Arabic — Azure neural, then system Arabic voice.
+    return ["azure", "browser"];
+  }
+  if (mobile) return ["azure", "browser"];
+  if (primary === "azure") return ["azure", "kokoro", "browser"];
+  return ["azure", "kokoro", "browser"];
 }
 
 /* ------------------------------------------------------------------ */
@@ -140,6 +150,7 @@ function splitSentences(text: string): string[] {
 
 export function stopSpeaking() {
   playToken++;
+  clearSpeakWatchdog();
   stopAllAudio();
   if (speech.state !== "idle") setSpeech(IDLE);
 }
@@ -176,6 +187,8 @@ export function speak(text: string, opts?: SpeakOpts) {
   setSpeech({ state: "preparing", id });
   const started = Date.now();
   void (async () => {
+    // Best-effort unlock when speak() is already inside a tap handler.
+    await unlockAudio();
     for (const engine of engineChain()) {
       if (token !== playToken) return;
       try {
@@ -196,12 +209,33 @@ export function speak(text: string, opts?: SpeakOpts) {
   })();
 }
 
+/** Safety: clear "speaking" if an engine never fires onend (Chrome TTS hang, etc.). */
+let speakWatchdog: ReturnType<typeof setTimeout> | null = null;
+
+function clearSpeakWatchdog() {
+  if (speakWatchdog) {
+    clearTimeout(speakWatchdog);
+    speakWatchdog = null;
+  }
+}
+
 /** Called by an engine when its audio really starts / ends. */
-function markSpeaking(token: number, engine: Engine, id?: string) {
-  if (token === playToken) setSpeech({ state: "speaking", id, engine });
+function markSpeaking(token: number, engine: Engine, id?: string, textLen = 0) {
+  if (token !== playToken) return;
+  setSpeech({ state: "speaking", id, engine });
+  clearSpeakWatchdog();
+  // ~350ms/word + buffer; never leave the owl mouth-syncing after audio is gone.
+  const ms = Math.min(120_000, Math.max(4_000, Math.ceil(textLen / 5) * 350 + 2_500));
+  speakWatchdog = setTimeout(() => {
+    if (token === playToken && speech.state === "speaking") {
+      console.warn("[voice] speak watchdog: forcing idle (engine did not end)");
+      stopSpeaking();
+    }
+  }, ms);
 }
 
 function markDone(token: number) {
+  clearSpeakWatchdog();
   if (token === playToken) setSpeech(IDLE);
   finishOnEnd(token);
 }
@@ -287,6 +321,45 @@ async function getAudioCtx(): Promise<AudioContext | null> {
   return audioCtx.state === "running" ? audioCtx : null;
 }
 
+/**
+ * Call from a tap (Listen, mic, voice toggle) so iPhone PWA allows later audio.
+ * Plays a tiny silent buffer once; safe to call often.
+ */
+let audioUnlocked = false;
+/** True only after a successful unlock (tap). Auto-speak must not run before this. */
+export function isAudioUnlocked(): boolean {
+  return audioUnlocked;
+}
+
+export async function unlockAudio(): Promise<void> {
+  if (typeof window === "undefined" || audioUnlocked) return;
+  try {
+    const ctx = await getAudioCtx();
+    if (ctx) {
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(ctx.destination);
+      src.start(0);
+    }
+    if (!audioEl) audioEl = new Audio();
+    audioEl.muted = true;
+    let played = false;
+    try {
+      await audioEl.play();
+      played = true;
+    } catch {
+      /* iOS: needs a real tap — leave unlocked false so UI does not fake "speaking" */
+    }
+    audioEl.pause();
+    audioEl.muted = false;
+    // AudioContext running after a user gesture also counts as unlocked.
+    if (played || (ctx && ctx.state === "running")) audioUnlocked = true;
+  } catch {
+    /* first gesture may still unlock on the next play() */
+  }
+}
+
 async function speakKokoro(text: string, opts: SpeakOpts, token: number): Promise<boolean> {
   const worker = getKokoroWorker();
   if (!worker) return false;
@@ -351,7 +424,7 @@ async function speakKokoro(text: string, opts: SpeakOpts, token: number): Promis
         if (!gotAudio) {
           gotAudio = true;
           clearTimeout(timer);
-          markSpeaking(token, "kokoro", opts.id);
+          markSpeaking(token, "kokoro", opts.id, text.length);
           resolve(true);
         }
       } else if (m.type === "done" || m.type === "error") {
@@ -396,15 +469,18 @@ async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise
   if (!res.ok || token !== playToken) return false;
   const blob = await res.blob();
   if (token !== playToken) return false;
+  if (audioUrl) URL.revokeObjectURL(audioUrl);
   audioUrl = URL.createObjectURL(blob);
   audioEl = new Audio(audioUrl);
+  audioEl.setAttribute("playsinline", "true");
   audioEl.onended = () => markDone(token);
   try {
     await audioEl.play();
     emit({ engine: "azure", state: "ready" });
-    markSpeaking(token, "azure", opts.id);
+    markSpeaking(token, "azure", opts.id, text.length);
     return true;
-  } catch {
+  } catch (err) {
+    console.warn("[voice] azure play blocked (needs a tap on iOS)", err);
     return false;
   }
 }
@@ -503,7 +579,7 @@ async function speakBrowser(text: string, opts: SpeakOpts, token: number): Promi
         started = true;
         clearTimeout(timer);
         emit({ engine: "browser", state: "ready" });
-        markSpeaking(token, "browser", opts.id);
+        markSpeaking(token, "browser", opts.id, text.length);
         resolve(true);
       };
       if (i === sentences.length - 1) u.onend = () => markDone(token);

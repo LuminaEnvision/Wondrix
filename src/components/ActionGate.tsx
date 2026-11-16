@@ -12,6 +12,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { SpeakButton } from "@/components/SpeakButton";
+import { loadDeviceAgeMode, loadDeviceDarkMode } from "@/lib/age-preference";
 import { addChild, isFamilySetupComplete } from "@/lib/demo-store";
 import { markSetupComplete, setParentPin } from "@/lib/parent-auth";
 import { PROFILE_CHANGED_EVENT } from "@/lib/types";
@@ -129,7 +130,12 @@ export function ActionGate({ children }: { children: React.ReactNode }) {
       setError(tr("handoff.errAge"));
       return;
     }
-    addChild({ childNickname: name, age: ageVal });
+    addChild({
+      childNickname: name,
+      age: ageVal,
+      ageMode: loadDeviceAgeMode(),
+      darkMode: loadDeviceDarkMode(),
+    });
     markSetupComplete();
     bumpSetup();
     setPendingHref(null);

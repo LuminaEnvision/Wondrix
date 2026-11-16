@@ -2,7 +2,14 @@
 
 import { useSyncExternalStore } from "react";
 import { useLang, useT } from "@/lib/use-client-state";
-import { getServerSpeech, getSpeech, speak, stopSpeaking, subscribeSpeech } from "@/lib/voice";
+import {
+  getServerSpeech,
+  getSpeech,
+  speak,
+  stopSpeaking,
+  subscribeSpeech,
+  unlockAudio,
+} from "@/lib/voice";
 
 /** Animated equalizer bars shown while Wondrix is talking. */
 function Bars() {
@@ -72,7 +79,9 @@ export function SpeakButton({
     <span className="inline-flex items-center gap-2">
       <button
         type="button"
-        onClick={() => speak(text, { id })}
+        onClick={() => {
+          void unlockAudio().then(() => speak(text, { id }));
+        }}
         className={`inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1 text-xs font-bold ${color}`}
         aria-label={label ?? tr("speak.listenAnswer")}
       >

@@ -57,6 +57,8 @@ export type ParentProfile = {
   childNickname: string;
   /** Parent-entered age (separate from grade/class). */
   age?: string;
+  /** Child photo or chosen avatar (data URL or /public path). */
+  avatarUrl?: string;
   /** School curriculum: changes grade names and AI wording only (see src/lib/curriculum.ts). */
   curriculum?: import("./curriculum").Curriculum;
   ageBand: AgeBand;
@@ -65,7 +67,12 @@ export type ParentProfile = {
    * AI prompts still use ageBand.
    */
   ageMode?: AgeMode;
-  /** Teen-only dark surfaces. Ignored when ageMode is explorer. */
+  /**
+   * Dark surfaces for any age mode (Explorer or Teen).
+   * Legacy profiles may still store this as `teenDark`.
+   */
+  darkMode?: boolean;
+  /** @deprecated Prefer darkMode — kept for reading old localStorage. */
   teenDark?: boolean;
   gradeLabel: string;
   subjects: Array<"math" | "science">;

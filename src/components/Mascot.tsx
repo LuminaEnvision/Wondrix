@@ -11,13 +11,14 @@ const FRAMES = {
   happy: "/art/owl/happy.webp",
   listen: "/art/owl/listen.webp",
   think: "/art/owl/think.webp",
+  talk0: "/art/owl/talk-0.webp",
   talk1: "/art/owl/talk-1.webp",
   talk2: "/art/owl/talk-2.webp",
 } as const;
 type Frame = keyof typeof FRAMES;
 
-/** Mouth shapes while talking — talk frames only; hard-cut swaps (no opacity fade). */
-const TALK: Frame[] = ["talk1", "talk2"];
+/** Mouth shapes while talking — closed → half → open → half (hard-cut swaps). */
+const TALK: Frame[] = ["talk0", "talk1", "talk2", "talk1"];
 
 let framesWarmed = false;
 function warmFrames() {
@@ -39,19 +40,36 @@ export function Mascot({
   listening,
   happy = false,
   size = "lg",
+  speechId,
+  followSpeech = true,
 }: {
   busy: boolean;
   listening: boolean;
   happy?: boolean;
-  /** lg = chat hero; sm = header / bubble avatar */
-  size?: "lg" | "sm";
+  /** lg = hero; md = chat bubble; sm = compact */
+  size?: "lg" | "md" | "sm";
+  /**
+   * When set, mouth only syncs while this speech id is active
+   * (so only one chat owl talks — not every bubble).
+   */
+  speechId?: string;
+  /** Sync mouth to TTS (default true). */
+  followSpeech?: boolean;
 }) {
   const speech = useSyncExternalStore(subscribeSpeech, getSpeech, getServerSpeech);
+  const activeSpeechId = "id" in speech ? speech.id : undefined;
+  const idMatches = speechId == null || activeSpeechId === speechId;
+  // Mouth only while audio is actually playing — not during prepare / unavailable.
+  const isSpeaking =
+    followSpeech && speech.state === "speaking" && idMatches;
+  const isPreparing =
+    followSpeech && speech.state === "preparing" && idMatches;
+
   const state: MascotState = listening
     ? "listening"
-    : speech.state === "speaking"
+    : isSpeaking
       ? "speaking"
-      : busy || speech.state === "preparing"
+      : busy || isPreparing
         ? "thinking"
         : happy
           ? "happy"
@@ -64,7 +82,7 @@ export function Mascot({
   useEffect(() => {
     if (state !== "speaking") return;
     if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    const id = setInterval(() => setTick((t) => t + 1), 160);
+    const id = setInterval(() => setTick((t) => t + 1), 140);
     return () => clearInterval(id);
   }, [state]);
 
@@ -85,7 +103,10 @@ export function Mascot({
   const box =
     size === "sm"
       ? "h-9 w-9 shrink-0"
-      : "h-28 w-24 shrink-0 sm:h-40 sm:w-36";
+      : size === "md"
+        ? "h-14 w-12 shrink-0 sm:h-16 sm:w-14"
+        : "h-28 w-24 shrink-0 sm:h-40 sm:w-36";
+  const showFx = size === "lg" || size === "md";
 
   return (
     <div className={`wx-mascot wx-mascot-${state} relative ${box}`} data-state={state} data-frame={frame} data-size={size}>
@@ -104,15 +125,26 @@ export function Mascot({
           }`}
         />
       </div>
-      {size === "lg" && state === "thinking" ? (
-        <div className="wx-mascot-dots absolute -top-1 start-0 flex gap-1 rounded-full bg-card px-2 py-1 shadow" aria-hidden>
+      {showFx && state === "thinking" ? (
+        <div
+          className={`wx-mascot-dots absolute -top-1 start-0 flex gap-1 rounded-full bg-card px-2 py-1 shadow ${
+            size === "md" ? "scale-75 origin-bottom-start" : ""
+          }`}
+          aria-hidden
+        >
           <span />
           <span />
           <span />
         </div>
       ) : null}
-      {size === "lg" && state === "speaking" ? (
-        <svg className="wx-mascot-waves absolute -end-3 top-6 h-10 w-6 text-extra" viewBox="0 0 24 40" aria-hidden>
+      {showFx && state === "speaking" ? (
+        <svg
+          className={`wx-mascot-waves absolute text-extra ${
+            size === "md" ? "-end-2 top-3 h-7 w-4" : "-end-3 top-6 h-10 w-6"
+          }`}
+          viewBox="0 0 24 40"
+          aria-hidden
+        >
           <path d="M4 14 q6 6 0 12" />
           <path d="M10 9 q10 11 0 22" />
           <path d="M16 4 q14 16 0 32" />

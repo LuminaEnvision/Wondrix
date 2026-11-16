@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/BottomNav";
-import { LanguageIcon } from "@/components/LanguageIcon";
+import { HeaderTools } from "@/components/HeaderTools";
 import type { WorldId } from "@/lib/types";
 import { useT } from "@/lib/use-client-state";
 
@@ -24,6 +24,7 @@ export function AppShell({
   hideHeader = false,
   layout = "page",
   dense = false,
+  headerExtra,
 }: {
   children: React.ReactNode;
   backHref?: string;
@@ -39,12 +40,15 @@ export function AppShell({
   layout?: "page" | "fill";
   /** Tighter header (Teen / Parent). */
   dense?: boolean;
+  /** Extra controls before language/theme tools (e.g. Wonder voice + menu). */
+  headerExtra?: React.ReactNode;
 }) {
   const tr = useT();
   const pathname = usePathname();
   const worldId = world ?? worldFromPath(pathname);
-  const showBrandHome = !backHref && worldId === "home";
+  const onHome = !backHref && worldId === "home";
   const fill = layout === "fill";
+  const icon = dense ? 32 : 40;
 
   return (
     <div className="wx-shell" data-world={worldId}>
@@ -56,45 +60,46 @@ export function AppShell({
         >
           {hideHeader ? (
             <div className="pointer-events-auto absolute end-3 top-3 z-30">
-              <LanguageIcon />
+              <HeaderTools />
             </div>
           ) : null}
           {hideHeader ? null : (
             <header
-              className={`mb-4 flex shrink-0 items-center gap-3 ${dense ? "min-h-11" : "min-h-14"}`}
+              className={`mb-4 flex shrink-0 items-center gap-2 ${dense ? "min-h-11" : "min-h-14"}`}
             >
               {backHref ? (
                 <Link
                   href={backHref}
                   aria-label={tr("common.back")}
-                  className="wx-tap inline-flex items-center justify-center rounded-full border border-stroke bg-[var(--world-surface)] text-[var(--world-ink)] shadow-[var(--shadow-card)]"
+                  className="wx-tap inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-stroke bg-[var(--world-surface)] text-[var(--world-ink)] shadow-[var(--shadow-card)]"
                 >
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden className="rtl:-scale-x-100">
                     <path d="M15 6 9 12l6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </Link>
-              ) : (
-                <Link href="/" className="flex min-w-0 items-center gap-2">
-                  <Image
-                    src="/art/mascot-icon.jpg"
-                    alt=""
-                    width={dense ? 32 : 40}
-                    height={dense ? 32 : 40}
-                    className="rounded-full shadow-[var(--shadow-card)]"
-                  />
-                  {showBrandHome ? (
-                    <span className="font-display truncate text-2xl font-semibold tracking-tight text-[var(--world-accent)]">
-                      Wondrix
-                    </span>
-                  ) : (
-                    <span className="font-display truncate text-xl font-semibold tracking-tight text-[var(--world-ink)]">
-                      Wondrix
-                    </span>
-                  )}
-                </Link>
-              )}
+              ) : null}
+              <Link
+                href="/"
+                aria-label={tr("nav.home")}
+                className="flex min-w-0 shrink-0 items-center gap-2"
+              >
+                <Image
+                  src="/art/mascot-icon.jpg"
+                  alt=""
+                  width={icon}
+                  height={icon}
+                  className="rounded-full shadow-[var(--shadow-card)]"
+                  priority={onHome}
+                />
+                {onHome ? (
+                  <span className="font-display truncate text-2xl font-semibold tracking-tight text-[var(--world-accent)]">
+                    Wondrix
+                  </span>
+                ) : null}
+              </Link>
               <div className="ms-auto flex items-center gap-2">
-                <LanguageIcon />
+                {headerExtra}
+                <HeaderTools />
               </div>
             </header>
           )}

@@ -102,5 +102,12 @@ test.describe("first run + parent controls", () => {
 
     await page.goto("/parent");
     await expect(page.getByRole("link", { name: "Website" })).toHaveAttribute("href", "/website");
+    await expect(page.getByRole("link", { name: "Terms" })).toHaveAttribute("href", "/terms");
+    await expect(page.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
+
+    await page.goto("/terms");
+    await expect(page.getByRole("heading", { name: "Terms of Use" })).toBeVisible();
+    await page.goto("/privacy");
+    await expect(page.getByRole("heading", { name: "Privacy Policy" })).toBeVisible();
   });
 });

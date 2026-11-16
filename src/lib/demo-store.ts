@@ -119,6 +119,42 @@ export function loadPracticeSessions(): PracticeSession[] {
   }
 }
 
+export type DayPreview = {
+  focusTitles: string[];
+  sessionsDone: number;
+  questionsAnswered: number;
+  wonderTopic?: string;
+  notes?: string;
+  calmMode: boolean;
+  safetyRedirects: number;
+};
+
+/** Structured facts for the Parent "Today's preview" cards (not a prose dump). */
+export function buildDayPreview(input: {
+  focus: SkillId[];
+  extraTopic?: string;
+  calmMode: boolean;
+  safetyRedirects?: number;
+  lang?: "en" | "ar";
+  sessions?: PracticeSession[];
+  notes?: string;
+}): DayPreview {
+  const lang = input.lang === "ar" ? "ar" : "en";
+  const focusTitles = input.focus.map((id) =>
+    lang === "ar" ? skillName(id, "ar") : skillTitle(id),
+  );
+  const done = input.sessions ?? [];
+  return {
+    focusTitles,
+    sessionsDone: done.length,
+    questionsAnswered: done.reduce((k, s) => k + s.answered, 0),
+    wonderTopic: input.extraTopic?.trim() || undefined,
+    notes: input.notes?.trim() || undefined,
+    calmMode: input.calmMode,
+    safetyRedirects: input.safetyRedirects ?? 0,
+  };
+}
+
 export function buildDaySummary(input: {
   nickname: string;
   gradeLabel: string;

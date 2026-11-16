@@ -84,9 +84,10 @@ test.describe("School door (local mode)", () => {
     expect(Object.keys(mastery).length).toBeGreaterThan(0);
   });
 
-  test("school home shows a coach note and Start links for this grade", async ({ page }) => {
+  test("school home shows this week card and four activity doors", async ({ page }) => {
     await page.goto("/school");
-    await expect(page.getByText(/^Today: /)).toBeVisible();
-    await expect(page.getByRole("link", { name: "Start" }).first()).toHaveAttribute("href", /\/school\/practice\?skill=/);
+    await expect(page.getByText(/This week for/)).toBeVisible();
+    await expect(page.getByRole("link", { name: /Skills builder/i })).toHaveAttribute("href", "/school/skills");
+    await expect(page.getByRole("link", { name: /Gap radar/i })).toHaveAttribute("href", "/school/radar");
   });
 });

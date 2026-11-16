@@ -1,15 +1,15 @@
 /**
- * Server text-to-speech (prepared for the demo, off by default).
+ * Server text-to-speech — Azure Speech neural voices (EN + AR).
  *
- * Azure Speech neural voices via the REST API. Enable with:
- *   AZURE_SPEECH_KEY, AZURE_SPEECH_REGION (e.g. westeurope, uaenorth)
- *   NEXT_PUBLIC_TTS_ENGINE=azure   (client uses this route first)
- * Optional: AZURE_SPEECH_VOICE (default en-US-AnaNeural, a child voice),
- * AZURE_SPEECH_VOICE_AR for Arabic (default ar-AE-FatimaNeural),
- *           AZURE_SPEECH_RATE (e.g. "-5%").
+ * Required on Vercel / production for non-robotic phone audio:
+ *   AZURE_SPEECH_KEY, AZURE_SPEECH_REGION (e.g. uaenorth, westeurope)
+ * Optional:
+ *   AZURE_SPEECH_VOICE (default en-US-JennyNeural)
+ *   AZURE_SPEECH_VOICE_AR (default ar-AE-FatimaNeural)
+ *   AZURE_SPEECH_RATE (e.g. "-5%")
  *
- * Without a key the route answers 501 and the client falls back to
- * Kokoro (in-browser) or the browser voice.
+ * The client always tries this route first; without keys it returns 501 and
+ * the app falls back to Kokoro (desktop EN) or the browser voice.
  */
 
 import { NextResponse } from "next/server";
@@ -28,7 +28,6 @@ function escapeXml(text: string) {
 }
 
 export async function POST(request: Request) {
-  // Public test link: cap AI calls per device (the app falls back to offline answers).
   if (!allowRequest(`tts:${clientIp(request)}`)) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
@@ -46,16 +45,24 @@ export async function POST(request: Request) {
   }
   const text = body.text?.trim().slice(0, MAX_CHARS) ?? "";
   if (!text) return NextResponse.json({ error: "Empty text" }, { status: 400 });
-  // This route only voices app text; refuse obviously unsafe input so it cannot be abused.
   if (!safetyCheck(text).ok) return NextResponse.json({ error: "Refused" }, { status: 400 });
 
-  const voice =
-    body.lang === "ar"
-      ? process.env.AZURE_SPEECH_VOICE_AR || "ar-AE-FatimaNeural"
-      : process.env.AZURE_SPEECH_VOICE || "en-US-AnaNeural";
+  const isAr = body.lang === "ar";
+  // Jenny = warm natural adult English (Ana child voice often reads as "toy robotic").
+  // Fatima = clear UAE Arabic neural for kids.
+  const voice = isAr
+    ? process.env.AZURE_SPEECH_VOICE_AR || "ar-AE-FatimaNeural"
+    : process.env.AZURE_SPEECH_VOICE || "en-US-JennyNeural";
   const rate = process.env.AZURE_SPEECH_RATE || "-5%";
   const lang = voice.split("-").slice(0, 2).join("-");
-  const ssml = `<speak version="1.0" xml:lang="${lang}"><voice name="${escapeXml(voice)}"><prosody rate="${escapeXml(rate)}">${escapeXml(text)}</prosody></voice></speak>`;
+  const spoken = escapeXml(text);
+  const rateAttr = escapeXml(rate);
+  const voiceAttr = escapeXml(voice);
+
+  // Friendly style on English neural voices; Arabic uses prosody only (wider support).
+  const ssml = isAr
+    ? `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${lang}"><voice name="${voiceAttr}"><prosody rate="${rateAttr}">${spoken}</prosody></voice></speak>`
+    : `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="${lang}"><voice name="${voiceAttr}"><mstts:express-as style="friendly" styledegree="1.15"><prosody rate="${rateAttr}">${spoken}</prosody></mstts:express-as></voice></speak>`;
 
   const started = Date.now();
   try {
@@ -71,6 +78,27 @@ export async function POST(request: Request) {
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) {
+      // Retry once without express-as if the region/voice rejects the style.
+      if (!isAr && res.status === 400) {
+        const plain = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${lang}"><voice name="${voiceAttr}"><prosody rate="${rateAttr}">${spoken}</prosody></voice></speak>`;
+        const retry = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+          method: "POST",
+          headers: {
+            "Ocp-Apim-Subscription-Key": key,
+            "Content-Type": "application/ssml+xml",
+            "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
+            "User-Agent": "wondrix",
+          },
+          body: plain,
+          signal: AbortSignal.timeout(10000),
+        });
+        if (retry.ok) {
+          console.info(`[tts] azure ok ${Date.now() - started}ms (${voice}, plain, ${text.length} chars)`);
+          return new Response(retry.body, {
+            headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
+          });
+        }
+      }
       console.warn(`[tts] azure fail ${Date.now() - started}ms · HTTP ${res.status}`);
       return NextResponse.json({ error: "TTS failed" }, { status: 502 });
     }

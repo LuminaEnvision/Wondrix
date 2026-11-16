@@ -64,28 +64,52 @@ html[data-age="teen"]:not([data-theme="dark"]) {
   --world-surface: #f5f8fb;
 }
 
+/*
+ * Dark theme — soft dusk, not neon-on-black.
+ * Brand hues stay recognizable but desaturated so bright teal/orange don't glow.
+ */
 html[data-theme="dark"] {
-  --world-bg: #05080b;
-  --world-bg-2: #0c1218;
-  --world-surface: #121a22;
-  --world-ink: #e8f1f4;
-  --world-ink-soft: #9db4bc;
-  --world-accent: #3db8a8;
-  --world-accent-soft: color-mix(in oklab, var(--world-accent) 16%, #0c1218);
-  --bg: #05080b;
-  --bg-deep: #0c1218;
-  --ink: #e8f1f4;
-  --ink-soft: #9db4bc;
-  --card: #121a22;
-  --stroke: rgba(232, 241, 244, 0.16);
-  --brand: #3db8a8;
-  --brand-deep: #2a9a8c;
-  --school: #5a9ec4;
-  --extra: #e08a5c;
-  --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.45);
-  --shadow-lift: 0 12px 32px rgba(0, 0, 0, 0.55);
-  --shadow-stage: 0 24px 64px rgba(0, 0, 0, 0.65);
+  --world-bg: #121c1e;
+  --world-bg-2: #1a2729;
+  --world-surface: #243336;
+  --world-ink: #eef4f3;
+  --world-ink-soft: #a8bbb8;
+  --world-accent: #6ebfb4;
+  --world-accent-soft: color-mix(in oklab, var(--world-accent) 22%, #1a2729);
+  --bg: #121c1e;
+  --bg-deep: #1a2729;
+  --ink: #eef4f3;
+  --ink-soft: #a8bbb8;
+  --card: #243336;
+  --stroke: rgba(238, 244, 243, 0.12);
+  --brand: #6ebfb4;
+  --brand-deep: #4a9e94;
+  --accent: #d4a06a;
+  --school: #7aafc4;
+  --extra: #d0896a;
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.28);
+  --shadow-lift: 0 10px 28px rgba(0, 0, 0, 0.38);
+  --shadow-stage: 0 18px 48px rgba(0, 0, 0, 0.45);
   color-scheme: dark;
+}
+
+html[data-age="explorer"][data-theme="dark"] {
+  --world-bg: #141f1c;
+  --world-bg-2: #1c2b26;
+  --world-surface: #263832;
+  --world-accent: #7bc9b8;
+  --brand: #7bc9b8;
+  --accent: #e0ad72;
+}
+
+html[data-age="teen"][data-theme="dark"] {
+  --world-bg: #10161c;
+  --world-bg-2: #171e28;
+  --world-surface: #1e2834;
+  --world-accent: #6eb0c4;
+  --brand: #6eb0c4;
+  --school: #6eb0c4;
+  --extra: #c98a6e;
 }
 
 /* Worlds — light only when not in teen dark mode */
@@ -101,8 +125,6 @@ html:not([data-theme="dark"]) [data-world="school"] {
   --world-accent: #1a6b8a;
   --world-accent-soft: #e4f0f5;
   --world-surface: #fbf7ef;
-  --radius-m: 16px;
-  --radius-l: 20px;
 }
 html:not([data-theme="dark"]) [data-world="wonder"] {
   --world-bg: #f6efe6;
@@ -116,44 +138,37 @@ html:not([data-theme="dark"]) [data-world="parent"] {
   --world-bg-2: #e8ecea;
   --world-accent: #0f6b63;
   --world-surface: #ffffff;
-  --radius-m: 12px;
-  --radius-l: 16px;
-  --shadow-card: none;
+  /* Keep age radii/shadows — Parent used to flatten and look unlike School/Home */
 }
 
-/* Worlds — full dark surfaces (must win over light world paints) */
+/* Worlds — dark: tinted dusk, same radii as age (no flat parent override) */
 html[data-theme="dark"] [data-world="home"] {
-  --world-bg: #05080b;
-  --world-bg-2: #0c1218;
-  --world-surface: #121a22;
-  --world-accent: #3db8a8;
-  --world-accent-soft: color-mix(in oklab, #3db8a8 16%, #0c1218);
+  --world-bg: #141f1c;
+  --world-bg-2: #1c2b26;
+  --world-surface: #263832;
+  --world-accent: #7bc9b8;
+  --world-accent-soft: color-mix(in oklab, #7bc9b8 20%, #1c2b26);
 }
 html[data-theme="dark"] [data-world="school"] {
-  --world-bg: #05090e;
-  --world-bg-2: #0d1520;
-  --world-surface: #121c28;
-  --world-accent: #5a9ec4;
-  --world-accent-soft: color-mix(in oklab, #5a9ec4 16%, #0d1520);
-  --radius-m: 16px;
-  --radius-l: 20px;
+  --world-bg: #121a22;
+  --world-bg-2: #1a2430;
+  --world-surface: #243240;
+  --world-accent: #7aafc4;
+  --world-accent-soft: color-mix(in oklab, #7aafc4 18%, #1a2430);
 }
 html[data-theme="dark"] [data-world="wonder"] {
-  --world-bg: #080605;
-  --world-bg-2: #120e0c;
-  --world-surface: #1a1410;
-  --world-accent: #e08a5c;
-  --world-accent-soft: color-mix(in oklab, #e08a5c 14%, #120e0c);
+  --world-bg: #1a1512;
+  --world-bg-2: #241c18;
+  --world-surface: #322822;
+  --world-accent: #d0896a;
+  --world-accent-soft: color-mix(in oklab, #d0896a 16%, #241c18);
 }
 html[data-theme="dark"] [data-world="parent"] {
-  --world-bg: #05080b;
-  --world-bg-2: #0c1218;
-  --world-surface: #121a22;
-  --world-accent: #3db8a8;
-  --world-accent-soft: color-mix(in oklab, #3db8a8 16%, #0c1218);
-  --radius-m: 12px;
-  --radius-l: 16px;
-  --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.45);
+  --world-bg: #141c1e;
+  --world-bg-2: #1c2628;
+  --world-surface: #263336;
+  --world-accent: #6ebfb4;
+  --world-accent-soft: color-mix(in oklab, #6ebfb4 18%, #1c2628);
 }
 
 @theme inline {
@@ -192,6 +207,17 @@ html[data-age="explorer"]:not([data-theme="dark"]) body {
 }
 
 html[data-age="teen"]:not([data-theme="dark"]) body {
+  background:
+    linear-gradient(180deg, var(--world-bg) 0%, var(--world-bg-2) 100%);
+}
+
+html[data-age="explorer"][data-theme="dark"] body {
+  background:
+    radial-gradient(ellipse 70% 45% at 0% 0%, color-mix(in oklab, #7bc9b8 14%, transparent) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 40% at 100% 8%, color-mix(in oklab, #d4a06a 10%, transparent) 0%, transparent 50%),
+    var(--world-bg);
+}
+html[data-age="teen"][data-theme="dark"] body {
   background:
     linear-gradient(180deg, var(--world-bg) 0%, var(--world-bg-2) 100%);
 }
@@ -302,14 +328,7 @@ html[data-theme="dark"] .wx-device {
 }
 
 html[data-theme="dark"] .wx-nav {
-  background: color-mix(in oklab, var(--world-surface) 80%, black);
-}
-
-html[data-theme="dark"] .wx-shell {
-  background:
-    radial-gradient(ellipse 90% 55% at 20% -5%, color-mix(in oklab, var(--world-bg-2) 70%, transparent) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 40% at 90% 15%, color-mix(in oklab, var(--world-accent) 12%, transparent) 0%, transparent 50%),
-    linear-gradient(165deg, var(--world-bg) 0%, var(--world-bg-2) 100%);
+  background: color-mix(in oklab, var(--world-surface) 88%, var(--world-bg));
 }
 
 html[data-theme="dark"] body {
@@ -418,6 +437,49 @@ html[data-age="explorer"] .wx-nav-tab-active {
   font-family: var(--font-display), Georgia, serif;
 }
 
+/* Shared type scale — same family/weights everywhere; size follows age font-scale */
+.wx-kicker {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--world-accent);
+}
+.wx-title {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--world-ink);
+  font-size: calc(1.5rem * var(--font-scale));
+}
+html[data-age="teen"] .wx-title {
+  font-size: calc(1.35rem * var(--font-scale));
+}
+.wx-lede {
+  font-size: calc(0.9rem * var(--font-scale));
+  line-height: 1.45;
+  color: var(--world-ink-soft);
+}
+.wx-card {
+  background: var(--world-surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-card);
+  color: var(--world-ink);
+}
+
+html[data-theme="dark"] .wx-shell {
+  background:
+    radial-gradient(ellipse 90% 55% at 18% -5%, color-mix(in oklab, var(--world-accent) 12%, transparent) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 40% at 95% 20%, color-mix(in oklab, var(--accent) 8%, transparent) 0%, transparent 50%),
+    linear-gradient(165deg, var(--world-bg) 0%, var(--world-bg-2) 100%);
+}
+
+html[data-theme="dark"] .wx-shell[data-world="school"] .wx-shell-inner {
+  background-image: none;
+}
+
 /* ---------- Shell motion (entrance + soft loops) ---------- */
 .wx-enter {
   animation: wx-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -451,16 +513,290 @@ html[data-age="explorer"] .wx-nav-tab-active {
   }
 }
 
+/* ---------- Kids-friendly play cards (Wondrix palette) ---------- */
+.wx-play-card {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.28s ease;
+}
+.wx-play-card-explorer {
+  border-radius: 1.85rem;
+  background: color-mix(in srgb, var(--world-surface) 88%, white);
+}
+.wx-play-card-teen {
+  border-radius: 1rem;
+  background: var(--world-surface);
+}
+.wx-play-card-school {
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--school) 14%, white) 0%, var(--world-surface) 55%);
+}
+.wx-play-card-wonder {
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--extra) 16%, white) 0%, var(--world-surface) 55%);
+}
+.wx-play-card-school .wx-play-cta { background: var(--school); }
+.wx-play-card-wonder .wx-play-cta { background: var(--extra); }
+html[data-age="explorer"] .wx-play-card {
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--world-ink) 10%, transparent), 0 12px 28px rgba(20, 53, 58, 0.1);
+}
+@media (hover: hover) {
+  html[data-age="explorer"] .wx-play-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--shadow-lift);
+  }
+}
+.wx-play-card:active { transform: scale(0.97); }
+
+.wx-hero-chip {
+  background: color-mix(in srgb, var(--world-surface) 88%, white);
+  border: 1px solid color-mix(in srgb, white 55%, var(--stroke));
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(10px);
+}
+
+/* School home — this week + four doors */
+.wx-week-card {
+  border-radius: 1.75rem;
+  border: 1px solid color-mix(in srgb, var(--school) 22%, var(--stroke));
+  background:
+    linear-gradient(155deg, color-mix(in srgb, var(--school) 12%, white) 0%, var(--world-surface) 48%, color-mix(in srgb, var(--accent) 8%, var(--world-surface)) 100%);
+  box-shadow: var(--shadow-card);
+}
+.wx-week-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--school);
+  background: color-mix(in srgb, var(--school) 12%, white);
+  border: 1px solid color-mix(in srgb, var(--school) 18%, transparent);
+}
+.wx-week-chip-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--school);
+}
+.wx-school-door {
+  border-radius: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
+  background: var(--world-surface);
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--world-ink) 8%, transparent), 0 10px 22px rgba(20, 53, 58, 0.08);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  text-decoration: none;
+}
+.wx-school-door:active { transform: scale(0.97); }
+html[data-age="teen"] .wx-school-door {
+  border-radius: 1rem;
+  box-shadow: var(--shadow-card);
+}
+.wx-school-skill-card {
+  border-radius: 1.15rem;
+  border: 1px solid var(--stroke);
+  background: var(--world-surface);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s ease;
+}
+.wx-school-skill-card:active { transform: scale(0.98); }
+.wx-skill-glyph {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.9rem;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+.wx-glyph {
+  display: block;
+  /* Keep the plate's own rounded corners; no extra clip that flashes a white frame. */
+  overflow: visible;
+  background: transparent;
+}
+.wx-reading-stage {
+  border: 1px solid color-mix(in srgb, var(--school) 20%, var(--stroke));
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--school) 8%, white), var(--world-surface));
+  box-shadow: var(--shadow-card);
+}
+
+/* Parent — Today's preview */
+.wx-preview {
+  border-radius: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--stroke) 85%, transparent);
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--world-accent) 6%, var(--world-surface)) 0%, var(--world-surface) 55%);
+  box-shadow: var(--shadow-card);
+}
+.wx-preview-tile {
+  border-radius: 1.15rem;
+  border: 1px solid color-mix(in srgb, var(--stroke) 70%, transparent);
+  background: color-mix(in srgb, var(--world-surface) 92%, white);
+  padding: 0.85rem 1rem;
+}
+.wx-preview-school {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--school) 12%, white), var(--world-surface));
+}
+.wx-preview-wonder {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--extra) 12%, white), var(--world-surface));
+}
+.wx-preview-chip {
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.wx-preview-chip-school {
+  background: color-mix(in srgb, var(--school) 14%, white);
+  color: var(--school);
+}
+html[data-theme="dark"] .wx-preview-tile {
+  background: color-mix(in srgb, var(--world-surface) 90%, black);
+}
+html[data-theme="dark"] .wx-preview-school {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--school) 22%, #121a22), var(--world-surface));
+}
+html[data-theme="dark"] .wx-preview-wonder {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--extra) 20%, #1a1410), var(--world-surface));
+}
+html[data-theme="dark"] .wx-preview-chip-school {
+  background: color-mix(in srgb, var(--school) 28%, var(--world-surface));
+  color: color-mix(in srgb, var(--school) 75%, white);
+}
+html[data-theme="dark"] .wx-week-card {
+  background:
+    linear-gradient(155deg, color-mix(in srgb, var(--school) 18%, var(--world-surface)) 0%, var(--world-surface) 55%);
+}
+html[data-theme="dark"] .wx-week-chip {
+  background: color-mix(in srgb, var(--school) 22%, var(--world-surface));
+  color: color-mix(in srgb, var(--school) 70%, white);
+  border-color: color-mix(in srgb, var(--school) 30%, transparent);
+}
+html[data-theme="dark"] .wx-play-card-school,
+html[data-theme="dark"] .wx-play-card-wonder {
+  background: var(--world-surface);
+}
+html[data-theme="dark"] .wx-age-pick-light {
+  background: linear-gradient(165deg, #2a3834, #1c2b26);
+}
+html[data-theme="dark"] .wx-cta {
+  color: #10201c;
+  font-weight: 800;
+}
+
+.wx-age-pick-panel {
+  background: color-mix(in srgb, var(--world-surface) 92%, white);
+}
+.wx-age-pick-explorer {
+  background: linear-gradient(165deg, color-mix(in srgb, var(--brand) 16%, white), #fffaf4);
+  box-shadow: var(--shadow-card);
+}
+.wx-age-pick-teen {
+  background: linear-gradient(165deg, color-mix(in srgb, #1a6b8a 14%, white), #f5f8fb);
+  box-shadow: var(--shadow-card);
+}
+.wx-age-pick-light {
+  background: linear-gradient(165deg, #fffaf4, #e8f4f2);
+  box-shadow: var(--shadow-card);
+}
+.wx-age-pick-dark {
+  background: linear-gradient(165deg, #1a2430, #0c1218);
+  color: #e8f1f4;
+  box-shadow: var(--shadow-card);
+}
+.wx-age-pick-dark .font-display,
+.wx-age-pick-dark .text-xs {
+  color: #e8f1f4 !important;
+}
+.wx-age-pick-dark .text-xs {
+  color: #9db4bc !important;
+}
+
+/* Parent dashboard child cards */
+.wx-child-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 1.5rem;
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--brand) 12%, white) 0%, var(--world-surface) 58%);
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--world-ink) 8%, transparent), 0 10px 24px rgba(20, 53, 58, 0.1);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.28s ease;
+}
+.wx-child-card:nth-child(3n + 2) {
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--school) 14%, white) 0%, var(--world-surface) 58%);
+}
+.wx-child-card:nth-child(3n + 3) {
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--accent) 16%, white) 0%, var(--world-surface) 58%);
+}
+.wx-child-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, transparent 42%);
+  pointer-events: none;
+  z-index: 0;
+}
+.wx-child-card > * {
+  position: relative;
+  z-index: 1;
+}
+@media (hover: hover) {
+  .wx-child-card:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: var(--shadow-lift);
+  }
+}
+.wx-child-card:active {
+  transform: scale(0.97);
+}
+.wx-child-card-add {
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--world-bg) 80%, white), var(--world-bg));
+  box-shadow: none;
+}
+html[data-age="teen"] .wx-child-card {
+  border-radius: 1rem;
+  box-shadow: var(--shadow-card);
+  background: var(--world-surface);
+}
+html[data-age="teen"] .wx-child-card:nth-child(n) {
+  background: var(--world-surface);
+}
+.wx-child-avatar-ring {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--world-accent) 28%, transparent),
+    0 8px 18px rgba(15, 23, 42, 0.12);
+  animation: wx-avatar-glow 3.6s ease-in-out infinite;
+}
+@keyframes wx-avatar-glow {
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--world-accent) 24%, transparent), 0 6px 14px rgba(15, 23, 42, 0.1); }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--world-accent) 40%, transparent), 0 10px 20px rgba(15, 23, 42, 0.14); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wx-enter,
   .wx-enter-delay-1,
   .wx-enter-delay-2,
   .wx-enter-delay-3,
-  .wx-breathe {
+  .wx-breathe,
+  .wx-child-avatar-ring {
     animation: none !important;
   }
   .wx-door,
-  .wx-nav-tab {
+  .wx-nav-tab,
+  .wx-child-card,
+  .wx-play-card {
     transition: none !important;
   }
   html[data-age="explorer"] .wx-nav-tab-active {

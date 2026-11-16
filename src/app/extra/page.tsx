@@ -12,7 +12,6 @@ import {
   type UIEvent,
 } from "react";
 import { AppShell } from "@/components/AppShell";
-import { LanguageIcon } from "@/components/LanguageIcon";
 import {
   chatLang,
   deleteChat,
@@ -33,6 +32,7 @@ import { nextExtraVisit, startersForVisit } from "@/lib/starters";
 import { topicSeedFor, type TopicId } from "@/lib/topic-seeds";
 import { useHydrated, useLang, useT } from "@/lib/use-client-state";
 import { Mascot } from "@/components/Mascot";
+import { WxGlyph } from "@/components/WxGlyph";
 import { localExtraReply } from "@/lib/extra-reply";
 import { safetyCheck } from "@/lib/safety";
 import {
@@ -42,6 +42,7 @@ import {
   type DictationHandle,
   speak,
   stopSpeaking,
+  unlockAudio,
   warmUpVoice,
 } from "@/lib/voice";
 import { DictationPanel } from "@/components/DictationPanel";
@@ -126,38 +127,6 @@ function followUpsFor(msg: Msg | undefined, explorer: boolean, lang: "en" | "ar"
   return [FOLLOW_TEEN[0], FOLLOW_TEEN[1], askBack];
 }
 
-function MicIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <rect x="9" y="3" width="6" height="11" rx="3" />
-      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function SendIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
-      <path d="M5 12h12M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function SpeakerIcon({ on, className = "h-5 w-5" }: { on: boolean; className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M4 9v6h4l5 4V5L8 9H4z" strokeLinejoin="round" />
-      {on ? (
-        <>
-          <path d="M16 9a3 3 0 0 1 0 6" strokeLinecap="round" />
-          <path d="M18 7a6 6 0 0 1 0 10" strokeLinecap="round" />
-        </>
-      ) : (
-        <path d="M16 10l4 4M20 10l-4 4" strokeLinecap="round" />
-      )}
-    </svg>
-  );
-}
 
 function ExtraInner() {
   const router = useRouter();
@@ -526,34 +495,21 @@ function ExtraInner() {
     ? "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
     : "pb-[calc(var(--nav-h)+0.5rem)]";
 
-  const header = (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-stroke px-3">
-      <Mascot
-        size="sm"
-        busy={busy}
-        listening={listening}
-        happy={empty || ["social", "goodbye"].includes(messages.at(-1)?.intent ?? "")}
-      />
-      <h1 className="font-display min-w-0 flex-1 truncate text-lg font-semibold text-[var(--world-ink)]">
-        {topic ? tr(topic.label) : tr("extra.kicker")}
-      </h1>
-      <LanguageIcon />
+  const headerExtra = (
+    <>
       <button
         type="button"
         onClick={() => {
           const next = !voiceOn;
           setVoiceOn(next);
           if (!next) stopSpeaking();
+          else void unlockAudio();
         }}
         aria-pressed={voiceOn}
         aria-label={voiceOn ? tr("extra.voiceOn") : tr("extra.voiceOff")}
-        className={`inline-flex size-11 items-center justify-center rounded-full border ${
-          voiceOn
-            ? "border-[var(--world-accent)] bg-[var(--world-accent)] text-white"
-            : "border-stroke bg-[var(--world-surface)] text-[var(--world-ink-soft)]"
-        }`}
+        className="inline-flex size-11 items-center justify-center rounded-full"
       >
-        <SpeakerIcon on={voiceOn} />
+        <WxGlyph name={voiceOn ? "voiceOn" : "voiceOff"} size={40} />
       </button>
       <div className="relative">
         <button
@@ -595,7 +551,7 @@ function ExtraInner() {
           </div>
         ) : null}
       </div>
-    </header>
+    </>
   );
 
   const composer = (
@@ -644,21 +600,21 @@ function ExtraInner() {
           onClick={startMic}
           aria-pressed={listening}
           disabled={busy || listening}
-          className={`inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white disabled:opacity-60 ${
-            explorer ? "size-14 bg-[var(--world-accent)]" : "size-11 bg-[var(--world-ink)]"
-          } ${listening ? "bg-[var(--world-accent)]" : ""}`}
+          className={`inline-flex shrink-0 items-center justify-center rounded-2xl disabled:opacity-60 ${
+            explorer ? "size-14" : "size-11"
+          } ${listening ? "ring-2 ring-[var(--world-accent)] ring-offset-2" : ""}`}
           title={tr("extra.micTitle")}
           aria-label={tr("extra.micLabel")}
         >
-          <MicIcon className={explorer ? "h-6 w-6" : "h-5 w-5"} />
+          <WxGlyph name="mic" size={explorer ? 52 : 40} />
         </button>
         <button
           type="submit"
           disabled={busy || !input.trim()}
           aria-label={tr("extra.send")}
-          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--world-accent)] text-white disabled:opacity-60"
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-2xl disabled:opacity-60"
         >
-          <SendIcon />
+          <WxGlyph name="send" size={40} />
         </button>
       </form>
     </div>
@@ -740,21 +696,22 @@ function ExtraInner() {
 
   const chatView = (
     <div className="flex min-h-0 flex-1 flex-col">
-      {header}
       <div
         ref={listRef}
         onScroll={onListScroll}
-        className="min-h-0 flex-1 overflow-y-auto px-3 py-3"
+        className="min-h-0 flex-1 overflow-y-auto px-1 py-3 sm:px-3"
         data-wx-messages
       >
         {empty ? (
           <div className="mx-auto flex max-w-lg flex-col gap-4">
             <div className="flex items-end gap-2">
-              {explorer ? (
-                <Mascot busy={busy} listening={listening} happy />
-              ) : (
-                <Mascot size="sm" busy={busy} listening={listening} happy />
-              )}
+              <Mascot
+                size={explorer ? "lg" : "md"}
+                busy={busy}
+                listening={listening}
+                happy
+                speechId="opening"
+              />
               <div className="min-w-0 flex-1 space-y-2 rounded-[var(--radius-m)] bg-[var(--world-accent-soft)] px-4 py-3 text-[var(--world-ink)]">
                 <p className={`leading-relaxed ${explorer ? "text-lg" : "text-base"}`} dir="auto">
                   {opening}
@@ -817,10 +774,11 @@ function ExtraInner() {
                 >
                   {isAgent ? (
                     <Mascot
-                      size="sm"
+                      size="md"
                       busy={Boolean(msg.drawing) && isLatestAgent}
                       listening={false}
                       happy={["social", "goodbye"].includes(msg.intent ?? "")}
+                      speechId={`msg-${msg.id}`}
                     />
                   ) : null}
                   <div
@@ -856,7 +814,7 @@ function ExtraInner() {
               );
             })}
             {busy ? (
-              <p className="ps-11 text-sm text-[var(--world-ink-soft)]">{tr("extra.thinking")}</p>
+              <p className="ps-16 text-sm text-[var(--world-ink-soft)]">{tr("extra.thinking")}</p>
             ) : null}
           </div>
         )}
@@ -868,10 +826,11 @@ function ExtraInner() {
   return (
     <AppShell
       world="wonder"
-      hideHeader
+      backHref="/"
       layout="fill"
       hideNav={navHidden}
       dense={teen}
+      headerExtra={headerExtra}
     >
       <VoiceLoadingBubble enabled={voiceOn && lang === "en"} />
       {menuOpen ? (
@@ -911,7 +870,7 @@ export default function ExtraPage() {
   return (
     <Suspense
       fallback={
-        <AppShell world="wonder" hideHeader layout="fill">
+        <AppShell world="wonder" backHref="/" layout="fill">
           <p className="p-4 text-[var(--world-ink-soft)]">{tr("extra.loadingPage")}</p>
         </AppShell>
       }

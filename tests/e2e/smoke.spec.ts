@@ -1,6 +1,16 @@
 import { expect, skipSetup, test } from "./fixtures";
 
-const PAGES = ["/", "/school", "/school/practice?skill=measure-length", "/school/radar", "/extra", "/parent"];
+const PAGES = [
+  "/",
+  "/school",
+  "/school/practice?skill=measure-length",
+  "/school/radar",
+  "/extra",
+  "/parent",
+  "/website",
+  "/terms",
+  "/privacy",
+];
 
 test.describe("smoke: every page", () => {
   for (const path of PAGES) {

@@ -2,12 +2,33 @@
 
 import { usePathname } from "next/navigation";
 import { useActionGate } from "@/components/ActionGate";
+import { WxGlyph, type WxGlyphName } from "@/components/WxGlyph";
 import { useT } from "@/lib/use-client-state";
 
-const TABS = [
-  { href: "/school", key: "nav.school" as const, icon: SchoolIcon, match: (p: string) => p.startsWith("/school") },
-  { href: "/extra", key: "nav.wonder" as const, icon: WonderIcon, match: (p: string) => p.startsWith("/extra") },
-  { href: "/parent", key: "nav.me" as const, icon: MeIcon, match: (p: string) => p.startsWith("/parent") },
+const TABS: {
+  href: string;
+  key: "nav.school" | "nav.wonder" | "nav.me";
+  glyph: WxGlyphName;
+  match: (p: string) => boolean;
+}[] = [
+  {
+    href: "/school",
+    key: "nav.school",
+    glyph: "school",
+    match: (p) => p.startsWith("/school"),
+  },
+  {
+    href: "/extra",
+    key: "nav.wonder",
+    glyph: "wonder",
+    match: (p) => p.startsWith("/extra"),
+  },
+  {
+    href: "/parent",
+    key: "nav.me",
+    glyph: "parent",
+    match: (p) => p.startsWith("/parent"),
+  },
 ];
 
 export function BottomNav() {
@@ -24,7 +45,6 @@ export function BottomNav() {
       <ul className="flex items-stretch justify-around gap-1 px-2 pt-1">
         {TABS.map((tab) => {
           const active = tab.match(pathname);
-          const Icon = tab.icon;
           return (
             <li key={tab.href} className="flex-1">
               <button
@@ -35,7 +55,13 @@ export function BottomNav() {
                 }`}
                 aria-current={active ? "page" : undefined}
               >
-                <Icon active={active} />
+                <span
+                  className={`inline-flex transition duration-200 ${
+                    active ? "scale-110 drop-shadow-sm" : "opacity-80 scale-95"
+                  }`}
+                >
+                  <WxGlyph name={tab.glyph} size={active ? 30 : 26} />
+                </span>
                 <span className="text-[11px] font-bold leading-tight sm:text-xs">{tr(tab.key)}</span>
               </button>
             </li>
@@ -43,32 +69,5 @@ export function BottomNav() {
         })}
       </ul>
     </nav>
-  );
-}
-
-function SchoolIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden className={active ? "opacity-100" : "opacity-80"}>
-      <rect x="4" y="7" width="20" height="16" rx="3" stroke="currentColor" strokeWidth="2" />
-      <path d="M8 12h12M8 16h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function WonderIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden className={active ? "opacity-100" : "opacity-80"}>
-      <circle cx="14" cy="14" r="9" stroke="currentColor" strokeWidth="2" />
-      <path d="M14 8v3M14 17v3M8 14h3M17 14h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function MeIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden className={active ? "opacity-100" : "opacity-80"}>
-      <rect x="7" y="11" width="14" height="11" rx="2.5" stroke="currentColor" strokeWidth="2" />
-      <path d="M10 11V9a4 4 0 0 1 8 0v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
   );
 }
