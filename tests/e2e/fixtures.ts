@@ -121,5 +121,5 @@ export async function completeHandoff(
   await page.getByRole("button", { name: "Save password" }).click();
   await page.getByLabel("Child nickname").fill(opts?.name ?? "Alex");
   await page.getByPlaceholder("e.g. 8").fill(opts?.age ?? "8");
-  await page.getByRole("button", { name: "Save and continue" }).click();
+  await page.getByRole("button", { name: /Save and open Parent Dashboard/ }).click();
 }

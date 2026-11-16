@@ -11,7 +11,7 @@ export const en = {
   "nav.label": "Main",
   "nav.school": "School",
   "nav.wonder": "Wonder",
-  "nav.me": "Me",
+  "nav.me": "Parent",
 
   "home.tagline": "Your friend on the learning path",
   "home.askWhat": "What do you want to do?",
@@ -50,7 +50,7 @@ export const en = {
   "handoff.pinIntro": "This password unlocks Parent Dashboard every time.",
   "handoff.childTitle": "Add your child",
   "handoff.childIntro": "A name and age are enough to start. You can finish the rest in Parent Dashboard.",
-  "handoff.done": "Save and continue",
+  "handoff.done": "Save and open Parent Dashboard",
   "handoff.errAge": "Enter the child's age.",
 
   "lock.title": "Parent password",

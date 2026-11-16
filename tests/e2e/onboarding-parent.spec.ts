@@ -10,7 +10,8 @@ test.describe("first run + parent controls", () => {
     await page.getByRole("button", { name: /Open School|School/ }).first().click();
     await expect(page.getByRole("heading", { name: "Pass the phone to a parent" })).toBeVisible();
     await completeHandoff(page);
-    await expect(page).toHaveURL(/\/school/);
+    await expect(page).toHaveURL(/\/parent/);
+    await expect(page.getByRole("heading", { name: "Parent Dashboard" })).toBeVisible();
   });
 
   test("handoff validates the PIN", async ({ page }) => {
@@ -31,7 +32,7 @@ test.describe("first run + parent controls", () => {
     await page.goto("/");
     await page.getByRole("button", { name: /Open School/ }).click();
     await completeHandoff(page, { pin: "1234" });
-    await expect(page).toHaveURL(/\/school/);
+    await expect(page).toHaveURL(/\/parent/);
 
     const tab = await context.newPage();
     await tab.route(/huggingface\.co/, (r) => r.abort());

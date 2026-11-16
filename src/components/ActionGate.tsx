@@ -132,9 +132,9 @@ export function ActionGate({ children }: { children: React.ReactNode }) {
     addChild({ childNickname: name, age: ageVal });
     markSetupComplete();
     bumpSetup();
-    const dest = effectivePending || "/";
     setPendingHref(null);
-    router.replace(dest);
+    // First-time setup always lands on Parent Dashboard (session already unlocked by setParentPin).
+    router.replace("/parent");
   }
 
   function savePin() {

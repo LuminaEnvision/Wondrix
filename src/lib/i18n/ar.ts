@@ -14,7 +14,7 @@ export const ar: Record<MessageKey, string> = {
   "nav.label": "القائمة",
   "nav.school": "المدرسة",
   "nav.wonder": "استكشاف",
-  "nav.me": "أنا",
+  "nav.me": "ولي الأمر",
 
   "home.tagline": "صديقك في طريق التعلّم",
   "home.askWhat": "ماذا تريد أن تفعل؟",
@@ -53,7 +53,7 @@ export const ar: Record<MessageKey, string> = {
   "handoff.pinIntro": "هذه الكلمة تفتح لوحة ولي الأمر في كل مرة.",
   "handoff.childTitle": "أضف طفلك",
   "handoff.childIntro": "الاسم والعمر يكفيان للبداية. يمكنك إكمال الباقي في لوحة ولي الأمر.",
-  "handoff.done": "احفظ وتابع",
+  "handoff.done": "احفظ وافتح لوحة ولي الأمر",
   "handoff.errAge": "أدخل عمر الطفل.",
 
   "lock.title": "كلمة مرور ولي الأمر",
