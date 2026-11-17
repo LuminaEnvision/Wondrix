@@ -1,4 +1,4 @@
-import { expect, seedProfile, test } from "./fixtures";
+import { expect, seedProfile, test, unlockParentGate } from "./fixtures";
 
 test.describe("School door (local mode)", () => {
   test.beforeEach(async ({ page }) => {
@@ -17,6 +17,7 @@ test.describe("School door (local mode)", () => {
     }
     await expect(page.getByTestId("choice")).toHaveCount(0);
     await page.goto("/parent");
+    await unlockParentGate(page);
     await expect(page.getByText(/Finished 1 practice session/)).toBeVisible();
   });
 
@@ -43,8 +44,10 @@ test.describe("School door (local mode)", () => {
   test("practice: answer, see feedback, mastery saved, next question is new", async ({ page }) => {
     // forces-motion has two Year 5+ questions, so "next" must show the other one.
     await page.goto("/parent");
+    await unlockParentGate(page);
+    await page.getByRole("button", { name: "Edit" }).click();
     await page.locator('select[name="grade"]').selectOption("Year 6");
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).first().click();
     await page.goto("/school/practice?skill=forces-motion");
     await expect(page.getByRole("heading", { name: "Forces and motion" })).toBeVisible();
     const prompt = page.locator("p.text-lg");

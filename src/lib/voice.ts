@@ -2,19 +2,17 @@
  * Wondrix voice: text-to-speech with a chain of engines, plus mic input.
  *
  * Engines (NEXT_PUBLIC_TTS_ENGINE picks the first one; the others are fallbacks):
- *   - "kokoro"  (default) Kokoro → Azure → browser. Kokoro 82M in a Web Worker.
- *               Free, no key, private (audio never leaves the device), natural voice.
- *               First use downloads the model (~80 MB, then cached). Until it is
- *               ready, Azure (if keyed) or the browser voice speaks so the child waits less.
- *   - "azure"   Azure → Kokoro → browser. Needs AZURE_SPEECH_KEY + AZURE_SPEECH_REGION.
- *   - "browser" Web Speech API with the best available voice (Edge "Natural",
- *               Google, Samantha...). Always the last fallback.
+ *   - "kokoro"  (default) Kokoro → server /api/tts → browser.
+ *               Kokoro 82M in a Web Worker (EN only, ~80 MB once). Server TTS is
+ *               ElevenLabs and/or Azure when keys are set.
+ *   - "azure"   Server /api/tts first (ElevenLabs or Azure), then Kokoro, then browser.
+ *               Name is historical — the route prefers ELEVENLABS_API_KEY when present.
+ *   - "browser" Web Speech API only (Edge "Natural", Google, Samantha...).
  *
  * Mic input stays on the Web Speech API (Chrome/Edge/Safari).
  *
- * Arabic (profile.language = "ar"): Kokoro has no Arabic voice, so the chain is
- * Azure (ar-AE voice, when configured) then the best installed Arabic browser voice.
- * The mic tries ar-AE → ar-SA → ar-EG → ar (Chrome's Arabic support varies by dialect tag).
+ * Arabic: Kokoro has no Arabic — chain is server /api/tts then Arabic browser voice.
+ * The mic tries ar-AE → ar-SA → ar-EG → ar.
  */
 
 import { currentLang, langInfo, t, type MessageKey } from "./i18n";
@@ -61,23 +59,22 @@ function isMobileDevice(): boolean {
 }
 
 /**
- * Production order: Azure neural first (EN + AR, phones included), then Kokoro on
- * desktop English, then browser. Mobile used to skip Azure entirely when the
- * default engine was Kokoro — that left iPhone PWA on robotic system voices.
+ * Server /api/tts (engine id "azure") covers ElevenLabs + Azure.
+ * Timeouts on the client keep a wedged route from freezing "Preparing voice…".
  */
 function engineChain(): Engine[] {
   const primary = (process.env.NEXT_PUBLIC_TTS_ENGINE || "kokoro").toLowerCase() as Engine;
   if (primary === "browser") return ["browser"];
   const mobile = isMobileDevice();
   if (currentLang() !== "en") {
-    // Kokoro has no Arabic — Azure neural, then system Arabic voice.
+    // Kokoro has no Arabic — server neural, then system Arabic voice.
     return ["azure", "browser"];
   }
+  // Phones: server first (ElevenLabs/Azure) so we do not wait on an 80 MB download.
   if (mobile) return ["azure", "browser"];
-  // Only hit /api/tts when Azure is the chosen engine. A hung TTS route was
-  // freezing every Listen on "Preparing voice…" even with Kokoro ready.
   if (primary === "azure") return ["azure", "kokoro", "browser"];
-  return ["kokoro", "browser"];
+  // Desktop EN: Kokoro when ready; /api/tts is a fast fallback when keys exist.
+  return ["kokoro", "azure", "browser"];
 }
 
 /* ------------------------------------------------------------------ */
@@ -179,7 +176,7 @@ function stopAllAudio() {
 }
 
 /** Max time the UI may sit on "Preparing voice…" before giving up. */
-const PREPARING_WATCHDOG_MS = 12_000;
+const PREPARING_WATCHDOG_MS = 22_000;
 
 /** Speak text out loud with the best engine available (kids-friendly pace). */
 export function speak(text: string, opts?: SpeakOpts) {
@@ -473,30 +470,29 @@ async function speakKokoro(text: string, opts: SpeakOpts, token: number): Promis
 }
 
 /* ------------------------------------------------------------------ */
-/* Engine: Azure Speech via /api/tts (prepared, off by default)        */
+/* Engine: server /api/tts (ElevenLabs and/or Azure)                   */
 /* ------------------------------------------------------------------ */
 
-let azureUnavailable = false;
+let serverTtsUnavailable = false;
 
 async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise<boolean> {
-  if (azureUnavailable) return false;
+  if (serverTtsUnavailable) return false;
   let res: Response;
   try {
     res = await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, lang: currentLang() }),
-      // Without a timeout, a hung /api/tts left the UI on "Preparing voice…" forever
-      // and Kokoro / browser never got a turn.
-      signal: AbortSignal.timeout(2000),
+      // ElevenLabs often needs a few seconds; a hung route must not freeze Listen forever.
+      signal: AbortSignal.timeout(10000),
     });
   } catch (err) {
-    console.warn("[voice] azure fetch failed/timed out", err);
-    azureUnavailable = true; // don't retry a wedged route every Listen
+    console.warn("[voice] /api/tts fetch failed/timed out", err);
+    serverTtsUnavailable = true;
     return false;
   }
   if (res.status === 501) {
-    azureUnavailable = true; // not configured on the server
+    serverTtsUnavailable = true; // no ElevenLabs / Azure keys on the server
     return false;
   }
   if (!res.ok || token !== playToken) return false;
@@ -513,7 +509,7 @@ async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise
     markSpeaking(token, "azure", opts.id, text.length);
     return true;
   } catch (err) {
-    console.warn("[voice] azure play blocked (needs a tap on iOS)", err);
+    console.warn("[voice] /api/tts play blocked (needs a tap on iOS)", err);
     return false;
   }
 }
@@ -576,7 +572,9 @@ async function speakBrowser(text: string, opts: SpeakOpts, token: number): Promi
   const hasArabicScript = /[\u0600-\u06FF]/.test(text);
   // Never let an English (or missing) voice "read" Arabic — it comes out as nonsense syllables.
   if ((appLang === "ar" || hasArabicScript) && (!voice || !voiceLangMatches(voice.lang, "ar"))) {
-    console.warn("[voice] no Arabic system voice installed; skip speak (install an Arabic voice, or set Azure TTS)");
+    console.warn(
+      "[voice] no Arabic system voice installed; skip speak (set ELEVENLABS_API_KEY, or install an Arabic OS voice)",
+    );
     return false;
   }
   if (!voice && window.speechSynthesis.getVoices().length === 0) {

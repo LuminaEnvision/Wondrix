@@ -1,14 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   hasParentPin,
-  isParentUnlocked,
+  lockParentSession,
   unlockParentSession,
   verifyParentPin,
 } from "@/lib/parent-auth";
 import { useHydrated, useT } from "@/lib/use-client-state";
 
+/**
+ * Gate Parent Dashboard: every visit asks for the PIN when one is set
+ * (kids must not stay unlocked after leaving Parent).
+ */
 export function ParentLock({ children }: { children: React.ReactNode }) {
   const ready = useHydrated();
   const tr = useT();
@@ -16,12 +20,26 @@ export function ParentLock({ children }: { children: React.ReactNode }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    const relock = () => {
+      lockParentSession();
+      setUnlockedNow(false);
+      setPin("");
+      setError("");
+    };
+    relock();
+    window.addEventListener("wondrix-relock-parent", relock);
+    return () => {
+      window.removeEventListener("wondrix-relock-parent", relock);
+      lockParentSession();
+    };
+  }, []);
 
   if (!ready) {
     return <p className="text-ink-soft">{tr("common.loading")}</p>;
   }
 
-  const locked = !unlockedNow && hasParentPin() && !isParentUnlocked();
+  const locked = hasParentPin() && !unlockedNow;
   if (!locked) return <>{children}</>;
 
   return (

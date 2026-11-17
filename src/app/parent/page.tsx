@@ -23,7 +23,7 @@ import {
   setActiveChild,
   updateChild,
 } from "@/lib/demo-store";
-import { GRADE_OPTIONS } from "@/lib/grades";
+import { GRADE_OPTIONS, defaultAgeMode, gradeFromAge, suggestedAgeFromGrade } from "@/lib/grades";
 import { pickDeviceLook } from "@/lib/age-preference";
 import { hasParentPin, setParentPin } from "@/lib/parent-auth";
 import {
@@ -228,12 +228,37 @@ function ParentHome() {
     }
   }
 
+  function finishEditing() {
+    setSaved(true);
+    setEditing(false);
+    setAvatarPickerOpen(false);
+    refreshChildren();
+  }
+
   function updateField<K extends keyof ChildProfile>(key: K, value: ChildProfile[K]) {
     if (!selected) return;
     const next = { ...selected, [key]: value };
-    if (key === "curriculum" || key === "gradeLabel") {
+
+    // Age ↔ year stay linked as suggestions; parent can still override either field after.
+    if (key === "age") {
+      const ageStr = String(value ?? "").trim();
+      if (/^\d{1,2}$/.test(ageStr)) {
+        const g = gradeFromAge(ageStr);
+        next.gradeLabel = g.label;
+        next.ageBand = g.ageBand;
+        next.ageMode = defaultAgeMode(g.label);
+      }
+    }
+    if (key === "gradeLabel") {
+      const gradeLabel = String(value);
+      next.age = suggestedAgeFromGrade(gradeLabel);
+      next.ageBand = gradeFromAge(next.age).ageBand;
+      next.ageMode = defaultAgeMode(gradeLabel);
+    }
+
+    if (key === "curriculum" || key === "gradeLabel" || key === "age") {
       const curriculum = (key === "curriculum" ? value : next.curriculum) as Curriculum;
-      const gradeLabel = (key === "gradeLabel" ? value : next.gradeLabel) as string;
+      const gradeLabel = next.gradeLabel;
       const offered = subjectsForProgramme(curriculum, gradeLabel)
         .filter((s) => s.available)
         .map((s) => s.id);
@@ -243,14 +268,16 @@ function ParentHome() {
     updateChild(selected.id, next);
     refreshChildren();
     setSaved(false);
-    if (key === "ageMode") {
-      const mode = value === "teen" ? "teen" : "explorer";
-      const dark = Boolean(selected.darkMode ?? selected.teenDark);
-      pickDeviceLook(mode, dark);
-      applyAgeChrome(mode, dark);
+    if (key === "ageMode" || key === "age" || key === "gradeLabel") {
+      const mode = next.ageMode === "teen" ? "teen" : "explorer";
+      const dark = Boolean(next.darkMode ?? next.teenDark);
+      if (key === "ageMode" || key === "age" || key === "gradeLabel") {
+        pickDeviceLook(mode, dark);
+        applyAgeChrome(mode, dark);
+      }
     }
     if (key === "darkMode") {
-      const mode = selected.ageMode === "teen" ? "teen" : "explorer";
+      const mode = next.ageMode === "teen" ? "teen" : "explorer";
       const dark = Boolean(value);
       pickDeviceLook(mode, dark);
       applyAgeChrome(mode, dark);
@@ -608,17 +635,26 @@ function ParentHome() {
                           ) : null}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setAvatarPickerOpen((o) => !o)}
-                        className="flex w-full items-center justify-between rounded-[var(--radius-m)] border border-stroke bg-[var(--world-surface)] px-3 py-2 text-start text-sm font-bold text-[var(--world-ink)]"
-                        aria-expanded={avatarPickerOpen}
-                      >
-                        <span>{tr("parent.avatarPick")}</span>
-                        <span className="text-xs font-semibold text-ink-soft" aria-hidden>
-                          {avatarPickerOpen ? "−" : "+"}
-                        </span>
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setAvatarPickerOpen((o) => !o)}
+                          className="flex min-w-0 flex-1 items-center justify-between rounded-[var(--radius-m)] border border-stroke bg-[var(--world-surface)] px-3 py-2 text-start text-sm font-bold text-[var(--world-ink)]"
+                          aria-expanded={avatarPickerOpen}
+                        >
+                          <span>{tr("parent.avatarPick")}</span>
+                          <span className="text-xs font-semibold text-ink-soft" aria-hidden>
+                            {avatarPickerOpen ? "−" : "+"}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={finishEditing}
+                          className="shrink-0 rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white"
+                        >
+                          {tr("parent.save")}
+                        </button>
+                      </div>
                       {avatarPickerOpen ? (
                         <div
                           className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -710,10 +746,11 @@ function ParentHome() {
                       <input
                         value={selected.age ?? ""}
                         inputMode="numeric"
-                        onChange={(e) => updateField("age", e.target.value)}
+                        onChange={(e) => updateField("age", e.target.value.replace(/\D/g, "").slice(0, 2))}
                         placeholder={tr("parent.agePlaceholder")}
                         className="w-full rounded-2xl border border-stroke bg-bg/40 px-4 py-3 outline-none focus:border-brand/40"
                       />
+                      <p className="text-xs text-ink-soft">{tr("parent.ageYearHint")}</p>
                     </label>
 
                     <label className="block space-y-1">
@@ -746,6 +783,7 @@ function ParentHome() {
                           </option>
                         ))}
                       </select>
+                      <p className="text-xs text-ink-soft">{tr("parent.gradeAgeHint")}</p>
                     </label>
 
                     <fieldset className="space-y-2">
@@ -870,11 +908,7 @@ function ParentHome() {
 
                     <button
                       type="button"
-                      onClick={() => {
-                        setSaved(true);
-                        setEditing(false);
-                        refreshChildren();
-                      }}
+                      onClick={finishEditing}
                       className="rounded-full bg-brand px-5 py-2.5 font-bold text-white"
                     >
                       {tr("parent.save")}

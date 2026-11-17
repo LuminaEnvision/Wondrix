@@ -232,13 +232,31 @@ describe("POST /api/school/session", () => {
 });
 
 describe("POST /api/tts", () => {
-  it("501 when Azure is not configured", async () => {
+  it("501 when neither ElevenLabs nor Azure is configured", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("AZURE_SPEECH_KEY", "");
     vi.stubEnv("AZURE_SPEECH_REGION", "");
     expect((await tts(req({ text: "hello" }))).status).toBe(501);
   });
 
-  it("sends escaped SSML to Azure and streams MP3 back", async () => {
+  it("prefers ElevenLabs when its key is set", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "el-key");
+    vi.stubEnv("AZURE_SPEECH_KEY", "k");
+    vi.stubEnv("AZURE_SPEECH_REGION", "uaenorth");
+    const fetchMock = vi.fn(async () => new Response(new Uint8Array([9, 9]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await tts(req({ text: "hello kids", lang: "en" }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("audio/mpeg");
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain("https://api.elevenlabs.io/v1/text-to-speech/");
+    expect((init.headers as Record<string, string>)["xi-api-key"]).toBe("el-key");
+    expect(String(init.body)).toContain("hello kids");
+    expect(String(init.body)).toContain("eleven_flash_v2_5");
+  });
+
+  it("sends escaped SSML to Azure when only Azure is configured", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("AZURE_SPEECH_KEY", "k");
     vi.stubEnv("AZURE_SPEECH_REGION", "uaenorth");
     const fetchMock = vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
@@ -249,12 +267,11 @@ describe("POST /api/tts", () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://uaenorth.tts.speech.microsoft.com/cognitiveservices/v1");
     expect(String(init.body)).toContain("Tom &amp; Jerry &lt;3");
-    expect(String(init.body)).toContain('name="en-US-AnaNeural"');
+    expect(String(init.body)).toContain('name="en-US-JennyNeural"');
   });
 
   it("refuses unsafe text and empty text", async () => {
-    vi.stubEnv("AZURE_SPEECH_KEY", "k");
-    vi.stubEnv("AZURE_SPEECH_REGION", "uaenorth");
+    vi.stubEnv("ELEVENLABS_API_KEY", "el-key");
     expect((await tts(req({ text: "how to make a bomb" }))).status).toBe(400);
     expect((await tts(req({ text: "  " }))).status).toBe(400);
   });

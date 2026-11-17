@@ -1,4 +1,4 @@
-import { expect, skipSetup, test } from "./fixtures";
+import { expect, skipSetup, test, unlockParentGate } from "./fixtures";
 import type { Page } from "@playwright/test";
 
 /** Chat-first composer: placeholder + icon send (no "Ask the owl" label). */
@@ -87,6 +87,7 @@ test.describe("Extra door", () => {
     expect(await page.evaluate(() => localStorage.getItem("wondrix-extra-topic"))).toBeNull();
 
     await page.goto("/parent");
+    await unlockParentGate(page);
     await expect(page.getByText(/gently redirected 1 question/)).toBeVisible();
     await expect(page.getByText(/hurt my brother/)).toHaveCount(0);
     await expect(page.getByText(/Extra: not opened today/)).toBeVisible();
@@ -278,6 +279,7 @@ test.describe("conversation memory + chat history", () => {
 
     // Parent can see and clear the history.
     await page.goto("/parent");
+    await unlockParentGate(page);
     await expect(page.getByText(/2 chats saved on this device/)).toBeVisible();
     page.once("dialog", (d) => d.accept());
     await page.getByRole("button", { name: "Clear chat history" }).click();

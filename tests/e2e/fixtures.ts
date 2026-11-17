@@ -32,6 +32,25 @@ function hashPin(pin: string): string {
   return `h${h.toString(16)}`;
 }
 
+/** Unlock Parent gate after navigation (PIN is required on every Parent visit). */
+export async function unlockParentGate(page: Page, pin = "1234") {
+  const field = page.locator('input[type="password"]').first();
+  if ((await field.count()) === 0) return;
+  await expect(page.getByRole("heading", { name: "Parent password" })).toBeVisible({ timeout: 5000 });
+  await field.fill(pin);
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await expect(page.getByRole("heading", { name: "Parent password" })).toHaveCount(0);
+}
+
+/** First-open age + theme modal on home (blocks doors until dismissed). */
+export async function dismissAgePick(page: Page) {
+  const dialog = page.getByRole("dialog", { name: /Who is learning today/i });
+  if ((await dialog.count()) === 0) return;
+  await page.getByRole("button", { name: /Explorer/i }).click();
+  await page.getByRole("button", { name: /Light/i }).click();
+  await expect(dialog).toHaveCount(0);
+}
+
 /** Mark family setup done (PIN + one child) before the app loads. */
 export async function skipSetup(page: Page) {
   await page.addInitScript(
@@ -53,7 +72,7 @@ export async function skipSetup(page: Page) {
                 age: "8",
                 ageBand: "young",
                 ageMode: "explorer",
-                gradeLabel: "Year 3",
+                gradeLabel: "Year 4",
                 curriculum: "uk",
                 subjects: ["math", "science"],
                 oneLiner: "",
@@ -82,7 +101,6 @@ export async function seedProfile(page: Page, profile: Record<string, unknown>) 
       localStorage.setItem("wondrix-age-picked", "1");
       localStorage.setItem("wondrix-device-age-mode", "explorer");
       localStorage.setItem("wondrix-device-theme", "light");
-      sessionStorage.setItem("wondrix-parent-unlocked", "1");
       if (localStorage.getItem("wondrix-household")) return;
       const id = "kid-seed";
       localStorage.setItem(
@@ -95,7 +113,7 @@ export async function seedProfile(page: Page, profile: Record<string, unknown>) 
               age: "8",
               ageBand: "young",
               ageMode: "explorer",
-              gradeLabel: "Year 3",
+              gradeLabel: "Year 4",
               curriculum: "uk",
               subjects: ["math", "science"],
               oneLiner: "",

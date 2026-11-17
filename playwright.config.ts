@@ -31,6 +31,13 @@ export default defineConfig({
     timeout: 60_000,
     // Force local mode: no provider keys reach the server.
     // Many tests hit the API from one machine: lift the per-device rate limit.
-    env: { ZAI_API_KEY: "", OPENAI_API_KEY: "", OPENROUTER_API_KEY: "", AZURE_SPEECH_KEY: "", AI_RATE_LIMIT_PER_MIN: "10000" },
+    env: {
+      ZAI_API_KEY: "",
+      OPENAI_API_KEY: "",
+      OPENROUTER_API_KEY: "",
+      AZURE_SPEECH_KEY: "",
+      ELEVENLABS_API_KEY: "",
+      AI_RATE_LIMIT_PER_MIN: "10000",
+    },
   },
 });

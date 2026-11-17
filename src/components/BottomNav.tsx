@@ -49,7 +49,13 @@ export function BottomNav() {
             <li key={tab.href} className="flex-1">
               <button
                 type="button"
-                onClick={() => requestNavigate(tab.href)}
+                onClick={() => {
+                  // Kids safety: every Parent tab press asks for the PIN again.
+                  if (tab.href === "/parent") {
+                    window.dispatchEvent(new Event("wondrix-relock-parent"));
+                  }
+                  requestNavigate(tab.href);
+                }}
                 className={`wx-nav-tab wx-tap flex w-full flex-col items-center justify-center gap-0.5 px-2 py-1.5 text-center ${
                   active ? "wx-nav-tab-active" : ""
                 }`}

@@ -1,5 +1,5 @@
 import { clampSubjectsToProgramme } from "./curriculum";
-import { defaultAgeMode, gradeFromLabel } from "./grades";
+import { defaultAgeMode, gradeFromAge, gradeFromLabel, suggestedAgeFromGrade } from "./grades";
 import type { AgeMode, ChildProfile, Household, ParentProfile } from "./types";
 import { MAX_TEXTBOOK_PHOTOS, notifyProfileChanged } from "./types";
 
@@ -165,7 +165,21 @@ export function setActiveChild(id: string) {
 }
 
 export function addChild(partial?: Partial<ChildProfile>): ChildProfile {
-  const child = normalizeChild({ ...DEFAULT_PROFILE, ...partial, id: newChildId() });
+  const merged: Partial<ChildProfile> & { id: string } = {
+    ...DEFAULT_PROFILE,
+    ...partial,
+    id: newChildId(),
+  };
+  // Age without an explicit year → pick a matching year (avoids age 15 + Year 3).
+  if (partial?.age && partial.gradeLabel === undefined) {
+    const g = gradeFromAge(partial.age);
+    merged.gradeLabel = g.label;
+    merged.ageBand = g.ageBand;
+    if (partial.ageMode === undefined) merged.ageMode = defaultAgeMode(g.label);
+  } else if (partial?.gradeLabel && (partial.age === undefined || partial.age === "")) {
+    merged.age = suggestedAgeFromGrade(partial.gradeLabel);
+  }
+  const child = normalizeChild(merged);
   const h = loadHousehold();
   saveHousehold({ children: [...h.children, child], activeChildId: child.id });
   return child;

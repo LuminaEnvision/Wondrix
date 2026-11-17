@@ -121,6 +121,43 @@ export function defaultAgeMode(gradeLabel: string): AgeMode {
   return "teen";
 }
 
+/**
+ * Suggest UK school year from child age (typical England/Wales ages).
+ * Parent can still change the year if their school differs.
+ */
+export function gradeFromAge(ageRaw: string | number): GradeOption {
+  const age = typeof ageRaw === "number" ? ageRaw : Number.parseInt(String(ageRaw).trim(), 10);
+  if (!Number.isFinite(age) || age < 5) return GRADE_OPTIONS[0]!; // Year 1–2
+  if (age <= 6) return GRADE_OPTIONS.find((g) => g.id === "y1-2")!;
+  if (age === 7) return GRADE_OPTIONS.find((g) => g.id === "y3")!;
+  if (age === 8) return GRADE_OPTIONS.find((g) => g.id === "y4")!;
+  if (age === 9) return GRADE_OPTIONS.find((g) => g.id === "y5")!;
+  if (age === 10) return GRADE_OPTIONS.find((g) => g.id === "y6")!;
+  if (age === 11) return GRADE_OPTIONS.find((g) => g.id === "y7")!;
+  if (age === 12) return GRADE_OPTIONS.find((g) => g.id === "y8")!;
+  if (age === 13) return GRADE_OPTIONS.find((g) => g.id === "y9")!;
+  if (age === 14) return GRADE_OPTIONS.find((g) => g.id === "y10")!;
+  return GRADE_OPTIONS.find((g) => g.id === "y11+")!; // 15+
+}
+
+/** Midpoint age to suggest when the parent picks a year/grade. */
+export function suggestedAgeFromGrade(gradeLabel: string): string {
+  const id = gradeFromLabel(gradeLabel).id;
+  const map: Record<string, string> = {
+    "y1-2": "6",
+    y3: "7",
+    y4: "8",
+    y5: "9",
+    y6: "10",
+    y7: "11",
+    y8: "12",
+    y9: "13",
+    y10: "14",
+    "y11+": "16",
+  };
+  return map[id] ?? "8";
+}
+
 /** True if skill is appropriate for this grade or earlier entry grades. */
 export function skillAllowedForGrade(skillFromGrade: string, gradeId: string): boolean {
   return gradeIndex(gradeId) >= gradeIndex(skillFromGrade);

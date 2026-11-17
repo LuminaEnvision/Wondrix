@@ -139,7 +139,7 @@ export function ActionGate({ children }: { children: React.ReactNode }) {
     markSetupComplete();
     bumpSetup();
     setPendingHref(null);
-    // First-time setup always lands on Parent Dashboard (session already unlocked by setParentPin).
+    // Land on Parent; ParentLock will ask for the PIN again (kids safety).
     router.replace("/parent");
   }
 
