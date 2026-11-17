@@ -114,7 +114,7 @@ function HomeContent({ mode }: { mode: AgeMode }) {
         </div>
       </div>
 
-      <div className={`grid min-h-0 flex-1 grid-cols-2 content-start ${explorer ? "gap-3" : "gap-2"}`}>
+      <div className={`grid shrink-0 grid-cols-2 ${explorer ? "gap-3" : "gap-2"}`}>
         <DoorCard
           href="/school"
           title={tr("home.school")}
@@ -138,10 +138,10 @@ function HomeContent({ mode }: { mode: AgeMode }) {
       </div>
 
       <div
-        className={`wx-enter wx-enter-delay-3 relative mt-auto shrink-0 overflow-hidden ${
+        className={`wx-enter wx-enter-delay-3 relative mt-2 min-h-0 flex-1 overflow-hidden ${
           explorer
-            ? "-mx-4 h-28 sm:mx-0 sm:h-32 sm:rounded-[var(--radius-l)]"
-            : "h-24 rounded-[var(--radius-m)]"
+            ? "-mx-4 sm:mx-0 sm:rounded-[var(--radius-l)]"
+            : "rounded-[var(--radius-m)]"
         }`}
       >
         <Image

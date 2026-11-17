@@ -703,7 +703,7 @@ function ExtraInner() {
         data-wx-messages
       >
         {empty ? (
-          <div className="mx-auto flex max-w-lg flex-col gap-4">
+          <div className="mx-auto flex max-w-lg flex-col gap-3">
             <div className="flex items-end gap-2">
               <Mascot
                 size={explorer ? "lg" : "md"}
@@ -720,44 +720,37 @@ function ExtraInner() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm font-bold text-[var(--world-ink-soft)]">{tr("extra.topicIdeas")}</p>
-              {explorer ? (
-                <div className="grid grid-cols-2 gap-2">
-                  {INTERESTS.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => pickSuggestion(item)}
-                      data-topic={item.tone}
-                      className="overflow-hidden rounded-[var(--radius-m)] border border-stroke bg-[var(--world-surface)] text-start"
+              <p className="mb-1.5 text-sm font-bold text-[var(--world-ink-soft)]">{tr("extra.topicIdeas")}</p>
+              <div
+                className="-mx-1 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                role="list"
+                aria-label={tr("extra.topicIdeas")}
+              >
+                {INTERESTS.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="listitem"
+                    onClick={() => pickSuggestion(item)}
+                    data-topic={item.tone}
+                    className={`shrink-0 snap-start overflow-hidden rounded-[var(--radius-m)] border border-stroke bg-[var(--world-surface)] text-start ${
+                      explorer ? "w-[9.5rem]" : "w-28"
+                    }`}
+                  >
+                    <div className={`relative w-full bg-[var(--world-bg)] ${explorer ? "h-24" : "h-12"}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={item.art} alt="" className="h-full w-full object-cover" />
+                    </div>
+                    <p
+                      className={`truncate font-bold text-[var(--world-ink)] ${
+                        explorer ? "px-3 py-2 text-sm" : "px-2 py-1.5 text-xs"
+                      }`}
                     >
-                      <div className="relative h-20 w-full bg-[var(--world-bg)]">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={item.art} alt="" className="h-full w-full object-cover" />
-                      </div>
-                      <p className="px-3 py-2 text-sm font-bold text-[var(--world-ink)]">{tr(item.label)}</p>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
-                  {INTERESTS.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => pickSuggestion(item)}
-                      data-topic={item.tone}
-                      className="w-28 shrink-0 overflow-hidden rounded-[var(--radius-m)] border border-stroke bg-[var(--world-surface)] text-start"
-                    >
-                      <div className="relative h-12 w-full">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={item.art} alt="" className="h-full w-full object-cover" />
-                      </div>
-                      <p className="truncate px-2 py-1.5 text-xs font-bold text-[var(--world-ink)]">{tr(item.label)}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
+                      {tr(item.label)}
+                    </p>
+                  </button>
+                ))}
+              </div>
             </div>
             <IdeaChips ideas={starters.slice(1, 3)} onPick={(q) => void send(q)} disabled={busy} big={explorer} />
           </div>
