@@ -2,12 +2,13 @@
  * Wondrix voice: text-to-speech with a chain of engines, plus mic input.
  *
  * Engines (NEXT_PUBLIC_TTS_ENGINE picks the first one; the others are fallbacks):
- *   - "kokoro"  (default) Kokoro → server /api/tts → browser.
- *               Kokoro 82M in a Web Worker (EN only, ~80 MB once). Server TTS is
- *               ElevenLabs and/or Azure when keys are set.
- *   - "azure"   Server /api/tts first (ElevenLabs or Azure), then Kokoro, then browser.
- *               Name is historical — the route prefers ELEVENLABS_API_KEY when present.
+ *   - "azure"   (default) Server /api/tts first (ElevenLabs preferred, Azure fallback),
+ *               then Kokoro (EN), then browser. Name is historical.
+ *   - "kokoro"  Kokoro → server /api/tts → browser (EN only for Kokoro).
  *   - "browser" Web Speech API only (Edge "Natural", Google, Samantha...).
+ *
+ * All SpeakButton / Listen paths call speak() → this chain, so they share the
+ * same ElevenLabs EN/AR voice IDs from the server.
  *
  * Mic input stays on the Web Speech API (Chrome/Edge/Safari).
  *
@@ -60,21 +61,22 @@ function isMobileDevice(): boolean {
 
 /**
  * Server /api/tts (engine id "azure") covers ElevenLabs + Azure.
+ * Default is server-first so every Listen button uses our ElevenLabs voices.
  * Timeouts on the client keep a wedged route from freezing "Preparing voice…".
  */
 function engineChain(): Engine[] {
-  const primary = (process.env.NEXT_PUBLIC_TTS_ENGINE || "kokoro").toLowerCase() as Engine;
+  const primary = (process.env.NEXT_PUBLIC_TTS_ENGINE || "azure").toLowerCase() as Engine;
   if (primary === "browser") return ["browser"];
   const mobile = isMobileDevice();
   if (currentLang() !== "en") {
     // Kokoro has no Arabic — server neural, then system Arabic voice.
     return ["azure", "browser"];
   }
-  // Phones: server first (ElevenLabs/Azure) so we do not wait on an 80 MB download.
+  // Phones: server first (no 80 MB Kokoro download).
   if (mobile) return ["azure", "browser"];
-  if (primary === "azure") return ["azure", "kokoro", "browser"];
-  // Desktop EN: Kokoro when ready; /api/tts is a fast fallback when keys exist.
-  return ["kokoro", "azure", "browser"];
+  // Prefer ElevenLabs for all Listen buttons; Kokoro/browser only if server fails.
+  if (primary === "kokoro") return ["kokoro", "azure", "browser"];
+  return ["azure", "kokoro", "browser"];
 }
 
 /* ------------------------------------------------------------------ */
