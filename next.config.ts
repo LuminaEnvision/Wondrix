@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
     // with `export const instant`. Our pages are client-side (localStorage), so
     // validating every page just floods the terminal and costs CPU on slow PCs.
     instantInsights: { validationLevel: "manual-warning" },
+    agentUpgrade: "security",
   },
   turbopack: {
     root: projectRoot,
