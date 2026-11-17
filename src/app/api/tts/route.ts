@@ -4,8 +4,8 @@
  * Prefer ElevenLabs when signup for Azure is stuck:
  *   ELEVENLABS_API_KEY
  * Optional:
- *   ELEVENLABS_VOICE_ID (default Rachel — warm, clear for kids)
- *   ELEVENLABS_VOICE_ID_AR (defaults to same voice; multilingual model handles AR)
+ *   ELEVENLABS_VOICE_ID (default EN voice)
+ *   ELEVENLABS_VOICE_ID_AR (default AR voice)
  *   ELEVENLABS_MODEL_ID (default eleven_flash_v2_5 — cheap + Arabic + low latency)
  *
  * Azure fallback (optional):
@@ -21,8 +21,9 @@ import { safetyCheck } from "@/lib/safety";
 
 const MAX_CHARS = 800;
 
-/** Default ElevenLabs "Rachel" — clear adult EN; multilingual models also speak AR. */
-const DEFAULT_ELEVEN_VOICE = "21m00Tcm4TlvDq8ikWAM";
+/** Chosen Wondrix voices (override with ELEVENLABS_VOICE_ID / _AR). */
+const DEFAULT_ELEVEN_VOICE_EN = "piI8Kku0DcvcL6TTSeQt";
+const DEFAULT_ELEVEN_VOICE_AR = "KxMRrXEjbJ6kZ93yT3fq";
 
 function escapeXml(text: string) {
   return text
@@ -40,8 +41,7 @@ async function elevenLabsTts(text: string, lang: string): Promise<Response | nul
   const isAr = lang === "ar";
   const voiceId =
     (isAr ? process.env.ELEVENLABS_VOICE_ID_AR : process.env.ELEVENLABS_VOICE_ID)?.trim() ||
-    process.env.ELEVENLABS_VOICE_ID?.trim() ||
-    DEFAULT_ELEVEN_VOICE;
+    (isAr ? DEFAULT_ELEVEN_VOICE_AR : DEFAULT_ELEVEN_VOICE_EN);
   // Flash v2.5: Arabic supported, ~half the credit cost of multilingual_v2, low latency.
   const modelId = process.env.ELEVENLABS_MODEL_ID?.trim() || "eleven_flash_v2_5";
   const started = Date.now();
