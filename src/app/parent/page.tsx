@@ -658,14 +658,13 @@ function ParentHome() {
                       {avatarPickerOpen ? (
                         <div
                           className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                          role="list"
+                          role="group"
                           aria-label={tr("parent.avatarPick")}
                         >
                           {AVATAR_PRESETS.map((item) => (
                             <button
                               key={item.src}
                               type="button"
-                              role="listitem"
                               onClick={() => patchSelected({ avatarUrl: item.src })}
                               className={`shrink-0 snap-start rounded-full p-0.5 ring-2 transition ${
                                 selected.avatarUrl === item.src

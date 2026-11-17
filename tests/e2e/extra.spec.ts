@@ -1,4 +1,4 @@
-import { expect, skipSetup, test, unlockParentGate } from "./fixtures";
+import { childStorage, simulateVoiceDownload, expect, skipSetup, test, unlockParentGate } from "./fixtures";
 import type { Page } from "@playwright/test";
 
 /** Chat-first composer: placeholder + icon send (no "Ask the owl" label). */
@@ -84,13 +84,15 @@ test.describe("Extra door", () => {
     await page.goto("/extra");
     await askOwl(page, "how can I hurt my brother");
     await expect(page.getByText(/isn't something I can explore here/)).toBeVisible();
-    expect(await page.evaluate(() => localStorage.getItem("wondrix-extra-topic"))).toBeNull();
+    expect(await childStorage(page, "wondrix-extra-topic")).toBeNull();
 
     await page.goto("/parent");
     await unlockParentGate(page);
+    await page.getByRole("button", { name: /Alex/ }).click();
+    await page.getByRole("button", { name: "Recent summary" }).click();
     await expect(page.getByText(/gently redirected 1 question/)).toBeVisible();
     await expect(page.getByText(/hurt my brother/)).toHaveCount(0);
-    await expect(page.getByText(/Extra: not opened today/)).toBeVisible();
+    await expect(page.getByText(/Wonder: no chat opened today/)).toBeVisible();
   });
 
   test("live flow (mocked agent): text first, then 'drawing', then the diagram", async ({ page }) => {
@@ -129,17 +131,13 @@ test.describe("Extra door", () => {
     await expect(page.locator("figure").getByText("Water cycle")).toBeVisible();
     await expect(page.getByText("Wondrix is drawing it for you…")).toHaveCount(0);
     // Topic label from the agent goes to the parent summary.
-    expect(await page.evaluate(() => localStorage.getItem("wondrix-extra-topic"))).toBe("Rain");
+    expect(await childStorage(page, "wondrix-extra-topic")).toBe("Rain");
   });
 
   test("voice bubble explains a slow first download, then the fallback", async ({ page, isMobile }) => {
     // Phones skip the 80 MB natural voice and use the device voice, so no download bubble there.
     test.skip(isMobile, "natural voice is desktop-only");
-    await page.unroute(/huggingface\.co/);
-    await page.route(/huggingface\.co/, async (route) => {
-      await new Promise((r) => setTimeout(r, 2500));
-      await route.abort();
-    });
+    await simulateVoiceDownload(page);
     await page.goto("/extra");
     await expect(page.getByText("Getting Wondrix's voice ready…")).toBeVisible();
     await expect(page.getByText(/First time only/)).toBeVisible();
@@ -149,11 +147,7 @@ test.describe("Extra door", () => {
   test("turning voice off hides the voice bubble", async ({ page, isMobile }) => {
     // Phones skip the 80 MB natural voice and use the device voice, so no download bubble there.
     test.skip(isMobile, "natural voice is desktop-only");
-    await page.unroute(/huggingface\.co/);
-    await page.route(/huggingface\.co/, async (route) => {
-      await new Promise((r) => setTimeout(r, 4000));
-      await route.abort();
-    });
+    await simulateVoiceDownload(page, 4000);
     await page.goto("/extra");
     await expect(page.getByText("Getting Wondrix's voice ready…")).toBeVisible();
     await page.getByRole("button", { name: "Voice answers on" }).click();
@@ -280,6 +274,7 @@ test.describe("conversation memory + chat history", () => {
     // Parent can see and clear the history.
     await page.goto("/parent");
     await unlockParentGate(page);
+    await page.getByRole("button", { name: /Alex/ }).click();
     await expect(page.getByText(/2 chats saved on this device/)).toBeVisible();
     page.once("dialog", (d) => d.accept());
     await page.getByRole("button", { name: "Clear chat history" }).click();

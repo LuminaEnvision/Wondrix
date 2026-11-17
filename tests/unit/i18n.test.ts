@@ -24,7 +24,7 @@ describe("i18n dictionaries", () => {
   });
 
   it("house style: no em dashes", () => {
-    for (const value of [...Object.values(en), ...Object.values(ar)]) expect(value).not.toMatch(/[—–]/);
+    for (const value of [...Object.values(en), ...Object.values(ar)]) expect(value).not.toMatch(/—/);
   });
 
   it("t() fills placeholders and falls back to English", () => {

@@ -1,4 +1,4 @@
-import { expect, seedProfile, test, unlockParentGate } from "./fixtures";
+import { childStorage, expect, seedProfile, test, unlockParentGate } from "./fixtures";
 
 test.describe("School door (local mode)", () => {
   test.beforeEach(async ({ page }) => {
@@ -18,7 +18,8 @@ test.describe("School door (local mode)", () => {
     await expect(page.getByTestId("choice")).toHaveCount(0);
     await page.goto("/parent");
     await unlockParentGate(page);
-    await expect(page.getByText(/Finished 1 practice session/)).toBeVisible();
+    await page.getByRole("button", { name: /Sara/ }).click();
+    await expect(page.getByText(/1 session · \d+ questions/)).toBeVisible();
   });
 
   test("a wrong answer shows the calm owl and marks the right option; the AI explanation arrives after", async ({ page }) => {
@@ -45,6 +46,7 @@ test.describe("School door (local mode)", () => {
     // forces-motion has two Year 5+ questions, so "next" must show the other one.
     await page.goto("/parent");
     await unlockParentGate(page);
+    await page.getByRole("button", { name: /Sara/ }).click();
     await page.getByRole("button", { name: "Edit" }).click();
     await page.locator('select[name="grade"]').selectOption("Year 6");
     await page.getByRole("button", { name: "Save", exact: true }).first().click();
@@ -56,7 +58,7 @@ test.describe("School door (local mode)", () => {
 
     await page.getByTestId("choice").first().click();
     await expect(page.getByRole("button", { name: /Next question|Finish for today/ })).toBeVisible();
-    const mastery = await page.evaluate(() => JSON.parse(localStorage.getItem("wondrix-mastery") || "{}"));
+    const mastery = JSON.parse(await childStorage(page, "wondrix-mastery") || "{}");
     expect(["growing", "shaky"]).toContain(mastery["forces-motion"]);
 
     await page.getByRole("button", { name: /Next question|Finish for today/ }).click();
@@ -69,7 +71,7 @@ test.describe("School door (local mode)", () => {
     await page.goto("/school/practice?skill=multiply-basics");
     await page.getByRole("button", { name: /I don.t know yet/ }).click();
     await expect(page.getByRole("button", { name: /Next question|Finish for today/ })).toBeVisible();
-    const mastery = await page.evaluate(() => JSON.parse(localStorage.getItem("wondrix-mastery") || "{}"));
+    const mastery = JSON.parse(await childStorage(page, "wondrix-mastery") || "{}");
     expect(mastery["multiply-basics"]).toBe("shaky");
   });
 
@@ -82,7 +84,7 @@ test.describe("School door (local mode)", () => {
       await idk.click();
     }
     await expect(page.getByText("Radar complete")).toBeVisible();
-    const mastery = await page.evaluate(() => JSON.parse(localStorage.getItem("wondrix-mastery") || "{}"));
+    const mastery = JSON.parse(await childStorage(page, "wondrix-mastery") || "{}");
     expect(Object.values(mastery).every((m) => m === "shaky")).toBe(true);
     expect(Object.keys(mastery).length).toBeGreaterThan(0);
   });

@@ -43,7 +43,7 @@ describe("Extra agent prompt", () => {
     const { calls } = fakeFetch(() => chatResponse('{"answer":"أ.","followUp":"ب؟","topic":"t"}'));
     const reply = await aiExtraReply({ message: "لماذا السماء زرقاء؟", topicId: null, history: [], profile: profile({ language: "ar" }) });
     const sys = systemPrompt(calls[0]);
-    expect(sys).toMatch(/Modern Standard Arabic/);
+    expect(sys).toMatch(/spoken-sounding Arabic for children in the UAE/);
     expect(sys).not.toContain("British English");
     expect(reply?.followUp).toBe("ب؟");
   });

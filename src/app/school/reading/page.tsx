@@ -81,11 +81,12 @@ export default function ReadingPage() {
   const hydrated = useHydrated();
   const story = READING_STORIES[0];
   const [index, setIndex] = useState(0);
-  const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(0.9);
   const [activeSyllable, setActiveSyllable] = useState(-1);
   const teen = hydrated ? profileAgeMode(loadProfile()) === "teen" : false;
   const speech = useSyncExternalStore(subscribeSpeech, getSpeech, getServerSpeech);
+  const playing = (speech.state === "preparing" || speech.state === "speaking") &&
+    Boolean(speech.id?.startsWith(`read-${story.id}-`));
   const timersRef = useRef<number[]>([]);
   const playIdRef = useRef<string | null>(null);
 
@@ -122,13 +123,11 @@ export default function ReadingPage() {
       void unlockAudio();
       const id = `read-${story.id}-${i}`;
       playIdRef.current = id;
-      setPlaying(true);
       clearHighlight();
       speak(sentence, {
         id,
         rate,
         onEnd: () => {
-          setPlaying(false);
           clearHighlight();
           playIdRef.current = null;
         },
@@ -143,7 +142,9 @@ export default function ReadingPage() {
     if (!("id" in speech) || speech.id !== playIdRef.current) return;
     const i = index;
     const sentence = story.sentences[i];
-    if (sentence) runSyllableHighlight(sentence, rate);
+    if (!sentence) return;
+    const frame = requestAnimationFrame(() => runSyllableHighlight(sentence, rate));
+    return () => cancelAnimationFrame(frame);
   }, [speech, index, rate, runSyllableHighlight, story.sentences]);
 
   useEffect(() => () => {
@@ -157,7 +158,6 @@ export default function ReadingPage() {
 
   function pause() {
     stopSpeaking();
-    setPlaying(false);
     clearHighlight();
     playIdRef.current = null;
   }
@@ -203,7 +203,7 @@ export default function ReadingPage() {
               >
                 <SyllableLine
                   sentence={sentence}
-                  active={i === index && (playing || activeSyllable >= 0)}
+                  active={i === index && playing}
                   activeSyllable={i === index ? activeSyllable : -1}
                   teen={teen}
                 />
@@ -254,7 +254,10 @@ export default function ReadingPage() {
             max={1.2}
             step={0.05}
             value={rate}
-            onChange={(e) => setRate(Number(e.target.value))}
+            onChange={(e) => {
+              pause();
+              setRate(Number(e.target.value));
+            }}
             className="flex-1"
           />
           <span className="w-10 font-semibold">{rate.toFixed(2)}×</span>

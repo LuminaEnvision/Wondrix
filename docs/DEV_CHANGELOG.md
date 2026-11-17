@@ -37,6 +37,21 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 
 ## Log
 
+
+### 2026-11-17: Voice recovery, Reading controls, and regression-suite repair
+
+On top of the isolated Next.js 16.4.6 upgrade (base upstream `93c2d12`).
+
+- A transient `/api/tts` network error no longer disables server speech until reload. Explicit 501 (not configured) remains cached. Stop cancels pending TTS requests; the client timeout is 15 seconds, longer than the provider's 12-second timeout.
+- Reading applies the selected speed to server audio through `playbackRate`. Changing speed pauses playback so highlighting and audio restart together. The Play/Pause UI follows actual speech state, including watchdog expiry, rather than a second independent playing flag. Syllable highlighting remains an estimate, not provider word timestamps.
+- Home initializes saved age preferences after hydration without effect-driven setState. School derives its daily radar prompt after hydration. Reading schedules highlight setup on the next animation frame. These fix the three existing lint errors without disabling hook rules.
+- Topic and avatar controls retain their native button semantics; Wonder shows its thinking owl while waiting for a reply.
+- Browser checks use deterministic speech/model-loading simulation instead of the host's voices, GPU and model CDN. Parent checks open the selected child and inspect child-scoped storage. Unlock/first-open helpers wait for hydration rather than returning early. The mic meter uses a synthetic audio stream.
+- New regressions cover transient server-voice recovery, server-audio speed, pausing pending audio, missing audio-end events, and independent topics/history when switching children and clearing one child's chats.
+- Unit assertions now reflect the spoken-Arabic prompt and distinguish an em dash from the en dash in age ranges. The starter punctuation rule remains unchanged.
+
+Validation: lint and typecheck clean; 242/242 unit/API tests; production build passes; Playwright 85 passed, 3 intentionally skipped, 0 failures (Chromium phone + desktop, four workers). Live ElevenLabs quality/latency and physical iPhone autoplay are not covered without credentials/hardware.
+
 Newest entries first. Each entry gets its commit hash on the next update (a commit cannot contain its own hash).
 
 ### Model test run (10 OpenRouter models + Z.ai baseline), owl frames v2, JSON salvage

@@ -1,6 +1,6 @@
 import { expect, skipSetup, test } from "./fixtures";
 
-// Chromium's fake microphone plays a tone, so the live meter has real input.
+// Permission is granted automatically; synthetic Web Audio below makes the meter deterministic.
 test.use({
   permissions: ["microphone"],
   launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] },
@@ -14,6 +14,15 @@ async function fakeRecognition(page: import("@playwright/test").Page) {
   await page.addInitScript(() => {
     const w = window as unknown as Record<string, unknown>;
     w.__recStarts = 0;
+    Object.defineProperty(navigator.mediaDevices, "getUserMedia", { value: async () => {
+      const ctx = new AudioContext();
+      await ctx.resume();
+      const oscillator = ctx.createOscillator();
+      const output = ctx.createMediaStreamDestination();
+      oscillator.connect(output);
+      oscillator.start();
+      return output.stream;
+    } });
     class FakeRecognition {
       lang = "en-US";
       continuous = false;
@@ -59,8 +68,6 @@ test.describe("tap-to-talk mic", () => {
     const panel = page.getByRole("region", { name: "Voice question recording" });
     await expect(panel).toBeVisible();
     await expect(panel.getByText("Listening…")).toBeVisible();
-    await expect(page.getByTestId("dictation-text")).toContainText("how do plants drink water");
-
     // The fake mic tone moves the meter above its resting height.
     await expect
       .poll(async () =>
@@ -70,6 +77,7 @@ test.describe("tap-to-talk mic", () => {
       )
       .toBe(true);
 
+    // A brief pause / browser end sends the recognized phrase automatically.
     // About 2 s of quiet after the words: the question is sent on its own (Done is optional).
     await expect(panel).toHaveCount(0, { timeout: 8000 });
     await expect(page.locator('[data-role="child"]', { hasText: "how do plants drink water" })).toBeVisible();

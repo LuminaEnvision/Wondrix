@@ -18,7 +18,7 @@ import { gradeFromLabel } from "@/lib/grades";
 import type { SchoolPlan } from "@/lib/school-agent";
 import { getSkill, skillTitle } from "@/lib/skills";
 import type { SkillId } from "@/lib/types";
-import { useLang, useProfileKey, useT } from "@/lib/use-client-state";
+import { useHydrated, useLang, useProfileKey, useT } from "@/lib/use-client-state";
 import { SpeakButton } from "@/components/SpeakButton";
 import { canSpeak, isAudioUnlocked, speak, stopSpeaking, warmUpVoice } from "@/lib/voice";
 
@@ -99,13 +99,10 @@ export default function SchoolHomePage() {
   }, [profileKey]);
 
   const [plan, setPlan] = useState<PlanView | null>(null);
-  const [showDailyRadar, setShowDailyRadar] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const key = `wondrix-radar-day:${todayKey()}`;
-    if (!sessionStorage.getItem(key)) setShowDailyRadar(true);
-  }, []);
+  const hydrated = useHydrated();
+  const [radarDismissed, setRadarDismissed] = useState(false);
+  const showDailyRadar = hydrated && !radarDismissed &&
+    !sessionStorage.getItem(`wondrix-radar-day:${todayKey()}`);
 
   useEffect(() => {
     if (!local) return;
@@ -180,7 +177,7 @@ export default function SchoolHomePage() {
 
   function dismissDailyRadar() {
     sessionStorage.setItem(`wondrix-radar-day:${todayKey()}`, "1");
-    setShowDailyRadar(false);
+    setRadarDismissed(true);
   }
 
   return (

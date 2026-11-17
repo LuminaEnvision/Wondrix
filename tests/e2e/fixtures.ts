@@ -18,6 +18,22 @@ export const test = base.extend<{ pageErrors: string[] }>({
   ],
   page: async ({ page }, use) => {
     await page.route(/huggingface\.co/, (route) => route.abort());
+    // Deterministic local audio; no model download or device voice installation required.
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "Worker", { configurable: true, value: class {
+        constructor() { throw new Error("Model worker disabled in offline UI tests"); }
+      } });
+      const timers: number[] = [];
+      Object.defineProperty(window, "speechSynthesis", { configurable: true, value: {
+        getVoices: () => [{ name: "Google US English", lang: "en-US" }],
+        addEventListener: () => {},
+        cancel: () => timers.splice(0).forEach(clearTimeout),
+        speak: (u: { onstart?: () => void; onend?: () => void }) => {
+          timers.push(window.setTimeout(() => u.onstart?.(), 10));
+          timers.push(window.setTimeout(() => u.onend?.(), 3000));
+        },
+      } });
+    });
     await use(page);
   },
 });
@@ -35,7 +51,6 @@ function hashPin(pin: string): string {
 /** Unlock Parent gate after navigation (PIN is required on every Parent visit). */
 export async function unlockParentGate(page: Page, pin = "1234") {
   const field = page.locator('input[type="password"]').first();
-  if ((await field.count()) === 0) return;
   await expect(page.getByRole("heading", { name: "Parent password" })).toBeVisible({ timeout: 5000 });
   await field.fill(pin);
   await page.getByRole("button", { name: "Unlock" }).click();
@@ -45,7 +60,7 @@ export async function unlockParentGate(page: Page, pin = "1234") {
 /** First-open age + theme modal on home (blocks doors until dismissed). */
 export async function dismissAgePick(page: Page) {
   const dialog = page.getByRole("dialog", { name: /Who is learning today/i });
-  if ((await dialog.count()) === 0) return;
+  await expect(dialog).toBeVisible();
   await page.getByRole("button", { name: /Explorer/i }).click();
   await page.getByRole("button", { name: /Light/i }).click();
   await expect(dialog).toHaveCount(0);
@@ -146,4 +161,25 @@ export async function completeHandoff(
   await page.getByLabel("Child nickname").fill(opts?.name ?? "Alex");
   await page.getByPlaceholder("e.g. 8").fill(opts?.age ?? "8");
   await page.getByRole("button", { name: /Save and open Parent Dashboard/ }).click();
+}
+
+/** Read the active child's persisted value, rather than the retired shared keys. */
+export async function childStorage(page: Page, base: string) {
+  return page.evaluate((key) => {
+    const household = JSON.parse(localStorage.getItem("wondrix-household") || "{}");
+    return localStorage.getItem(`${key}:${household.activeChildId}`);
+  }, base);
+}
+
+/** Model-loading UI without depending on Hugging Face or the host GPU. */
+export async function simulateVoiceDownload(page: Page, delay = 2500) {
+  await page.addInitScript((ms) => {
+    Object.defineProperty(window, "Worker", { configurable: true, value: class extends EventTarget {
+      postMessage(message: { type: string }) {
+        if (message.type !== "load") return;
+        this.dispatchEvent(new MessageEvent("message", { data: { type: "status", status: "loading", progress: 12 } }));
+        setTimeout(() => this.dispatchEvent(new MessageEvent("message", { data: { type: "status", status: "failed" } })), ms);
+      }
+    } });
+  }, delay);
 }

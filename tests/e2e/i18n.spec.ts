@@ -1,8 +1,9 @@
-import { expect, seedProfile, test } from "./fixtures";
+import { dismissAgePick, expect, seedProfile, test } from "./fixtures";
 
 test.describe("language switch (English / Arabic)", () => {
   test("home language icon switches Arabic and remembers after reload", async ({ page }) => {
     await page.goto("/");
+    await dismissAgePick(page);
     await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
     await page.getByRole("button", { name: /Switch language to العربية/ }).click();
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");

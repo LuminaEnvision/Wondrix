@@ -723,14 +723,13 @@ function ExtraInner() {
               <p className="mb-1.5 text-sm font-bold text-[var(--world-ink-soft)]">{tr("extra.topicIdeas")}</p>
               <div
                 className="-mx-1 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                role="list"
+                role="group"
                 aria-label={tr("extra.topicIdeas")}
               >
                 {INTERESTS.map((item) => (
                   <button
                     key={item.id}
                     type="button"
-                    role="listitem"
                     onClick={() => pickSuggestion(item)}
                     data-topic={item.tone}
                     className={`shrink-0 snap-start overflow-hidden rounded-[var(--radius-m)] border border-stroke bg-[var(--world-surface)] text-start ${
@@ -807,7 +806,10 @@ function ExtraInner() {
               );
             })}
             {busy ? (
-              <p className="ps-16 text-sm text-[var(--world-ink-soft)]">{tr("extra.thinking")}</p>
+              <div className="flex items-center gap-2" role="status">
+                <Mascot size="md" busy listening={false} followSpeech={false} />
+                <p className="text-sm text-[var(--world-ink-soft)]">{tr("extra.thinking")}</p>
+              </div>
             ) : null}
           </div>
         )}

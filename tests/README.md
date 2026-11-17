@@ -22,7 +22,7 @@ The first `test:e2e` on a new machine may need `npx playwright install chromium`
 ## Conventions
 
 - Tests never call a real AI provider. `tests/helpers/fake-ai.ts` replaces `fetch` and sets env with `vi.stubEnv` (reset after each test).
-- E2E runs the production build with empty keys, so results are deterministic. Kokoro's model download is blocked in tests; the voice bubble tests delay it on purpose.
+- E2E runs the production build with empty keys, so results are deterministic. Kokoro workers and browser speech are simulated; voice-bubble tests simulate loading/failure events. Reading tests simulate server audio to check retry, speed, cancellation, and missing end events. Mic tests use a synthetic Web Audio stream. These checks do not measure a real provider's audio quality or physical-device autoplay.
 - Every E2E test fails if the page throws (`tests/e2e/fixtures.ts`).
 
 ## Old CPUs ("Illegal instruction" on `npm test`)

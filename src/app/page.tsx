@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useActionGate } from "@/components/ActionGate";
 import { AgePickModal } from "@/components/AgePickModal";
 import { AppShell } from "@/components/AppShell";
@@ -157,28 +157,15 @@ function HomeContent({ mode }: { mode: AgeMode }) {
   );
 }
 
-export default function HomePage() {
-  const tr = useT();
-  const hydrated = useHydrated();
-  const [picked, setPicked] = useState(false);
-  const [mode, setMode] = useState<AgeMode>("explorer");
-  const [bootstrapped, setBootstrapped] = useState(false);
-
-  useEffect(() => {
-    setPicked(hasAgePicked());
-    setMode(resolveAgeMode());
-    setBootstrapped(true);
-  }, []);
-
-  const ready = hydrated && bootstrapped;
+function HydratedHomePage() {
+  const [picked, setPicked] = useState(hasAgePicked);
+  const [mode, setMode] = useState<AgeMode>(resolveAgeMode);
   const displayMode = picked ? mode : "explorer";
 
   return (
-    <AppShell world="home" layout="fill" dense={ready && picked && displayMode === "teen"}>
+    <AppShell world="home" layout="fill" dense={picked && displayMode === "teen"}>
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        {!ready ? (
-          <p className="p-4 text-ink-soft">{tr("common.loading")}</p>
-        ) : !picked ? (
+        {!picked ? (
           <>
             <div className="absolute inset-0 -mx-4 scale-110 sm:mx-0" aria-hidden>
               <Image
@@ -203,5 +190,13 @@ export default function HomePage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+export default function HomePage() {
+  const hydrated = useHydrated();
+  const tr = useT();
+  return hydrated ? <HydratedHomePage /> : (
+    <AppShell world="home" layout="fill"><p className="p-4 text-ink-soft">{tr("common.loading")}</p></AppShell>
   );
 }

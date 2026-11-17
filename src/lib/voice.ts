@@ -87,6 +87,7 @@ let playToken = 0;
 let audioCtx: AudioContext | null = null;
 let activeSources: AudioBufferSourceNode[] = [];
 let audioEl: HTMLAudioElement | null = null;
+let activeTtsController: AbortController | null = null;
 let audioUrl: string | null = null;
 
 const IDLE: SpeechState = { state: "idle" };
@@ -156,6 +157,8 @@ export function stopSpeaking() {
 }
 
 function stopAllAudio() {
+  activeTtsController?.abort();
+  activeTtsController = null;
   if (typeof window === "undefined") return;
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   activeSources.forEach((s) => {
@@ -480,17 +483,19 @@ let serverTtsUnavailable = false;
 async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise<boolean> {
   if (serverTtsUnavailable) return false;
   let res: Response;
+  const controller = new AbortController();
+  activeTtsController = controller;
   try {
     res = await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, lang: currentLang() }),
       // ElevenLabs often needs a few seconds; a hung route must not freeze Listen forever.
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
     });
   } catch (err) {
     console.warn("[voice] /api/tts fetch failed/timed out", err);
-    serverTtsUnavailable = true;
+    // A transient network failure must not disable every later Listen attempt.
     return false;
   }
   if (res.status === 501) {
@@ -504,6 +509,8 @@ async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise
   audioUrl = URL.createObjectURL(blob);
   audioEl = new Audio(audioUrl);
   audioEl.setAttribute("playsinline", "true");
+  // Apply Reading speed to server-generated audio as well as local engines.
+  audioEl.playbackRate = opts.rate ?? 1;
   audioEl.onended = () => markDone(token);
   try {
     await audioEl.play();
