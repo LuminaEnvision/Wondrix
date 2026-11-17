@@ -51,11 +51,12 @@ const SUBJECT_LABEL: Record<SubjectOffer["id"], MessageKey> = {
 };
 
 const AVATAR_PRESETS = [
-  "/art/owl/happy.webp",
-  "/art/owl/calm.webp",
-  "/art/owl/think.webp",
-  "/art/mascot-icon.jpg",
-  "/art/logo-mark.jpg",
+  { src: "/art/avatars/explorer.webp", label: "parent.avatarExplorer" as const },
+  { src: "/art/avatars/artist.webp", label: "parent.avatarArtist" as const },
+  { src: "/art/avatars/scientist.webp", label: "parent.avatarScientist" as const },
+  { src: "/art/avatars/athlete.webp", label: "parent.avatarAthlete" as const },
+  { src: "/art/avatars/chef.webp", label: "parent.avatarChef" as const },
+  { src: "/art/avatars/musician.webp", label: "parent.avatarMusician" as const },
 ] as const;
 
 function ChildAvatar({
@@ -174,6 +175,7 @@ function ParentHome() {
   const [showLatestSummary, setShowLatestSummary] = useState(false);
   const [chatCount, setChatCount] = useState(0);
   const [mastery, setMastery] = useState(() => loadMastery());
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const avatarRef = useRef<HTMLInputElement>(null);
 
@@ -188,6 +190,7 @@ function ParentHome() {
     setSelectedId(id);
     const child = listChildren().find((c) => c.id === id);
     setEditing(!child || !childIsFilled(child));
+    setAvatarPickerOpen(false);
     setSaved(false);
     setMastery(loadMastery());
     setChatCount(listChats().length);
@@ -605,25 +608,47 @@ function ParentHome() {
                           ) : null}
                         </div>
                       </div>
-                      <p className="text-xs font-semibold text-ink-soft">{tr("parent.avatarPick")}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {AVATAR_PRESETS.map((src) => (
-                          <button
-                            key={src}
-                            type="button"
-                            onClick={() => patchSelected({ avatarUrl: src })}
-                            className={`rounded-full p-0.5 ring-2 transition ${
-                              selected.avatarUrl === src
-                                ? "ring-[var(--world-accent)]"
-                                : "ring-transparent hover:ring-stroke"
-                            }`}
-                            aria-label={tr("parent.avatarPick")}
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={src} alt="" className="size-10 rounded-full object-cover" />
-                          </button>
-                        ))}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAvatarPickerOpen((o) => !o)}
+                        className="flex w-full items-center justify-between rounded-[var(--radius-m)] border border-stroke bg-[var(--world-surface)] px-3 py-2 text-start text-sm font-bold text-[var(--world-ink)]"
+                        aria-expanded={avatarPickerOpen}
+                      >
+                        <span>{tr("parent.avatarPick")}</span>
+                        <span className="text-xs font-semibold text-ink-soft" aria-hidden>
+                          {avatarPickerOpen ? "−" : "+"}
+                        </span>
+                      </button>
+                      {avatarPickerOpen ? (
+                        <div
+                          className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                          role="list"
+                          aria-label={tr("parent.avatarPick")}
+                        >
+                          {AVATAR_PRESETS.map((item) => (
+                            <button
+                              key={item.src}
+                              type="button"
+                              role="listitem"
+                              onClick={() => patchSelected({ avatarUrl: item.src })}
+                              className={`shrink-0 snap-start rounded-full p-0.5 ring-2 transition ${
+                                selected.avatarUrl === item.src
+                                  ? "ring-[var(--world-accent)]"
+                                  : "ring-transparent hover:ring-stroke"
+                              }`}
+                              aria-label={tr(item.label)}
+                              aria-pressed={selected.avatarUrl === item.src}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={item.src}
+                                alt=""
+                                className="size-14 rounded-full object-cover bg-[var(--world-bg)]"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
 
                     <fieldset className="space-y-2">

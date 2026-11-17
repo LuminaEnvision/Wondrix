@@ -142,7 +142,7 @@ test.describe("Extra door", () => {
     await page.goto("/extra");
     await expect(page.getByText("Getting Wondrix's voice ready…")).toBeVisible();
     await expect(page.getByText(/First time only/)).toBeVisible();
-    await expect(page.getByText("Natural voice not available here")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Natural voice not available here")).toBeVisible({ timeout: 20_000 });
   });
 
   test("turning voice off hides the voice bubble", async ({ page, isMobile }) => {

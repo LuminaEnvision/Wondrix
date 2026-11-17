@@ -2,12 +2,11 @@
  * Wondrix voice: text-to-speech with a chain of engines, plus mic input.
  *
  * Engines (NEXT_PUBLIC_TTS_ENGINE picks the first one; the others are fallbacks):
- *   - "kokoro"  (default) Kokoro 82M running in the browser via a Web Worker.
+ *   - "kokoro"  (default) Kokoro → Azure → browser. Kokoro 82M in a Web Worker.
  *               Free, no key, private (audio never leaves the device), natural voice.
  *               First use downloads the model (~80 MB, then cached). Until it is
- *               ready, the browser voice speaks so the child never waits.
- *   - "azure"   Server route /api/tts (Azure Speech neural voices). Prepared for
- *               the demo; needs AZURE_SPEECH_KEY + AZURE_SPEECH_REGION on the server.
+ *               ready, Azure (if keyed) or the browser voice speaks so the child waits less.
+ *   - "azure"   Azure → Kokoro → browser. Needs AZURE_SPEECH_KEY + AZURE_SPEECH_REGION.
  *   - "browser" Web Speech API with the best available voice (Edge "Natural",
  *               Google, Samantha...). Always the last fallback.
  *
@@ -75,8 +74,10 @@ function engineChain(): Engine[] {
     return ["azure", "browser"];
   }
   if (mobile) return ["azure", "browser"];
+  // Only hit /api/tts when Azure is the chosen engine. A hung TTS route was
+  // freezing every Listen on "Preparing voice…" even with Kokoro ready.
   if (primary === "azure") return ["azure", "kokoro", "browser"];
-  return ["azure", "kokoro", "browser"];
+  return ["kokoro", "browser"];
 }
 
 /* ------------------------------------------------------------------ */
@@ -177,6 +178,9 @@ function stopAllAudio() {
   kokoroWorker?.postMessage({ type: "speak", id: -1, sentences: [], voice: KOKORO_VOICE, speed: 1 });
 }
 
+/** Max time the UI may sit on "Preparing voice…" before giving up. */
+const PREPARING_WATCHDOG_MS = 12_000;
+
 /** Speak text out loud with the best engine available (kids-friendly pace). */
 export function speak(text: string, opts?: SpeakOpts) {
   if (typeof window === "undefined" || !text.trim()) return;
@@ -186,6 +190,16 @@ export function speak(text: string, opts?: SpeakOpts) {
   pendingOnEnd = opts?.onEnd ? { token, fn: opts.onEnd } : null;
   setSpeech({ state: "preparing", id });
   const started = Date.now();
+  const preparingWatch = setTimeout(() => {
+    if (token !== playToken) return;
+    if (speech.state === "preparing") {
+      console.warn("[voice] preparing watchdog: no engine started");
+      setSpeech({ state: "unavailable", id });
+      finishOnEnd(token);
+      playToken++; // cancel in-flight engine awaits (after onEnd)
+      stopAllAudio();
+    }
+  }, PREPARING_WATCHDOG_MS);
   void (async () => {
     // Best-effort unlock when speak() is already inside a tap handler.
     await unlockAudio();
@@ -194,6 +208,7 @@ export function speak(text: string, opts?: SpeakOpts) {
       try {
         const ok = await ENGINES[engine](text, opts ?? {}, token);
         if (ok) {
+          clearTimeout(preparingWatch);
           console.info(`[voice] ${engine} started after ${Date.now() - started} ms`);
           return;
         }
@@ -201,6 +216,7 @@ export function speak(text: string, opts?: SpeakOpts) {
         console.warn(`[voice] ${engine} failed`, err);
       }
     }
+    clearTimeout(preparingWatch);
     if (token === playToken) {
       console.warn("[voice] no voice could play on this device");
       setSpeech({ state: "unavailable", id });
@@ -333,7 +349,7 @@ export function isAudioUnlocked(): boolean {
 
 export async function unlockAudio(): Promise<void> {
   if (typeof window === "undefined" || audioUnlocked) return;
-  try {
+  const unlockOnce = async () => {
     const ctx = await getAudioCtx();
     if (ctx) {
       const buffer = ctx.createBuffer(1, 1, 22050);
@@ -355,6 +371,13 @@ export async function unlockAudio(): Promise<void> {
     audioEl.muted = false;
     // AudioContext running after a user gesture also counts as unlocked.
     if (played || (ctx && ctx.state === "running")) audioUnlocked = true;
+  };
+  try {
+    // Never block speak() forever if play()/resume() hangs on a device.
+    await Promise.race([
+      unlockOnce(),
+      new Promise<void>((resolve) => setTimeout(resolve, 800)),
+    ]);
   } catch {
     /* first gesture may still unlock on the next play() */
   }
@@ -457,11 +480,21 @@ let azureUnavailable = false;
 
 async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise<boolean> {
   if (azureUnavailable) return false;
-  const res = await fetch("/api/tts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, lang: currentLang() }),
-  });
+  let res: Response;
+  try {
+    res = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, lang: currentLang() }),
+      // Without a timeout, a hung /api/tts left the UI on "Preparing voice…" forever
+      // and Kokoro / browser never got a turn.
+      signal: AbortSignal.timeout(2000),
+    });
+  } catch (err) {
+    console.warn("[voice] azure fetch failed/timed out", err);
+    azureUnavailable = true; // don't retry a wedged route every Listen
+    return false;
+  }
   if (res.status === 501) {
     azureUnavailable = true; // not configured on the server
     return false;
