@@ -21,9 +21,13 @@ import { safetyCheck } from "@/lib/safety";
 
 const MAX_CHARS = 800;
 
-/** Chosen Wondrix voices (override with ELEVENLABS_VOICE_ID / _AR). */
-const DEFAULT_ELEVEN_VOICE_EN = "piI8Kku0DcvcL6TTSeQt";
-const DEFAULT_ELEVEN_VOICE_AR = "KxMRrXEjbJ6kZ93yT3fq";
+/**
+ * Free-tier API voices must be ElevenLabs Default/premade voices.
+ * Voice Library picks (and many marketplace IDs) return paid_plan_required on Free.
+ * Sarah = soft female Default; same ID works for AR via Flash/multilingual models.
+ */
+const DEFAULT_ELEVEN_VOICE_EN = "EXAVITQu4vr4xnSDxMaL"; // Sarah
+const DEFAULT_ELEVEN_VOICE_AR = "EXAVITQu4vr4xnSDxMaL"; // Sarah (Arabic via model)
 
 function escapeXml(text: string) {
   return text
