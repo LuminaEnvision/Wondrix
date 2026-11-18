@@ -29,9 +29,21 @@ type SpeakOpts = {
   pitch?: number;
   /** Which message is being read (lets the UI show a per-message play state). */
   id?: string;
+  /** Force EN/AR for /api/tts (defaults to currentLang()). */
+  lang?: "en" | "ar";
   /** Called once when this text finished playing, or could not play (not when stopped or replaced). */
   onEnd?: () => void;
 };
+
+function looksArabic(text: string): boolean {
+  return /[\u0600-\u06FF]/.test(text);
+}
+
+function speakLang(text: string, opts?: SpeakOpts): "en" | "ar" {
+  if (opts?.lang === "ar" || opts?.lang === "en") return opts.lang;
+  if (looksArabic(text)) return "ar";
+  return currentLang();
+}
 
 /** onEnd of the text playing now (cleared when something else starts or it is stopped). */
 let pendingOnEnd: { token: number; fn: () => void } | null = null;
@@ -489,7 +501,7 @@ async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise
     res = await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, lang: currentLang() }),
+      body: JSON.stringify({ text, lang: speakLang(text, opts) }),
       // ElevenLabs often needs a few seconds; a hung route must not freeze Listen forever.
       signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
     });

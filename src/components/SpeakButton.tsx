@@ -80,7 +80,7 @@ export function SpeakButton({
       <button
         type="button"
         onClick={() => {
-          void unlockAudio().then(() => speak(text, { id }));
+          void unlockAudio().then(() => speak(text, { id, lang }));
         }}
         className={`inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1 text-xs font-bold ${color}`}
         aria-label={label ?? tr("speak.listenAnswer")}

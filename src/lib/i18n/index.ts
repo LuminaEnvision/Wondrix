@@ -35,10 +35,16 @@ export function t(key: MessageKey, vars?: Record<string, string | number>, lang:
   return text.replace(/\{(\w+)\}/g, (m, name: string) => (name in vars ? String(vars[name]) : m));
 }
 
+/** Device-level language key (same as useLang / LanguageIcon). */
+const LANG_KEY = "wondrix-language";
+
 /** Read the saved language outside React (voice, mic). English on the server. */
 export function currentLang(): Lang {
   if (typeof window === "undefined") return "en";
   try {
+    // Prefer the device language toggle — TTS/mic must match the UI, not a stale profile field.
+    const stored = localStorage.getItem(LANG_KEY);
+    if (stored) return asLang(stored);
     const raw = localStorage.getItem("wondrix-profile");
     return asLang(raw ? (JSON.parse(raw) as { language?: unknown }).language : undefined);
   } catch {

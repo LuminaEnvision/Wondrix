@@ -183,7 +183,8 @@ export async function POST(request: Request) {
   if (!text) return NextResponse.json({ error: "Empty text" }, { status: 400 });
   if (!safetyCheck(text).ok) return NextResponse.json({ error: "Refused" }, { status: 400 });
 
-  const lang = body.lang === "ar" ? "ar" : "en";
+  // Prefer explicit lang; Arabic script still forces AR pronunciation if the client forgot.
+  const lang = body.lang === "ar" || /[\u0600-\u06FF]/.test(text) ? "ar" : "en";
 
   // ElevenLabs first (works for EN + AR); Azure only if ElevenLabs is unset.
   if (hasEleven) {

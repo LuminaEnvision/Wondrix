@@ -253,6 +253,16 @@ describe("POST /api/tts", () => {
     expect((init.headers as Record<string, string>)["xi-api-key"]).toBe("el-key");
     expect(String(init.body)).toContain("hello kids");
     expect(String(init.body)).toContain("eleven_flash_v2_5");
+    expect(String(init.body)).toContain('"language_code":"en"');
+  });
+
+  it("forces Arabic language_code for Arabic lang or Arabic script", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "el-key");
+    const fetchMock = vi.fn(async () => new Response(new Uint8Array([9, 9]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await tts(req({ text: "مرحبا يا أصدقاء", lang: "ar" }));
+    expect(res.status).toBe(200);
+    expect(String(fetchMock.mock.calls[0]![1]!.body)).toContain('"language_code":"ar"');
   });
 
   it("sends escaped SSML to Azure when only Azure is configured", async () => {
