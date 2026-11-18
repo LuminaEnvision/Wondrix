@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AppShell } from "@/components/AppShell";
 import { loadProfile, profileAgeMode } from "@/lib/demo-store";
-import { READING_STORIES } from "@/lib/reading-stories";
+import { READING_STORIES, storySentences } from "@/lib/reading-stories";
 import {
   estimateLineMs,
   flattenSyllables,
   tokenizeForReading,
 } from "@/lib/syllables";
-import { useHydrated, useT } from "@/lib/use-client-state";
+import { useHydrated, useLang, useT } from "@/lib/use-client-state";
 import {
   getServerSpeech,
   getSpeech,
@@ -78,8 +78,10 @@ function SyllableLine({
 
 export default function ReadingPage() {
   const tr = useT();
+  const lang = useLang();
   const hydrated = useHydrated();
   const story = READING_STORIES[0];
+  const lines = storySentences(story, lang);
   const [index, setIndex] = useState(0);
   const [rate, setRate] = useState(0.9);
   const [activeSyllable, setActiveSyllable] = useState(-1);
@@ -89,6 +91,11 @@ export default function ReadingPage() {
     Boolean(speech.id?.startsWith(`read-${story.id}-`));
   const timersRef = useRef<number[]>([]);
   const playIdRef = useRef<string | null>(null);
+
+  // Keep line index valid when switching EN ↔ AR (different sentence counts).
+  useEffect(() => {
+    setIndex((i) => Math.min(i, Math.max(0, lines.length - 1)));
+  }, [lines.length]);
 
   const clearHighlight = useCallback(() => {
     timersRef.current.forEach((t) => clearTimeout(t));
@@ -118,22 +125,24 @@ export default function ReadingPage() {
 
   const speakCurrent = useCallback(
     (i: number) => {
-      const sentence = story.sentences[i];
+      const sentence = lines[i];
       if (!sentence) return;
-      void unlockAudio();
-      const id = `read-${story.id}-${i}`;
-      playIdRef.current = id;
-      clearHighlight();
-      speak(sentence, {
-        id,
-        rate,
-        onEnd: () => {
-          clearHighlight();
-          playIdRef.current = null;
-        },
+      void unlockAudio().then(() => {
+        const id = `read-${story.id}-${i}`;
+        playIdRef.current = id;
+        clearHighlight();
+        speak(sentence, {
+          id,
+          rate,
+          lang,
+          onEnd: () => {
+            clearHighlight();
+            playIdRef.current = null;
+          },
+        });
       });
     },
-    [clearHighlight, rate, story],
+    [clearHighlight, lang, lines, rate, story.id],
   );
 
   // Re-sync highlight when the engine really starts (after Preparing…).
@@ -141,11 +150,11 @@ export default function ReadingPage() {
     if (speech.state !== "speaking") return;
     if (!("id" in speech) || speech.id !== playIdRef.current) return;
     const i = index;
-    const sentence = story.sentences[i];
+    const sentence = lines[i];
     if (!sentence) return;
     const frame = requestAnimationFrame(() => runSyllableHighlight(sentence, rate));
     return () => cancelAnimationFrame(frame);
-  }, [speech, index, rate, runSyllableHighlight, story.sentences]);
+  }, [speech, index, rate, runSyllableHighlight, lines]);
 
   useEffect(() => () => {
     stopSpeaking();
@@ -167,7 +176,7 @@ export default function ReadingPage() {
   }
 
   function continueNext() {
-    const next = Math.min(index + 1, story.sentences.length - 1);
+    const next = Math.min(index + 1, lines.length - 1);
     setIndex(next);
     speakCurrent(next);
   }
@@ -187,9 +196,9 @@ export default function ReadingPage() {
             {tr(story.titleKey)}
           </p>
           <div className="mt-4 space-y-3" aria-live="polite">
-            {story.sentences.map((sentence, i) => (
+            {lines.map((sentence, i) => (
               <button
-                key={sentence}
+                key={`${story.id}-${i}`}
                 type="button"
                 onClick={() => {
                   setIndex(i);

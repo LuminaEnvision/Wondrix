@@ -38,7 +38,7 @@ export const en = {
   "agePick.backAge": "Back to age",
 
   "lang.label": "App language",
-  "lang.help": "Changes the app's words and the language of Wondrix's Extra answers. School questions are in English for now.",
+  "lang.help": "Changes the app's words and Wonder answers. School practice questions stay in English for now; skill names and Reading can be Arabic.",
   "lang.draftNote": "Arabic is a first draft and is being checked by a native speaker.",
   "lang.toggle": "Switch language to {lang}",
   "theme.toDark": "Switch to dark theme",
@@ -259,7 +259,7 @@ export const en = {
   "speak.stop": "Stop",
   "speak.stopLabel": "Stop reading",
   "speak.noSound": "No sound available on this device. You can read the answer.",
-  "speak.noArabicVoice": "No Arabic speaking voice on this device. Read the text, or install an Arabic system voice / set Azure TTS.",
+  "speak.noArabicVoice": "Voice is still warming up. Tap Listen again — Arabic uses our cloud voice (ElevenLabs).",
 
   "dict.region": "Voice question recording",
   "dict.listening": "Listening…",

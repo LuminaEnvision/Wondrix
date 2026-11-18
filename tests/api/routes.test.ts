@@ -262,7 +262,8 @@ describe("POST /api/tts", () => {
     vi.stubGlobal("fetch", fetchMock);
     const res = await tts(req({ text: "مرحبا يا أصدقاء", lang: "ar" }));
     expect(res.status).toBe(200);
-    expect(String(fetchMock.mock.calls[0]![1]!.body)).toContain('"language_code":"ar"');
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(String(init?.body)).toContain('"language_code":"ar"');
   });
 
   it("sends escaped SSML to Azure when only Azure is configured", async () => {

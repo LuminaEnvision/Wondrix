@@ -492,29 +492,52 @@ async function speakKokoro(text: string, opts: SpeakOpts, token: number): Promis
 
 let serverTtsUnavailable = false;
 
-async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise<boolean> {
-  if (serverTtsUnavailable) return false;
-  let res: Response;
+async function fetchServerTts(
+  text: string,
+  lang: "en" | "ar",
+  token: number,
+): Promise<Response | null> {
   const controller = new AbortController();
   activeTtsController = controller;
   try {
-    res = await fetch("/api/tts", {
+    return await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, lang: speakLang(text, opts) }),
-      // ElevenLabs often needs a few seconds; a hung route must not freeze Listen forever.
-      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+      body: JSON.stringify({ text, lang }),
+      // ElevenLabs cold start can be slow; still bound so Listen cannot hang forever.
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(18000)]),
     });
   } catch (err) {
     console.warn("[voice] /api/tts fetch failed/timed out", err);
-    // A transient network failure must not disable every later Listen attempt.
+    return null;
+  }
+}
+
+async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise<boolean> {
+  if (serverTtsUnavailable) return false;
+  const lang = speakLang(text, opts);
+
+  // One retry: first cloud call after idle often fails; falling to browser shows a scary
+  // "no Arabic voice" note even though ElevenLabs works on the next tap.
+  let res: Response | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (token !== playToken) return false;
+    res = await fetchServerTts(text, lang, token);
+    if (!res) {
+      if (attempt === 0) continue;
+      return false;
+    }
+    if (res.status === 501) {
+      serverTtsUnavailable = true; // no cloud TTS keys on the server
+      return false;
+    }
+    if (res.ok) break;
+    console.warn(`[voice] /api/tts HTTP ${res.status} (attempt ${attempt + 1})`);
+    if (attempt === 0) continue;
     return false;
   }
-  if (res.status === 501) {
-    serverTtsUnavailable = true; // no ElevenLabs / Azure keys on the server
-    return false;
-  }
-  if (!res.ok || token !== playToken) return false;
+  if (!res?.ok || token !== playToken) return false;
+
   const blob = await res.blob();
   if (token !== playToken) return false;
   if (audioUrl) URL.revokeObjectURL(audioUrl);

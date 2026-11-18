@@ -284,7 +284,9 @@ function ExtraInner() {
   }
 
   function say(text: string, id?: string) {
-    if (voiceOn && speakOk) speak(text, { id });
+    if (!voiceOn || !speakOk) return;
+    // Mic/send already unlocked audio; still await unlock so ElevenLabs can play without a second tap.
+    void unlockAudio().then(() => speak(text, { id, lang }));
   }
 
   async function send(text: string) {

@@ -160,20 +160,27 @@ export default function SchoolHomePage() {
     /\s*[—–]\s*/g,
     ": ",
   );
+  // Coach notes from the school API are still English; when UI is Arabic, speak the
+  // Arabic skill names (what kids see on the card) instead of English coach prose.
+  const speakFocusLine =
+    lang === "ar" && focusLine && !/[\u0600-\u06FF]/.test(focusLine)
+      ? focus.map((id) => skillTitle(id, "ar")).filter(Boolean).join("، ") ||
+        tr("school.softDay")
+      : focusLine;
 
   // Only auto-speak when audio was unlocked by a prior tap — otherwise the owl
   // "talks" with no sound (iOS / blocked autoplay). Tap Listen to unlock + play.
   useEffect(() => {
-    if (!focusLine || !canSpeak() || !isAudioUnlocked()) return;
+    if (!speakFocusLine || !canSpeak() || !isAudioUnlocked()) return;
     warmUpVoice();
     const timer = window.setTimeout(() => {
-      speak(focusLine, { id: "school-focus" });
+      speak(speakFocusLine, { id: "school-focus", lang });
     }, 400);
     return () => {
       window.clearTimeout(timer);
       stopSpeaking();
     };
-  }, [focusLine, profileKey]);
+  }, [speakFocusLine, profileKey, lang]);
 
   function dismissDailyRadar() {
     sessionStorage.setItem(`wondrix-radar-day:${todayKey()}`, "1");
@@ -218,21 +225,21 @@ export default function SchoolHomePage() {
                       <li className="text-sm text-[var(--world-ink-soft)]">{tr("common.loading")}</li>
                     )}
                   </ul>
-                  {focusLine ? (
+                  {focusLine || speakFocusLine ? (
                     <div className="mt-3 space-y-2">
                       <p className="text-base font-semibold leading-snug text-[var(--world-ink)]">
-                        {focusLine}
+                        {speakFocusLine || focusLine}
                       </p>
-                      <SpeakButton id="school-focus" text={focusLine} />
+                      {speakFocusLine ? <SpeakButton id="school-focus" text={speakFocusLine} /> : null}
                     </div>
                   ) : null}
                 </div>
               ) : (
                 <div className="mt-3 space-y-2">
                   <p className="text-sm leading-relaxed text-[var(--world-ink)]">
-                    {focusLine || tr("school.pickSkill")}
+                    {speakFocusLine || focusLine || tr("school.pickSkill")}
                   </p>
-                  {focusLine ? <SpeakButton id="school-focus" text={focusLine} /> : null}
+                  {speakFocusLine ? <SpeakButton id="school-focus" text={speakFocusLine} /> : null}
                   {focus.map((id) => (
                     <p key={id} className="text-sm text-[var(--world-ink-soft)]">
                       <span className="font-bold text-[var(--world-ink)]">{skillTitle(id, lang)}</span>
