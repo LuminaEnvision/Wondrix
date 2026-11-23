@@ -32,8 +32,8 @@ export const ar: Record<MessageKey, string> = {
 
   "agePick.title": "من يتعلم اليوم؟",
   "agePick.body": "اختر مستكشف أو يافع أولًا، ثم الضوء أو الداكن.",
-  "agePick.explorerBlurb": "الأعمار 7–10",
-  "agePick.teenBlurb": "الأعمار 11–17",
+  "agePick.explorerBlurb": "الأعمار 7-10",
+  "agePick.teenBlurb": "الأعمار 11-17",
   "agePick.themeTitle": "فاتح أم داكن؟",
   "agePick.themeBody": "المستكشف واليافع يعملان بالوضع الفاتح والداكن. غيّر في أي وقت من ولي الأمر.",
   "agePick.lightBlurb": "ألوان نهار ناعمة.",
@@ -227,6 +227,7 @@ export const ar: Record<MessageKey, string> = {
   "extra.drawing": "ووندريكس يرسمها لك…",
   "extra.thinking": "ووندريكس يفكّر…",
   "extra.micNeeds": "الإدخال الصوتي يحتاج إلى متصفح Chrome أو Edge مع إذن الميكروفون. ما زال بإمكانك الكتابة في الأسفل.",
+  "extra.micCheck": "هل سمعتك جيدًا؟ صحّح الكلمات إن لزم، ثم اضغط اسأل البومة.",
   "extra.micNoCatch": "لم أسمع جيدًا. اضغط على الميكروفون لتحاول مرة أخرى، أو اكتب سؤالك.",
   "extra.micNoCatchAr": "الميكروفون لم يلتقط العربية هذه المرة. اكتب سؤالك في المربع بالأسفل (هذا يعمل دائمًا)، أو جرّب الميكروفون مرة أخرى في Chrome مع الواي فاي.",
   "extra.mic": "ميكروفون",
@@ -262,7 +263,7 @@ export const ar: Record<MessageKey, string> = {
   "speak.stop": "أوقف",
   "speak.stopLabel": "أوقف القراءة",
   "speak.noSound": "لا يوجد صوت متاح على هذا الجهاز. يمكنك قراءة الإجابة.",
-  "speak.noArabicVoice": "الصوت ما زال يجهّز. اضغط استمع مرة أخرى — العربية تستخدم صوتنا السحابي.",
+  "speak.noArabicVoice": "الصوت ما زال يجهّز. اضغط استمع مرة أخرى, العربية تستخدم صوتنا السحابي.",
 
   "dict.region": "تسجيل السؤال بالصوت",
   "dict.listening": "أستمع…",

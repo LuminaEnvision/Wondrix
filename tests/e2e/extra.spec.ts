@@ -311,3 +311,25 @@ test.describe("phones", () => {
     expect(m.icons.some((i: { src: string }) => i.src.includes("icon-512"))).toBe(true);
   });
 });
+
+test.describe("tester report fixes", () => {
+  test("T3: a long new answer shows from its first line", async ({ page }) => {
+    await skipSetup(page);
+    const long = `FIRST LINE of the answer. ${"More words to make this answer long. ".repeat(60)}LAST LINE.`;
+    await page.route("**/api/extra/chat", (route) => route.fulfill({ json: { text: long, answer: long, source: "zai" } }));
+    await page.goto("/extra");
+    await askOwl(page, "tell me a lot");
+    await expect(page.getByText("FIRST LINE", { exact: false })).toBeInViewport();
+  });
+
+  test("T2: dark theme form controls use the light ink, not black", async ({ page }) => {
+    await skipSetup(page);
+    await page.goto("/parent");
+    await unlockParentGate(page);
+    await page.getByRole("button", { name: /Alex/ }).click();
+    await page.getByRole("button", { name: "Edit" }).click();
+    await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+    const color = await page.locator("select").first().evaluate((el) => getComputedStyle(el).color);
+    expect(color).not.toBe("rgb(0, 0, 0)");
+  });
+});
