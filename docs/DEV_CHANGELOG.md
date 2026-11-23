@@ -45,9 +45,9 @@ From `USER_TEST_REPORT_2026-11` (iPhone 15 Pro, Chrome).
 - **T3:** the chat scrolled to the very bottom, hiding the start of a long answer. A new answer now scrolls so its first line sits at the top; when the child asks, the chat still follows to the bottom.
 - **T5:** on iOS every browser uses WebKit's recogniser: recognition now runs in utterance mode there (more reliable than continuous). When the recogniser reports low confidence (< 0.55), the words go into the box with "Did I hear you right?" instead of being sent (EN + AR).
 - Also: `npm ci` to Next 16.4.6 (16.4.2 refused to build: known vulnerability); 2 existing lint errors fixed (Reading index clamp as render-time adjustment, unused param); en dashes in i18n replaced (house-style test).
-- **Known, not mine:** 2 e2e failures already on `main` from the voice work (diagram "Show me" → Stop, Reading voice retry count).
+- **Fixed too (were failing on `main`):** the late auto-read of an answer (it waits for the audio unlock) cut off a "Show me" walkthrough the child had just started; `say()` now skips when something else is already playing. The Reading test now expects the intended one automatic retry of the cloud voice.
 
-Tests: e2e for T2 and T3 (phone + desktop). Vitest 244/244, lint clean, build green; Playwright 85 passed, 4 failing as on `main`, 3 skipped.
+Tests: e2e for T2 and T3 (phone + desktop). Vitest 244/244, lint clean, build green, Playwright 89 passed + 3 skipped by design.
 
 ### 2026-11-17: Voice recovery, Reading controls, and regression-suite repair
 

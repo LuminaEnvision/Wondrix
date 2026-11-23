@@ -38,6 +38,7 @@ import { safetyCheck } from "@/lib/safety";
 import {
   canListen,
   canSpeak,
+  getSpeech,
   startDictation,
   type DictationHandle,
   speak,
@@ -305,7 +306,13 @@ function ExtraInner() {
   function say(text: string, id?: string) {
     if (!voiceOn || !speakOk) return;
     // Mic/send already unlocked audio; still await unlock so ElevenLabs can play without a second tap.
-    void unlockAudio().then(() => speak(text, { id, lang }));
+    void unlockAudio().then(() => {
+      // If the child already started something else meanwhile (e.g. "Show me" on the diagram),
+      // do not cut it off with the late auto-read of the answer.
+      const s = getSpeech();
+      if ((s.state === "preparing" || s.state === "speaking") && "id" in s && s.id && s.id !== id) return;
+      speak(text, { id, lang });
+    });
   }
 
   async function send(text: string) {
