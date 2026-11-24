@@ -959,3 +959,18 @@ html[data-age="teen"] .wx-child-card:nth-child(n) {
 @media (prefers-reduced-motion: reduce) {
   .wx-mascot-body, .wx-mascot-glow, .wx-mascot-dots span, .wx-mascot-waves path { animation: none !important; }
 }
+
+/* Tester report T2: form controls do not inherit text colour by default (browsers paint them
+   black), so on the dark theme selects were black on dark. Inherit the page ink, and give the
+   native option list dark colours too. */
+:where(input, select, textarea) {
+  color: inherit;
+}
+html[data-theme="dark"] :where(input, select, textarea)::placeholder {
+  color: var(--world-ink-soft);
+}
+html[data-theme="dark"] option,
+html[data-theme="dark"] optgroup {
+  background-color: var(--world-surface);
+  color: var(--world-ink);
+}

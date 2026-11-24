@@ -93,9 +93,8 @@ export default function ReadingPage() {
   const playIdRef = useRef<string | null>(null);
 
   // Keep line index valid when switching EN ↔ AR (different sentence counts).
-  useEffect(() => {
-    setIndex((i) => Math.min(i, Math.max(0, lines.length - 1)));
-  }, [lines.length]);
+  // Adjusted during render (React's "adjust state when props change" pattern), not in an effect.
+  if (index > Math.max(0, lines.length - 1)) setIndex(Math.max(0, lines.length - 1));
 
   const clearHighlight = useCallback(() => {
     timersRef.current.forEach((t) => clearTimeout(t));

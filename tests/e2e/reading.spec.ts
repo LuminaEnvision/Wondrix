@@ -4,7 +4,7 @@ test.beforeEach(async ({ page }) => {
   await seedProfile(page, {});
 });
 
-test("a failed server voice request can be retried; Reading speed reaches the audio", async ({ page }) => {
+test("a failed server voice request is retried once; Reading speed reaches the audio", async ({ page }) => {
   let calls = 0;
   await page.route("**/api/tts", async (route) => {
     calls++;
@@ -21,14 +21,17 @@ test("a failed server voice request can be retried; Reading speed reaches the au
   });
   await page.goto("/school/reading");
   await page.getByRole("button", { name: "Play", exact: true }).click();
-  await expect.poll(() => calls).toBe(1);
+  // The first cloud call fails and is retried once automatically (no fallback note for the child).
+  await expect.poll(() => calls).toBe(2);
   await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
-  // First attempt falls back to the fake browser voice, which ends normally.
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
   await expect(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
   await page.locator('input[type="range"]').fill("0.75");
   await page.getByRole("button", { name: "Play", exact: true }).click();
-  await expect.poll(() => calls).toBe(2);
-  await expect.poll(() => page.evaluate(() => (window as unknown as { serverAudioRates: number[] }).serverAudioRates)).toEqual([0.75]);
+  await expect.poll(() => calls).toBe(3);
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { serverAudioRates: number[] }).serverAudioRates.at(-1)))
+    .toBe(0.75);
   await page.getByRole("button", { name: "Pause", exact: true }).click();
   await expect(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
 });

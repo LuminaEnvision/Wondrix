@@ -29,8 +29,8 @@ export const en = {
 
   "agePick.title": "Who is learning today?",
   "agePick.body": "Pick Explorer or Teen first. Next you choose light or dark.",
-  "agePick.explorerBlurb": "Ages 7–10",
-  "agePick.teenBlurb": "Ages 11–17",
+  "agePick.explorerBlurb": "Ages 7-10",
+  "agePick.teenBlurb": "Ages 11-17",
   "agePick.themeTitle": "Light or dark?",
   "agePick.themeBody": "Both Explorer and Teen work in light and dark. Change anytime in Parent.",
   "agePick.lightBlurb": "Soft daylight colors.",
@@ -224,6 +224,7 @@ export const en = {
   "extra.drawing": "Wondrix is drawing it for you…",
   "extra.thinking": "Wondrix is thinking…",
   "extra.micNeeds": "Voice input needs Chrome or Edge with mic permission. You can still type below.",
+  "extra.micCheck": "Did I hear you right? Fix the words if needed, then tap Ask the owl.",
   "extra.micNoCatch": "I didn't catch that. Tap Mic to try again, or type your question.",
   "extra.micNoCatchAr": "The mic did not catch Arabic this time. Type your question below (that always works), or try Mic again in Chrome with wifi on.",
   "extra.mic": "Mic",
@@ -259,7 +260,7 @@ export const en = {
   "speak.stop": "Stop",
   "speak.stopLabel": "Stop reading",
   "speak.noSound": "No sound available on this device. You can read the answer.",
-  "speak.noArabicVoice": "Voice is still warming up. Tap Listen again — Arabic uses our cloud voice (ElevenLabs).",
+  "speak.noArabicVoice": "Voice is still warming up. Tap Listen again, Arabic uses our cloud voice (ElevenLabs).",
 
   "dict.region": "Voice question recording",
   "dict.listening": "Listening…",

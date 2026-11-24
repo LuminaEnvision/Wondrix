@@ -497,6 +497,7 @@ async function fetchServerTts(
   lang: "en" | "ar",
   token: number,
 ): Promise<Response | null> {
+  void token; // kept for callers; the abort controller below cancels stale requests
   const controller = new AbortController();
   activeTtsController = controller;
   try {
@@ -725,7 +726,8 @@ export function startDictation(options: {
   onLevel?: (level: number) => void;
   /** True when a pause is about to auto-send (UI can say "Sending…"). */
   onAutoSendSoon?: () => void;
-  onDone: (text: string) => void;
+  /** confidence: lowest recogniser confidence of the final words (null when the browser gives none). */
+  onDone: (text: string, info?: { confidence: number | null }) => void;
   onError: (message: string) => void;
   lang?: string;
 }): DictationHandle | null {
@@ -752,12 +754,15 @@ export function startDictation(options: {
   const isArabic = langs[0].toLowerCase().startsWith("ar");
 
   const text = () => `${finalText} ${interimText}`.replace(/\s+/g, " ").trim();
+  let minConfidence: number | null = null;
 
   const recognition = new Ctor();
   recognition.lang = langs[langIndex];
   recognition.interimResults = true;
-  // Arabic is more reliable as utterance chunks; English keeps continuous for long pauses.
-  recognition.continuous = !isArabic;
+  // Arabic, and any browser on iOS (all use WebKit's recogniser), are more reliable as
+  // utterance chunks; elsewhere English keeps continuous for long pauses.
+  const isIOS = typeof navigator !== "undefined" && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  recognition.continuous = !isArabic && !isIOS;
   recognition.maxAlternatives = 1;
 
   function clearWatchers() {
@@ -800,7 +805,12 @@ export function startDictation(options: {
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const r = event.results[i];
       const piece = r[0]?.transcript ?? "";
-      if (r.isFinal) finalText = `${finalText} ${piece}`;
+      if (r.isFinal) {
+        finalText = `${finalText} ${piece}`;
+        // iOS often reports 0 = "unknown": only real scores count.
+        const c = r[0]?.confidence;
+        if (typeof c === "number" && c > 0) minConfidence = minConfidence === null ? c : Math.min(minConfidence, c);
+      }
       else interimText += piece;
     }
     const next = text();
@@ -843,7 +853,7 @@ export function startDictation(options: {
     delivering = false;
     active = false;
     cleanupLevel();
-    options.onDone(text());
+    options.onDone(text(), { confidence: minConfidence });
   }
 
   recognition.onend = () => {

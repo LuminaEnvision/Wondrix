@@ -38,6 +38,7 @@ import { safetyCheck } from "@/lib/safety";
 import {
   canListen,
   canSpeak,
+  getSpeech,
   startDictation,
   type DictationHandle,
   speak,
@@ -115,6 +116,9 @@ function IdeaChips({
 function toMsgs(chat: SavedChat): Msg[] {
   return chat.messages.map((m) => ({ ...m, visual: (m.visual as Visual | null) ?? null }));
 }
+
+/** Below this recogniser confidence, the words are shown for checking instead of sent. */
+const MIC_SEND_CONFIDENCE = 0.55;
 
 function nowMs(): number {
   return Date.now();
@@ -224,12 +228,28 @@ function ExtraInner() {
     };
   }, []);
 
+  // Tester report T3: a new answer must show from its first line, not jump to its end.
+  const shownAnswerId = useRef<number | null>(null);
   useEffect(() => {
-    if (!stickToBottom.current) return;
     const el = listRef.current;
     if (!el) return;
+    const last = messages.at(-1);
+    // The child just asked (or Wondrix is thinking): always follow; otherwise only if already at the bottom.
+    const childJustAsked = last?.role === "child" || busy;
+    const newAnswer = last?.role === "agent" && !busy && shownAnswerId.current !== last.id;
+    if (!childJustAsked && !newAnswer && !stickToBottom.current) return;
     programmaticScroll.current = true;
-    el.scrollTop = el.scrollHeight;
+    const bubble =
+      last?.role === "agent" && !busy && shownAnswerId.current !== last.id
+        ? el.querySelectorAll<HTMLElement>('[data-role="agent"]').item(el.querySelectorAll('[data-role="agent"]').length - 1)
+        : null;
+    if (bubble && last) {
+      shownAnswerId.current = last.id;
+      // Top of the new answer just under the top edge (the child's question stays in view above when it fits).
+      el.scrollTop += bubble.getBoundingClientRect().top - el.getBoundingClientRect().top - 56;
+    } else if (!last || last.role !== "agent" || busy) {
+      el.scrollTop = el.scrollHeight;
+    }
     lastScrollTop.current = el.scrollTop;
     requestAnimationFrame(() => {
       programmaticScroll.current = false;
@@ -286,7 +306,13 @@ function ExtraInner() {
   function say(text: string, id?: string) {
     if (!voiceOn || !speakOk) return;
     // Mic/send already unlocked audio; still await unlock so ElevenLabs can play without a second tap.
-    void unlockAudio().then(() => speak(text, { id, lang }));
+    void unlockAudio().then(() => {
+      // If the child already started something else meanwhile (e.g. "Show me" on the diagram),
+      // do not cut it off with the late auto-read of the answer.
+      const s = getSpeech();
+      if ((s.state === "preparing" || s.state === "speaking") && "id" in s && s.id && s.id !== id) return;
+      speak(text, { id, lang });
+    });
   }
 
   async function send(text: string) {
@@ -426,7 +452,7 @@ function ExtraInner() {
         setLevels((prev) => [...prev.slice(1), level]);
       },
       onAutoSendSoon: () => setSendingSoon(true),
-      onDone: (t) => {
+      onDone: (t, info) => {
         stopDictationUi();
         setSendingSoon(false);
         dictTextRef.current = "";
@@ -436,6 +462,11 @@ function ExtraInner() {
           return;
         }
         setInput(question);
+        // Tester report T5: a doubtful recognition goes to the box for the child to check, not straight to the owl.
+        if (info?.confidence != null && info.confidence < MIC_SEND_CONFIDENCE) {
+          setVoiceHint(tr("extra.micCheck"));
+          return;
+        }
         void send(question);
       },
       onError: (message) => {
