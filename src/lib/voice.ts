@@ -782,7 +782,11 @@ export function startDictation(options: {
       recognition.stop();
     } catch {
       deliverDone();
+      return;
     }
+    // iOS (WebKit) sometimes never fires onend after stop(), or the recogniser had already
+    // ended on its own: never wait forever, deliver the words we have (tester report, Nov 25).
+    deliverTimer = setTimeout(deliverDone, 900);
   }
 
   /** After words arrive, wait for a pause, then send by itself. */
@@ -849,10 +853,16 @@ export function startDictation(options: {
   };
 
   function deliverDone() {
+    if (!active) return; // timer and onend can both arrive: deliver once
     clearWatchers();
     delivering = false;
     active = false;
     cleanupLevel();
+    try {
+      recognition.abort(); // in case the recogniser is still running (fallback path)
+    } catch {
+      /* already stopped */
+    }
     options.onDone(text(), { confidence: minConfidence });
   }
 
@@ -872,7 +882,9 @@ export function startDictation(options: {
     // otherwise keep listening so a shy child can still start.
     if (active) {
       if (heardSpeech && text()) {
-        requestFinish();
+        // Already ended: stop() would not fire onend again, so deliver now.
+        delivering = true;
+        deliverDone();
         return;
       }
       try {

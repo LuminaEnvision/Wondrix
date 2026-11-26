@@ -98,6 +98,22 @@ const SOCIAL_CASES = [
   { group: "social", q: "ok bye wondrix", p: "middle", intent: "goodbye", expect: (d) => [["no question back", !/[?؟]/.test(d.text || ""), d.text]] },
   { group: "social", q: "i don't know what to ask", p: "young", intent: "stuck", expect: (d) => [["offers ideas to tap", (d.suggestions || []).length >= 2, JSON.stringify(d.suggestions)]] },
   { group: "social", q: "tell me a joke", p: "young", intent: "social", expect: () => [] },
+  // Silly questions about videos and games (Anastasia's son): no lecture, a bridge to real science.
+  ...[
+    "why does the creeper in minecraft explode",
+    "who is the strongest skibidi toilet",
+    "i watched a video where a man ate 100 nuggets",
+    "can roblox characters feel pain",
+  ].map((q) => ({
+    group: "social",
+    q,
+    p: "young",
+    intent: "playful",
+    expect: (d) => [
+      ["builds a bridge: a follow-up question", /[?؟]\s*$/.test(d.followUp || ""), d.followUp],
+      ["offers science paths to tap", (d.suggestions || []).length >= 2, JSON.stringify(d.suggestions)],
+    ],
+  })),
 ];
 
 /** Arabic mode (Saudi test families): answers in Arabic, bedtime, safety in Arabic. */
