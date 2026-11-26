@@ -314,3 +314,18 @@ describe("follow-up variety", () => {
     expect(varyFollowUp("Which do you think is heavier?")).toBe("Which do you think is heavier?");
   });
 });
+
+describe("playful questions (videos, games)", () => {
+  it("are a known intent and keep their bridge question and suggestions", async () => {
+    const { aiExtraReply } = await import("@/lib/extra-agent");
+    fakeFetch(() =>
+      chatResponse(
+        '{"intent":"playful","answer":"Haha, that creeper really goes boom!","followUp":"Want to know why explosions push air so fast?","suggestions":["Why do explosions make noise?","How do fireworks work?"],"topic":"Explosions","draw":false}',
+      ),
+    );
+    const r = await aiExtraReply({ message: "why does the creeper explode", topicId: null, history: [], profile: profile() });
+    expect(r?.intent).toBe("playful");
+    expect(r?.followUp).toMatch(/\?$/);
+    expect(r?.suggestions).toHaveLength(2);
+  });
+});
