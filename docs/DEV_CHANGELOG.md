@@ -38,6 +38,12 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 ## Log
 
 
+### iPhone mic stuck on "Listening…" (tester report, Nov 25)
+
+**Bug:** on iPhone the dictation panel stayed on "Pause for a moment and I will send it" with the timer running; "Send now" did nothing. On iOS (WebKit) the recogniser often ends on its own after an utterance, or never fires `onend` after `stop()`. The app then called `stop()` on a recogniser that had already ended and waited forever for an `onend` that never came.
+**Fix (`voice.ts`):** when the recogniser ends by itself with words, deliver them at once; after `stop()` a 900 ms fallback delivers the words anyway; delivery runs only once (timer and `onend` can both arrive) and aborts a still-running recogniser.
+**Test:** e2e with a recogniser that never reports its end: "Send now" still sends the question. Lint clean, Vitest 244/244, Playwright 91 passed + 3 skipped.
+
 ### First family test fixes: T2 dark selects, T3 chat scroll, T5 iPhone mic
 
 From `USER_TEST_REPORT_2026-11` (iPhone 15 Pro, Chrome).

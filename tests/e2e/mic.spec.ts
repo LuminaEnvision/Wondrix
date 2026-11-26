@@ -45,6 +45,8 @@ async function fakeRecognition(page: import("@playwright/test").Page) {
         }
       }
       stop() {
+        // iOS WebKit case: stop() may never fire onend (set __silentStop in a test).
+        if (w.__silentStop) return;
         setTimeout(() => this.onend?.(), 50);
       }
       abort() {}
@@ -92,5 +94,26 @@ test.describe("tap-to-talk mic", () => {
     await page.getByRole("button", { name: /Cancel/ }).click();
     await expect(page.getByRole("region", { name: "Voice question recording" })).toHaveCount(0);
     await expect(page.locator('[data-role="child"]')).toHaveCount(0);
+  });
+});
+
+test.describe("iPhone mic (tester report, Nov 25)", () => {
+  test.beforeEach(async ({ page }) => {
+    await skipSetup(page);
+    await fakeRecognition(page);
+    // The recogniser never fires onend after stop() and never ends on its own.
+    await page.addInitScript(() => {
+      (window as unknown as Record<string, unknown>).__silentStop = true;
+    });
+  });
+
+  test("Send now still sends when the recogniser never reports its end", async ({ page }) => {
+    await page.goto("/extra");
+    await page.getByRole("button", { name: "Ask with your voice" }).click();
+    const panel = page.getByRole("region", { name: "Voice question recording" });
+    await expect(page.getByTestId("dictation-text")).toContainText("how do plants drink water");
+    await panel.getByRole("button", { name: /Send now|Done/ }).click();
+    await expect(panel).toHaveCount(0, { timeout: 3000 });
+    await expect(page.locator('[data-role="child"]', { hasText: "how do plants drink water" })).toBeVisible();
   });
 });
