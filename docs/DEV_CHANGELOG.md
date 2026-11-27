@@ -38,9 +38,10 @@ Out of Jorge's track (owned by the project lead): Supabase persistence, parent p
 ## Log
 
 
-### Silly questions become science (intent "playful")
+### Silly questions become science (intent "playful") — PR #19, `a3229ec`
 
 Anastasia's son asks about videos and games; Wondrix "got lost in the answer". New intent `playful` (videos, games, cartoons, YouTubers, toys, memes): one fun sentence that shows it gets it, no lecture, then a bridge to a real science idea hidden in the topic, one inviting follow-up and science paths to tap. Safety unchanged.
+Landed in the same PR as the iPhone mic fix ([PR #19](https://github.com/LuminaEnvision/Wondrix/pull/19); Jorge’s note on the PR). Also listed in root [`CHANGELOG.md`](../CHANGELOG.md) so it is not lost as a “mic-only” merge.
 Live check (GLM-5.3 Flash via OpenRouter), eval `social` group 39/39: Minecraft creeper → gases expanding fast; Skibidi → sound can push things; 100 nuggets → how the stomach stretches; Roblox pain → nerves and brains vs code. Unit test for the intent; Vitest 245/245.
 
 ### iPhone mic stuck on "Listening…" (tester report, Nov 25)

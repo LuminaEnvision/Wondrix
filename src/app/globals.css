@@ -33,6 +33,20 @@
   --nav-h: calc(4.25rem + env(safe-area-inset-bottom, 0px));
 }
 
+/* Little: picture-first, max tap targets */
+html[data-age="little"] {
+  --radius-s: 16px;
+  --radius-m: 24px;
+  --radius-l: 32px;
+  --tap-min: 64px;
+  --font-scale: 1.2;
+  --stroke: rgba(20, 53, 58, 0.16);
+  --shadow-card: 0 4px 0 rgba(20, 53, 58, 0.1), 0 10px 24px rgba(20, 53, 58, 0.1);
+  --shadow-lift: 0 16px 40px rgba(20, 53, 58, 0.16);
+  --shadow-stage: 0 28px 70px rgba(20, 53, 58, 0.2);
+  --nav-h: calc(5.25rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* Explorer: chunky, tactile */
 html[data-age="explorer"] {
   --radius-s: 14px;
@@ -44,6 +58,12 @@ html[data-age="explorer"] {
   --shadow-card: 0 3px 0 rgba(20, 53, 58, 0.1), 0 8px 20px rgba(20, 53, 58, 0.08);
   --shadow-lift: 0 14px 36px rgba(20, 53, 58, 0.16);
   --shadow-stage: 0 28px 70px rgba(20, 53, 58, 0.2);
+}
+
+/* QA: hide visible text while keeping layout/aria — verify picture+voice flows. */
+html.wx-little-hide-text[data-age="little"] :where(p, h1, h2, h3, h4, span, label, legend, li, a):not([aria-hidden="true"]) {
+  color: transparent !important;
+  text-shadow: none !important;
 }
 
 /* Teen: calmer, denser (light surfaces only when not dark) */
@@ -93,6 +113,7 @@ html[data-theme="dark"] {
   color-scheme: dark;
 }
 
+html[data-age="little"][data-theme="dark"],
 html[data-age="explorer"][data-theme="dark"] {
   --world-bg: #141f1c;
   --world-bg-2: #1c2b26;
@@ -199,6 +220,7 @@ body {
   min-height: 100dvh;
 }
 
+html[data-age="little"]:not([data-theme="dark"]) body,
 html[data-age="explorer"]:not([data-theme="dark"]) body {
   background:
     radial-gradient(ellipse 80% 50% at 10% -10%, color-mix(in oklab, var(--world-bg-2) 80%, white) 0%, transparent 55%),

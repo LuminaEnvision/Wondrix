@@ -1,5 +1,6 @@
 import { clampSubjectsToProgramme } from "./curriculum";
 import { defaultAgeMode, gradeFromAge, gradeFromLabel, suggestedAgeFromGrade } from "./grades";
+import { normalizeReadingLevel } from "./reading-level";
 import type { AgeMode, ChildProfile, Household, ParentProfile } from "./types";
 import { MAX_TEXTBOOK_PHOTOS, notifyProfileChanged } from "./types";
 
@@ -11,6 +12,7 @@ export const DEFAULT_PROFILE: ParentProfile = {
   age: "8",
   ageBand: "young",
   ageMode: "explorer",
+  readingLevel: "with-help",
   darkMode: false,
   gradeLabel: "Year 3",
   curriculum: "uk",
@@ -22,7 +24,7 @@ export const DEFAULT_PROFILE: ParentProfile = {
 };
 
 function normalizeAgeMode(value: unknown, gradeLabel: string): AgeMode {
-  if (value === "explorer" || value === "teen") return value;
+  if (value === "little" || value === "explorer" || value === "teen") return value;
   return defaultAgeMode(gradeLabel);
 }
 
@@ -45,6 +47,7 @@ export function normalizeChild(raw: Partial<ChildProfile> & { childNickname?: st
     ageBand: grade.ageBand,
     gradeLabel: grade.label,
     ageMode: normalizeAgeMode(raw.ageMode, grade.label),
+    readingLevel: normalizeReadingLevel(raw.readingLevel, grade.label, typeof raw.age === "string" ? raw.age : undefined),
     darkMode: Boolean(raw.darkMode ?? raw.teenDark),
     teenDark: undefined,
     unitNote: typeof raw.unitNote === "string" ? raw.unitNote : "",
@@ -176,6 +179,9 @@ export function addChild(partial?: Partial<ChildProfile>): ChildProfile {
     merged.gradeLabel = g.label;
     merged.ageBand = g.ageBand;
     if (partial.ageMode === undefined) merged.ageMode = defaultAgeMode(g.label);
+    if (partial.readingLevel === undefined) {
+      merged.readingLevel = normalizeReadingLevel(undefined, g.label, String(partial.age));
+    }
   } else if (partial?.gradeLabel && (partial.age === undefined || partial.age === "")) {
     merged.age = suggestedAgeFromGrade(partial.gradeLabel);
   }

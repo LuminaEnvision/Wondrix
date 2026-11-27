@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AppShell } from "@/components/AppShell";
-import { loadProfile, profileAgeMode } from "@/lib/demo-store";
+import { loadProfile, profileAgeMode, profileReadingLevel, readingSpeechRate } from "@/lib/demo-store";
 import { READING_STORIES, storySentences } from "@/lib/reading-stories";
 import {
   estimateLineMs,
   flattenSyllables,
+  highlightIndexAtChar,
+  highlightIndexAtProgress,
+  isArabicReading,
   tokenizeForReading,
 } from "@/lib/syllables";
 import { useHydrated, useLang, useT } from "@/lib/use-client-state";
@@ -32,10 +35,15 @@ function SyllableLine({
   teen: boolean;
 }) {
   const tokens = tokenizeForReading(sentence);
+  const arabic = isArabicReading(sentence);
   let sylCursor = 0;
 
   return (
-    <span className={`${teen ? "text-base" : "text-lg"} leading-relaxed`}>
+    <span
+      className={`${teen ? "text-base" : "text-lg"} leading-relaxed`}
+      dir={arabic ? "rtl" : "auto"}
+      lang={arabic ? "ar" : "en"}
+    >
       {tokens.map((tok, ti) => {
         if (tok.kind === "gap") {
           return <span key={`g-${ti}`}>{tok.raw}</span>;
@@ -48,7 +56,7 @@ function SyllableLine({
               const passed = active && activeSyllable >= 0 && flat < activeSyllable;
               return (
                 <span key={`${ti}-${si}`} className="inline-flex items-baseline">
-                  {si > 0 ? (
+                  {si > 0 && !arabic ? (
                     <span className="px-0.5 font-semibold text-[var(--school)] opacity-70" aria-hidden>
                       -
                     </span>
@@ -86,25 +94,36 @@ export default function ReadingPage() {
   const [rate, setRate] = useState(0.9);
   const [activeSyllable, setActiveSyllable] = useState(-1);
   const teen = hydrated ? profileAgeMode(loadProfile()) === "teen" : false;
+  // Seed speech rate from Parent reading level (independent of age mode).
+  useEffect(() => {
+    if (!hydrated) return;
+    setRate(readingSpeechRate(profileReadingLevel(loadProfile())));
+  }, [hydrated]);
   const speech = useSyncExternalStore(subscribeSpeech, getSpeech, getServerSpeech);
-  const playing = (speech.state === "preparing" || speech.state === "speaking") &&
+  const playing =
+    (speech.state === "preparing" || speech.state === "speaking") &&
     Boolean(speech.id?.startsWith(`read-${story.id}-`));
   const timersRef = useRef<number[]>([]);
   const playIdRef = useRef<string | null>(null);
+  /** True once the engine reported real progress/boundary — skip blind estimate. */
+  const syncedRef = useRef(false);
 
   // Keep line index valid when switching EN ↔ AR (different sentence counts).
-  // Adjusted during render (React's "adjust state when props change" pattern), not in an effect.
   if (index > Math.max(0, lines.length - 1)) setIndex(Math.max(0, lines.length - 1));
 
   const clearHighlight = useCallback(() => {
     timersRef.current.forEach((t) => clearTimeout(t));
     timersRef.current = [];
     setActiveSyllable(-1);
+    syncedRef.current = false;
   }, []);
 
-  const runSyllableHighlight = useCallback(
+  /** Last-resort estimate only if the engine never reports progress (some browsers). */
+  const runFallbackHighlight = useCallback(
     (sentence: string, speechRate: number) => {
-      clearHighlight();
+      if (syncedRef.current) return;
+      timersRef.current.forEach((t) => clearTimeout(t));
+      timersRef.current = [];
       const parts = flattenSyllables(sentence);
       if (!parts.length) return;
       const totalWeight = parts.reduce((sum, p) => sum + Math.max(2, p.length), 0);
@@ -112,14 +131,18 @@ export default function ReadingPage() {
       let elapsed = 80;
       parts.forEach((part, i) => {
         const share = Math.max(2, part.length) / totalWeight;
-        const t = window.setTimeout(() => setActiveSyllable(i), elapsed);
+        const t = window.setTimeout(() => {
+          if (!syncedRef.current) setActiveSyllable(i);
+        }, elapsed);
         timersRef.current.push(t);
         elapsed += share * totalMs;
       });
-      const done = window.setTimeout(() => setActiveSyllable(-1), elapsed + 40);
+      const done = window.setTimeout(() => {
+        if (!syncedRef.current) setActiveSyllable(-1);
+      }, elapsed + 40);
       timersRef.current.push(done);
     },
-    [clearHighlight],
+    [],
   );
 
   const speakCurrent = useCallback(
@@ -134,6 +157,16 @@ export default function ReadingPage() {
           id,
           rate,
           lang,
+          onProgress: (ratio) => {
+            if (playIdRef.current !== id) return;
+            syncedRef.current = true;
+            setActiveSyllable(highlightIndexAtProgress(sentence, ratio));
+          },
+          onBoundary: (charIndex) => {
+            if (playIdRef.current !== id) return;
+            syncedRef.current = true;
+            setActiveSyllable(highlightIndexAtChar(sentence, charIndex));
+          },
           onEnd: () => {
             clearHighlight();
             playIdRef.current = null;
@@ -144,21 +177,25 @@ export default function ReadingPage() {
     [clearHighlight, lang, lines, rate, story.id],
   );
 
-  // Re-sync highlight when the engine really starts (after Preparing…).
+  // Fallback karaoke only after speaking starts, if progress never arrives.
   useEffect(() => {
     if (speech.state !== "speaking") return;
     if (!("id" in speech) || speech.id !== playIdRef.current) return;
-    const i = index;
-    const sentence = lines[i];
+    const sentence = lines[index];
     if (!sentence) return;
-    const frame = requestAnimationFrame(() => runSyllableHighlight(sentence, rate));
-    return () => cancelAnimationFrame(frame);
-  }, [speech, index, rate, runSyllableHighlight, lines]);
+    const delay = window.setTimeout(() => {
+      if (!syncedRef.current) runFallbackHighlight(sentence, rate);
+    }, 280);
+    return () => clearTimeout(delay);
+  }, [speech, index, rate, runFallbackHighlight, lines]);
 
-  useEffect(() => () => {
-    stopSpeaking();
-    clearHighlight();
-  }, [clearHighlight]);
+  useEffect(
+    () => () => {
+      stopSpeaking();
+      clearHighlight();
+    },
+    [clearHighlight],
+  );
 
   function playFromHere() {
     speakCurrent(index);
@@ -187,7 +224,6 @@ export default function ReadingPage() {
           <h1 className="font-display text-2xl font-semibold text-[var(--world-ink)]">
             {tr("school.doorReading")}
           </h1>
-          <p className="mt-1 text-sm text-[var(--world-ink-soft)]">{tr("reading.intro")}</p>
         </div>
 
         <div className="wx-reading-stage rounded-[1.75rem] p-5">

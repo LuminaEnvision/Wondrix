@@ -4,15 +4,30 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { Mascot } from "@/components/Mascot";
+import { PictureChoiceButton } from "@/components/PictureChoiceButton";
+import { isLittle, littleTapFeedback } from "@/lib/age-mode";
 import { saveMastery, loadMastery } from "@/lib/demo-store";
 import { radarForGrade, seededRandom, shuffleChoices } from "@/lib/radar";
+import { profileReadingLevel } from "@/lib/reading-level";
 import { nextMastery } from "@/lib/school-agent";
 import { skillTitle } from "@/lib/skills";
 import type { MasteryLevel, SkillId } from "@/lib/types";
-import { useLang, useProfileGradeLabel, useProfileGradeName, useT } from "@/lib/use-client-state";
+import { useAgeMode } from "@/lib/use-age-mode";
+import {
+  useLang,
+  useProfileGradeLabel,
+  useProfileGradeName,
+  useProfileKey,
+  useT,
+} from "@/lib/use-client-state";
+import { canSpeak, isAudioUnlocked, speak, stopSpeaking, unlockAudio, warmUpVoice } from "@/lib/voice";
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export default function RadarPage() {
-  // Live grade from the saved profile; a grade change remounts the run (fresh radar).
   const gradeLabel = useProfileGradeLabel();
   return <RadarRun key={gradeLabel} gradeLabel={gradeLabel} />;
 }
@@ -21,7 +36,9 @@ function RadarRun({ gradeLabel }: { gradeLabel: string }) {
   const gradeShown = useProfileGradeName();
   const tr = useT();
   const lang = useLang();
-  // Seed after mount so prerender does not call Math.random in a Client Component.
+  const little = isLittle(useAgeMode());
+  useProfileKey();
+  const hideChoiceText = little || profileReadingLevel() === "not-yet";
   const [seed, setSeed] = useState<number | null>(null);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- random seed must wait for the client
@@ -30,28 +47,54 @@ function RadarRun({ gradeLabel }: { gradeLabel: string }) {
   const bank = useMemo(() => {
     if (!gradeLabel || seed === null) return [];
     const rand = seededRandom(seed);
-    return radarForGrade(gradeLabel, 5).map((item) => ({ ...item, choices: shuffleChoices(item.choices, rand) }));
+    return radarForGrade(gradeLabel, 5).map((item) => ({
+      ...item,
+      choices: shuffleChoices(item.choices, rand),
+    }));
   }, [gradeLabel, seed]);
   const [index, setIndex] = useState(0);
   const [finished, setFinished] = useState(false);
   const [shaky, setShaky] = useState<SkillId[]>([]);
+  const [stars, setStars] = useState(0);
 
   const item = bank[index];
+
+  useEffect(() => {
+    if (!little || !item || finished) return;
+    warmUpVoice();
+    const prompt = item.prompt;
+    if (!canSpeak()) return;
+    const run = () => speak(prompt, { id: `treasure-${item.id}`, lang });
+    if (isAudioUnlocked()) {
+      const t = window.setTimeout(run, 350);
+      return () => {
+        window.clearTimeout(t);
+        stopSpeaking();
+      };
+    }
+    return () => stopSpeaking();
+  }, [little, item, finished, lang]);
 
   if (seed === null) {
     return (
       <AppShell backHref="/school" world="school">
-        <p className="text-ink-soft">{tr("common.loading")}</p>
+        {little ? (
+          <div className="flex justify-center py-10">
+            <Mascot size="lg" busy listening={false} />
+          </div>
+        ) : (
+          <p className="text-ink-soft">{tr("common.loading")}</p>
+        )}
       </AppShell>
     );
   }
 
   function answer(choiceId: string | "idk") {
     if (!item) return;
+    if (little) littleTapFeedback();
     const mastery = loadMastery();
     const correct =
-      choiceId !== "idk" &&
-      Boolean(item.choices.find((c) => c.id === choiceId)?.correct);
+      choiceId !== "idk" && Boolean(item.choices.find((c) => c.id === choiceId)?.correct);
     const level: MasteryLevel = nextMastery(
       mastery[item.skillId],
       choiceId === "idk" ? "idk" : correct ? "correct" : "wrong",
@@ -61,12 +104,100 @@ function RadarRun({ gradeLabel }: { gradeLabel: string }) {
 
     const nextShaky = correct ? shaky : [...new Set([...shaky, item.skillId])];
     setShaky(nextShaky);
+    if (correct) setStars((s) => s + 1);
 
     if (index + 1 >= bank.length) {
+      sessionStorage.setItem(`wondrix-radar-day:${todayKey()}`, "1");
       setFinished(true);
+      if (little) {
+        void unlockAudio().then(() => speak(tr("radar.treasureDone"), { id: "treasure-done", lang }));
+      }
     } else {
       setIndex(index + 1);
     }
+  }
+
+  if (little) {
+    return (
+      <AppShell backHref="/school" world="school">
+        <div className="mx-auto flex max-w-lg flex-col gap-4 pb-6">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                littleTapFeedback();
+                if (!item) return;
+                void unlockAudio().then(() =>
+                  speak(item.prompt, { id: `treasure-${item.id}`, lang }),
+                );
+              }}
+              aria-label={tr("radar.treasureTitle")}
+            >
+              <Mascot
+                size="lg"
+                busy={false}
+                listening={false}
+                happy={finished}
+                speechId={finished ? "treasure-done" : item ? `treasure-${item.id}` : undefined}
+              />
+            </button>
+            <div className="flex gap-1" aria-label={tr("radar.starProgress", { n: stars, total: bank.length })}>
+              {Array.from({ length: bank.length }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`text-2xl ${i < stars ? "opacity-100" : "opacity-25"}`}
+                  aria-hidden
+                >
+                  ★
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {finished ? (
+            <div className="flex flex-col items-center gap-4 text-center">
+              <p className="sr-only">{tr("radar.treasureDone")}</p>
+              <span className="text-5xl" aria-hidden>
+                ★
+              </span>
+              <Link
+                href="/school"
+                onClick={() => littleTapFeedback()}
+                className="wx-tap inline-flex min-h-16 items-center justify-center rounded-[1.5rem] bg-[var(--school)] px-8 text-lg font-bold text-white"
+              >
+                {tr("radar.treasureHome")}
+              </Link>
+            </div>
+          ) : !item ? (
+            <Mascot size="md" busy listening={false} />
+          ) : (
+            <>
+              <p className="sr-only">{item.prompt}</p>
+              <div className="grid grid-cols-1 gap-3">
+                {item.choices.map((choice, i) => (
+                  <PictureChoiceButton
+                    key={choice.id}
+                    id={choice.id}
+                    label={choice.label}
+                    index={i}
+                    hideLabel={hideChoiceText}
+                    onChoose={() => answer(choice.id)}
+                  />
+                ))}
+                <PictureChoiceButton
+                  id="idk"
+                  label={tr("practice.idk")}
+                  index={item.choices.length}
+                  hideLabel={hideChoiceText}
+                  dashed
+                  onChoose={() => answer("idk")}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </AppShell>
+    );
   }
 
   return (

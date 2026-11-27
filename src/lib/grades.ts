@@ -1,4 +1,4 @@
-import type { AgeBand, AgeMode, SkillId } from "./types";
+import type { AgeBand, AgeMode, ReadingLevel, SkillId } from "./types";
 
 export type GradeOption = {
   id: string;
@@ -114,11 +114,36 @@ export function gradeIndex(gradeId: string): number {
   return i >= 0 ? i : 1;
 }
 
-/** Default UI mode from grade: y1–y4 → explorer; y5+ → teen. */
+/** Default UI mode from child age: ≤7 little, 8–10 explorer, ≥11 teen. */
+export function defaultAgeModeFromAge(ageRaw: string | number): AgeMode {
+  const age = typeof ageRaw === "number" ? ageRaw : Number.parseInt(String(ageRaw).trim(), 10);
+  if (!Number.isFinite(age) || age <= 7) return "little";
+  if (age <= 10) return "explorer";
+  return "teen";
+}
+
+/** Default UI mode from grade when age is unknown: y1–2 little; y3–y4 explorer; y5+ teen. */
 export function defaultAgeMode(gradeLabel: string): AgeMode {
   const id = gradeFromLabel(gradeLabel).id;
-  if (id === "y1-2" || id === "y3" || id === "y4") return "explorer";
+  if (id === "y1-2") return "little";
+  if (id === "y3" || id === "y4") return "explorer";
   return "teen";
+}
+
+/** Default reading level from age (parent can override without changing ageMode). */
+export function defaultReadingLevelFromAge(ageRaw: string | number): ReadingLevel {
+  const age = typeof ageRaw === "number" ? ageRaw : Number.parseInt(String(ageRaw).trim(), 10);
+  if (!Number.isFinite(age) || age <= 7) return "not-yet";
+  if (age <= 10) return "with-help";
+  return "alone";
+}
+
+/** Default reading level from grade when age is unknown. */
+export function defaultReadingLevel(gradeLabel: string): ReadingLevel {
+  const id = gradeFromLabel(gradeLabel).id;
+  if (id === "y1-2") return "not-yet";
+  if (id === "y3" || id === "y4") return "with-help";
+  return "alone";
 }
 
 /**

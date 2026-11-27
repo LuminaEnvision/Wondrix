@@ -8,9 +8,11 @@ function subscribeAge(onChange: () => void) {
   return () => obs.disconnect();
 }
 
-function ageMode(): "explorer" | "teen" {
+function ageMode(): "little" | "explorer" | "teen" {
   if (typeof document === "undefined") return "explorer";
-  return document.documentElement.dataset.age === "teen" ? "teen" : "explorer";
+  const raw = document.documentElement.dataset.age;
+  if (raw === "little" || raw === "teen" || raw === "explorer") return raw;
+  return "explorer";
 }
 
 export type WxGlyphName =
@@ -214,8 +216,7 @@ export function WxGlyph({
   title?: string;
 }) {
   const age = useSyncExternalStore(subscribeAge, ageMode, () => "explorer");
-  const explorer = age === "explorer";
-  const px = size ?? (explorer ? 28 : 24);
+  const px = size ?? (age === "little" ? 32 : age === "explorer" ? 28 : 24);
 
   return (
     <svg

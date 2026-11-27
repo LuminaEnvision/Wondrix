@@ -5,7 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/BottomNav";
 import { HeaderTools } from "@/components/HeaderTools";
+import { ParentHoldGate } from "@/components/ParentHoldGate";
+import { isLittle } from "@/lib/age-mode";
 import type { WorldId } from "@/lib/types";
+import { useAgeMode } from "@/lib/use-age-mode";
 import { useT } from "@/lib/use-client-state";
 
 function worldFromPath(pathname: string | null): WorldId {
@@ -40,15 +43,23 @@ export function AppShell({
   layout?: "page" | "fill";
   /** Tighter header (Teen / Parent). */
   dense?: boolean;
-  /** Extra controls before language/theme tools (e.g. Wonder voice + menu). */
+  /**
+   * Extra controls (e.g. Wonder voice + menu). Only shown on Parent;
+   * child screens keep back + home owl only.
+   */
   headerExtra?: React.ReactNode;
 }) {
   const tr = useT();
   const pathname = usePathname();
+  const ageMode = useAgeMode();
+  const little = isLittle(ageMode);
   const worldId = world ?? worldFromPath(pathname);
   const onHome = !backHref && worldId === "home";
+  const onParent = worldId === "parent";
   const fill = layout === "fill";
-  const icon = dense ? 32 : 40;
+  const icon = little ? 48 : dense ? 32 : 40;
+  // Theme / language / Wonder menu live in Parent for every child mode.
+  const showTools = onParent;
 
   return (
     <div className="wx-shell" data-world={worldId}>
@@ -58,23 +69,40 @@ export function AppShell({
             hideHeader ? "px-0 pt-0" : "px-4 pt-4"
           }`}
         >
-          {hideHeader ? (
+          {hideHeader && showTools ? (
             <div className="pointer-events-auto absolute end-3 top-3 z-30">
               <HeaderTools />
             </div>
           ) : null}
           {hideHeader ? null : (
             <header
-              className={`mb-4 flex shrink-0 items-center gap-2 ${dense ? "min-h-11" : "min-h-14"}`}
+              className={`mb-4 flex shrink-0 items-center gap-2 ${
+                little ? "min-h-16" : dense ? "min-h-11" : "min-h-14"
+              }`}
             >
               {backHref ? (
                 <Link
                   href={backHref}
                   aria-label={tr("common.back")}
-                  className="wx-tap inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-stroke bg-[var(--world-surface)] text-[var(--world-ink)] shadow-[var(--shadow-card)]"
+                  className={`wx-tap inline-flex shrink-0 items-center justify-center rounded-full border border-stroke bg-[var(--world-surface)] text-[var(--world-ink)] shadow-[var(--shadow-card)] ${
+                    little ? "size-16" : "size-11"
+                  }`}
                 >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden className="rtl:-scale-x-100">
-                    <path d="M15 6 9 12l6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <svg
+                    width={little ? 28 : 24}
+                    height={little ? 28 : 24}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden
+                    className="rtl:-scale-x-100"
+                  >
+                    <path
+                      d="M15 6 9 12l6 6"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </Link>
               ) : null}
@@ -91,15 +119,15 @@ export function AppShell({
                   className="rounded-full shadow-[var(--shadow-card)]"
                   priority={onHome}
                 />
-                {onHome ? (
+                {onHome && !little ? (
                   <span className="font-display truncate text-2xl font-semibold tracking-tight text-[var(--world-accent)]">
                     Wondrix
                   </span>
                 ) : null}
               </Link>
               <div className="ms-auto flex items-center gap-2">
-                {headerExtra}
-                <HeaderTools />
+                {showTools && headerExtra ? headerExtra : null}
+                {showTools ? <HeaderTools /> : null}
               </div>
             </header>
           )}
@@ -112,6 +140,7 @@ export function AppShell({
           >
             {children}
           </main>
+          {little && !onParent ? <ParentHoldGate /> : null}
         </div>
         {hideNav ? null : <BottomNav />}
       </div>

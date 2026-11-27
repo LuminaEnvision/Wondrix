@@ -23,7 +23,15 @@ import {
   setActiveChild,
   updateChild,
 } from "@/lib/demo-store";
-import { GRADE_OPTIONS, defaultAgeMode, gradeFromAge, suggestedAgeFromGrade } from "@/lib/grades";
+import {
+  GRADE_OPTIONS,
+  defaultAgeMode,
+  defaultAgeModeFromAge,
+  defaultReadingLevel,
+  defaultReadingLevelFromAge,
+  gradeFromAge,
+  suggestedAgeFromGrade,
+} from "@/lib/grades";
 import { pickDeviceLook } from "@/lib/age-preference";
 import { hasParentPin, setParentPin } from "@/lib/parent-auth";
 import {
@@ -38,7 +46,15 @@ import {
 } from "@/lib/curriculum";
 import type { Lang, MessageKey } from "@/lib/i18n";
 import { skillTitle } from "@/lib/skills";
-import type { AgeMode, ChildProfile, MasteryLevel, ParentProfile, SkillId, SubjectOffer } from "@/lib/types";
+import type {
+  AgeMode,
+  ChildProfile,
+  MasteryLevel,
+  ParentProfile,
+  ReadingLevel,
+  SkillId,
+  SubjectOffer,
+} from "@/lib/types";
 import { MAX_TEXTBOOK_PHOTOS } from "@/lib/types";
 import { useHydrated, useLang, useT } from "@/lib/use-client-state";
 
@@ -196,7 +212,9 @@ function ParentHome() {
     setChatCount(listChats().length);
     if (child) {
       applyAgeChrome(
-        child.ageMode === "teen" ? "teen" : "explorer",
+        child.ageMode === "little" || child.ageMode === "teen" || child.ageMode === "explorer"
+          ? child.ageMode
+          : "explorer",
         Boolean(child.darkMode ?? child.teenDark),
       );
     }
@@ -221,10 +239,11 @@ function ParentHome() {
     setSaved(false);
     if (patch.ageMode !== undefined || patch.darkMode !== undefined || patch.teenDark !== undefined) {
       const next = { ...selected, ...patch };
-      applyAgeChrome(
-        next.ageMode === "teen" ? "teen" : "explorer",
-        Boolean(next.darkMode ?? next.teenDark),
-      );
+      const mode =
+        next.ageMode === "little" || next.ageMode === "teen" || next.ageMode === "explorer"
+          ? next.ageMode
+          : "explorer";
+      applyAgeChrome(mode, Boolean(next.darkMode ?? next.teenDark));
     }
   }
 
@@ -246,7 +265,9 @@ function ParentHome() {
         const g = gradeFromAge(ageStr);
         next.gradeLabel = g.label;
         next.ageBand = g.ageBand;
-        next.ageMode = defaultAgeMode(g.label);
+        next.ageMode = defaultAgeModeFromAge(ageStr);
+        // Suggest reading level from age unless the parent already overrode it this edit.
+        if (key === "age") next.readingLevel = defaultReadingLevelFromAge(ageStr);
       }
     }
     if (key === "gradeLabel") {
@@ -254,6 +275,7 @@ function ParentHome() {
       next.age = suggestedAgeFromGrade(gradeLabel);
       next.ageBand = gradeFromAge(next.age).ageBand;
       next.ageMode = defaultAgeMode(gradeLabel);
+      next.readingLevel = defaultReadingLevel(gradeLabel);
     }
 
     if (key === "curriculum" || key === "gradeLabel" || key === "age") {
@@ -269,15 +291,19 @@ function ParentHome() {
     refreshChildren();
     setSaved(false);
     if (key === "ageMode" || key === "age" || key === "gradeLabel") {
-      const mode = next.ageMode === "teen" ? "teen" : "explorer";
+      const mode =
+        next.ageMode === "little" || next.ageMode === "teen" || next.ageMode === "explorer"
+          ? next.ageMode
+          : "explorer";
       const dark = Boolean(next.darkMode ?? next.teenDark);
-      if (key === "ageMode" || key === "age" || key === "gradeLabel") {
-        pickDeviceLook(mode, dark);
-        applyAgeChrome(mode, dark);
-      }
+      pickDeviceLook(mode, dark);
+      applyAgeChrome(mode, dark);
     }
     if (key === "darkMode") {
-      const mode = next.ageMode === "teen" ? "teen" : "explorer";
+      const mode =
+        next.ageMode === "little" || next.ageMode === "teen" || next.ageMode === "explorer"
+          ? next.ageMode
+          : "explorer";
       const dark = Boolean(value);
       pickDeviceLook(mode, dark);
       applyAgeChrome(mode, dark);
@@ -462,6 +488,30 @@ function ParentHome() {
                       </p>
                     </div>
 
+                    <div className="wx-preview-tile space-y-2">
+                      <p className="text-[0.65rem] font-bold uppercase tracking-wide text-[var(--school)]">
+                        {tr("parent.schoolTools")}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {(
+                          [
+                            { href: "/school/radar", label: "parent.toolRadar" as const },
+                            { href: "/school/skills", label: "parent.toolSkills" as const },
+                            { href: "/school/program", label: "parent.toolProgram" as const },
+                            { href: "/school/reading", label: "parent.toolReading" as const },
+                          ] as const
+                        ).map((tool) => (
+                          <Link
+                            key={tool.href}
+                            href={tool.href}
+                            className="rounded-full border border-stroke bg-[var(--world-bg)] px-3 py-1.5 text-xs font-bold text-[var(--world-ink)]"
+                          >
+                            {tr(tool.label)}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="wx-preview-tile wx-preview-wonder">
                       <p className="text-[0.65rem] font-bold uppercase tracking-wide text-[var(--extra)]">
                         {tr("parent.previewWonder")}
@@ -563,9 +613,17 @@ function ParentHome() {
                     </p>
                     <p>
                       <span className="font-bold text-[var(--world-ink-soft)]">{tr("parent.glanceLevel")}: </span>
-                      {(selected.ageMode ?? "explorer") === "teen"
-                        ? tr("parent.ageModeTeen")
-                        : tr("parent.ageModeExplorer")}
+                      {(selected.ageMode ?? "explorer") === "little"
+                        ? tr("parent.ageModeLittle")
+                        : (selected.ageMode ?? "explorer") === "teen"
+                          ? tr("parent.ageModeTeen")
+                          : tr("parent.ageModeExplorer")}
+                      {" · "}
+                      {(selected.readingLevel ?? "with-help") === "not-yet"
+                        ? tr("parent.readingNotYet")
+                        : (selected.readingLevel ?? "with-help") === "alone"
+                          ? tr("parent.readingAlone")
+                          : tr("parent.readingWithHelp")}
                     </p>
                     <p>
                       <span className="font-bold text-[var(--world-ink-soft)]">{tr("parent.theme")}: </span>
@@ -690,8 +748,14 @@ function ParentHome() {
                       <legend className="text-sm font-bold text-[var(--world-ink-soft)]">
                         {tr("parent.ageMode")}
                       </legend>
-                      <div className="grid grid-cols-2 gap-2">
-                        {(["explorer", "teen"] as const).map((mode) => (
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        {(
+                          [
+                            { mode: "little" as const, label: "parent.ageModeLittle" as const },
+                            { mode: "explorer" as const, label: "parent.ageModeExplorer" as const },
+                            { mode: "teen" as const, label: "parent.ageModeTeen" as const },
+                          ] as const
+                        ).map(({ mode, label }) => (
                           <button
                             key={mode}
                             type="button"
@@ -702,7 +766,35 @@ function ParentHome() {
                                 : "border-stroke bg-[var(--world-bg)] text-[var(--world-ink)]"
                             }`}
                           >
-                            {mode === "explorer" ? tr("parent.ageModeExplorer") : tr("parent.ageModeTeen")}
+                            {tr(label)}
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
+
+                    <fieldset className="space-y-2">
+                      <legend className="text-sm font-bold text-[var(--world-ink-soft)]">
+                        {tr("parent.readingLevel")}
+                      </legend>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        {(
+                          [
+                            { level: "not-yet" as const, label: "parent.readingNotYet" as const },
+                            { level: "with-help" as const, label: "parent.readingWithHelp" as const },
+                            { level: "alone" as const, label: "parent.readingAlone" as const },
+                          ] as const
+                        ).map(({ level, label }) => (
+                          <button
+                            key={level}
+                            type="button"
+                            onClick={() => updateField("readingLevel", level as ReadingLevel)}
+                            className={`wx-tap rounded-[var(--radius-m)] border px-3 py-2 text-sm font-bold ${
+                              (selected.readingLevel ?? "with-help") === level
+                                ? "border-[var(--world-accent)] bg-[var(--world-accent)] text-white"
+                                : "border-stroke bg-[var(--world-bg)] text-[var(--world-ink)]"
+                            }`}
+                          >
+                            {tr(label)}
                           </button>
                         ))}
                       </div>
@@ -712,7 +804,6 @@ function ParentHome() {
                       <legend className="text-sm font-bold text-[var(--world-ink-soft)]">
                         {tr("parent.theme")}
                       </legend>
-                      <p className="text-xs text-ink-soft">{tr("parent.themeHelp")}</p>
                       <div className="grid grid-cols-2 gap-2">
                         {([false, true] as const).map((dark) => (
                           <button
