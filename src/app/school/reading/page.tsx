@@ -91,14 +91,13 @@ export default function ReadingPage() {
   const story = READING_STORIES[0];
   const lines = storySentences(story, lang);
   const [index, setIndex] = useState(0);
-  const [rate, setRate] = useState(0.9);
+  const preferredRate = hydrated
+    ? readingSpeechRate(profileReadingLevel(loadProfile()))
+    : 0.9;
+  const [rateOverride, setRateOverride] = useState<number | null>(null);
+  const rate = rateOverride ?? preferredRate;
   const [activeSyllable, setActiveSyllable] = useState(-1);
   const teen = hydrated ? profileAgeMode(loadProfile()) === "teen" : false;
-  // Seed speech rate from Parent reading level (independent of age mode).
-  useEffect(() => {
-    if (!hydrated) return;
-    setRate(readingSpeechRate(profileReadingLevel(loadProfile())));
-  }, [hydrated]);
   const speech = useSyncExternalStore(subscribeSpeech, getSpeech, getServerSpeech);
   const playing =
     (speech.state === "preparing" || speech.state === "speaking") &&
@@ -300,7 +299,7 @@ export default function ReadingPage() {
             value={rate}
             onChange={(e) => {
               pause();
-              setRate(Number(e.target.value));
+              setRateOverride(Number(e.target.value));
             }}
             className="flex-1"
           />

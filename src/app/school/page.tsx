@@ -97,10 +97,9 @@ function LittleSchoolPath({
 }) {
   const tr = useT();
   const lang = useLang();
-  const [radarDone, setRadarDone] = useState(false);
-  useEffect(() => {
-    setRadarDone(Boolean(sessionStorage.getItem(`wondrix-radar-day:${todayKey()}`)));
-  }, []);
+  const hydrated = useHydrated();
+  const radarDone =
+    hydrated && Boolean(sessionStorage.getItem(`wondrix-radar-day:${todayKey()}`));
 
   const stops: PathStop[] = useMemo(() => {
     const practiceStops: PathStop[] = focus.slice(0, 2).map((id, i) => ({

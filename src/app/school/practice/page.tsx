@@ -83,15 +83,17 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
     };
   }, [skillId, showQuestion]);
 
+  const questionId = question?.questionId;
+  const questionPrompt = question?.prompt;
   useEffect(() => {
-    if (!little || !question) return;
-    const prompt = question.prompt;
-    const id = `q-${question.questionId}`;
+    if (!little || !questionId || !questionPrompt) return;
     const t = window.setTimeout(() => {
-      void unlockAudio().then(() => speak(prompt, { id, lang }));
+      void unlockAudio().then(() =>
+        speak(questionPrompt, { id: `q-${questionId}`, lang }),
+      );
     }, 400);
     return () => window.clearTimeout(t);
-  }, [little, question?.questionId, lang]);
+  }, [little, questionId, questionPrompt, lang]);
 
   async function choose(choiceId: string | "idk") {
     if (!question || grading || result) return;
