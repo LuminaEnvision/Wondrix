@@ -7,6 +7,36 @@ import { pickDeviceLook } from "@/lib/age-preference";
 import type { AgeMode } from "@/lib/types";
 import { useT } from "@/lib/use-client-state";
 
+const AGE_CARDS: {
+  mode: AgeMode;
+  art: string;
+  titleKey: "parent.ageModeLittle" | "parent.ageModeExplorer" | "parent.ageModeTeen";
+  blurbKey: "agePick.littleBlurb" | "agePick.explorerBlurb" | "agePick.teenBlurb";
+  cardClass: string;
+}[] = [
+  {
+    mode: "little",
+    art: "/art/bg-little.jpg",
+    titleKey: "parent.ageModeLittle",
+    blurbKey: "agePick.littleBlurb",
+    cardClass: "wx-age-pick-little",
+  },
+  {
+    mode: "explorer",
+    art: "/art/bg-meadow.jpg",
+    titleKey: "parent.ageModeExplorer",
+    blurbKey: "agePick.explorerBlurb",
+    cardClass: "wx-age-pick-explorer",
+  },
+  {
+    mode: "teen",
+    art: "/art/bg-studio.jpg",
+    titleKey: "parent.ageModeTeen",
+    blurbKey: "agePick.teenBlurb",
+    cardClass: "wx-age-pick-teen",
+  },
+];
+
 export function AgePickModal({
   onPicked,
 }: {
@@ -56,50 +86,33 @@ export function AgePickModal({
             </h2>
             <p className="mt-1 text-center text-sm text-[var(--world-ink-soft)]">{tr("agePick.body")}</p>
 
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => chooseAge("explorer")}
-                className="wx-age-pick-card wx-age-pick-explorer group flex flex-col items-center gap-2 rounded-[1.75rem] border border-stroke/60 p-4 text-center transition active:scale-[0.97]"
-              >
-                <span className="relative h-20 w-20 overflow-hidden rounded-[1.25rem]">
-                  <Image
-                    src="/art/bg-meadow.jpg"
-                    alt=""
-                    fill
-                    className="object-cover transition duration-500 group-active:scale-105"
-                    sizes="80px"
-                  />
-                </span>
-                <span className="font-display text-lg font-semibold text-[var(--world-ink)]">
-                  {tr("parent.ageModeExplorer")}
-                </span>
-                <span className="text-xs leading-snug text-[var(--world-ink-soft)]">
-                  {tr("agePick.explorerBlurb")}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => chooseAge("teen")}
-                className="wx-age-pick-card wx-age-pick-teen group flex flex-col items-center gap-2 rounded-[1.75rem] border border-stroke/60 p-4 text-center transition active:scale-[0.97]"
-              >
-                <span className="relative h-20 w-20 overflow-hidden rounded-[1.25rem]">
-                  <Image
-                    src="/art/bg-studio.jpg"
-                    alt=""
-                    fill
-                    className="object-cover transition duration-500 group-active:scale-105"
-                    sizes="80px"
-                  />
-                </span>
-                <span className="font-display text-lg font-semibold text-[var(--world-ink)]">
-                  {tr("parent.ageModeTeen")}
-                </span>
-                <span className="text-xs leading-snug text-[var(--world-ink-soft)]">
-                  {tr("agePick.teenBlurb")}
-                </span>
-              </button>
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {AGE_CARDS.map((card) => (
+                <button
+                  key={card.mode}
+                  type="button"
+                  onClick={() => chooseAge(card.mode)}
+                  className={`wx-age-pick-card ${card.cardClass} group flex flex-col items-center gap-2 rounded-[1.75rem] border border-stroke/60 p-4 text-center transition active:scale-[0.97]`}
+                >
+                  <span className="relative h-20 w-20 overflow-hidden rounded-[1.25rem]">
+                    <Image
+                      src={card.art}
+                      alt=""
+                      fill
+                      className={`object-cover transition duration-500 group-active:scale-105 ${
+                        card.mode === "little" ? "object-[70%_45%]" : ""
+                      }`}
+                      sizes="80px"
+                    />
+                  </span>
+                  <span className="font-display text-lg font-semibold text-[var(--world-ink)]">
+                    {tr(card.titleKey)}
+                  </span>
+                  <span className="text-xs leading-snug text-[var(--world-ink-soft)]">
+                    {tr(card.blurbKey)}
+                  </span>
+                </button>
+              ))}
             </div>
           </>
         ) : (

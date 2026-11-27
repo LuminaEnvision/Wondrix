@@ -61,7 +61,10 @@ export async function unlockParentGate(page: Page, pin = "1234") {
 export async function dismissAgePick(page: Page) {
   const dialog = page.getByRole("dialog", { name: /Who is learning today/i });
   await expect(dialog).toBeVisible();
-  await page.getByRole("button", { name: /Explorer/i }).click();
+  // Prefer Explorer when present; AgePick also offers Little + Teen.
+  const explorer = page.getByRole("button", { name: /Explorer/i });
+  if (await explorer.count()) await explorer.first().click();
+  else await page.getByRole("button", { name: /Little|Teen/i }).first().click();
   await page.getByRole("button", { name: /Light/i }).click();
   await expect(dialog).toHaveCount(0);
 }

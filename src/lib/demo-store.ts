@@ -22,6 +22,7 @@ export {
 } from "./household";
 
 export { HOUSEHOLD_KEY, childStorageKey } from "./household";
+export { profileReadingLevel, wantsMinimalText, readingSpeechRate } from "./reading-level";
 
 export const MASTERY_KEY = "wondrix-mastery";
 const EXTRA_TOPIC_KEY = "wondrix-extra-topic";

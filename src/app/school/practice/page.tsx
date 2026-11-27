@@ -4,13 +4,18 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { PictureChoiceButton } from "@/components/PictureChoiceButton";
 import { SpeakButton } from "@/components/SpeakButton";
+import { isLittle } from "@/lib/age-mode";
 import { gradeName } from "@/lib/curriculum";
 import { loadMastery, loadProfile, recordPracticeSession, setSkillMastery } from "@/lib/demo-store";
+import { profileReadingLevel } from "@/lib/reading-level";
 import { PRACTICE_SESSION_LIMIT, type SchoolGradeResult, type SchoolQuestionPayload } from "@/lib/school-agent";
 import type { SkillId } from "@/lib/types";
 import { skillTitle } from "@/lib/skills";
-import { useLang, useT } from "@/lib/use-client-state";
+import { useAgeMode } from "@/lib/use-age-mode";
+import { useLang, useProfileKey, useT } from "@/lib/use-client-state";
+import { speak, unlockAudio } from "@/lib/voice";
 
 function PracticeInner() {
   const params = useSearchParams();
@@ -40,6 +45,10 @@ async function requestQuestion(skillId: SkillId, avoid: string[]): Promise<Quest
 function PracticeSession({ skillId }: { skillId: SkillId }) {
   const tr = useT();
   const lang = useLang();
+  const little = isLittle(useAgeMode());
+  useProfileKey();
+  const pictureChoices = little || profileReadingLevel() === "not-yet";
+  const hideChoiceText = profileReadingLevel() === "not-yet" || little;
   const [question, setQuestion] = useState<SchoolQuestionPayload | null>(null);
   const [avoidIds, setAvoidIds] = useState<string[]>([]);
   const [picked, setPicked] = useState<string | null>(null);
@@ -73,6 +82,16 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
       cancelled = true;
     };
   }, [skillId, showQuestion]);
+
+  useEffect(() => {
+    if (!little || !question) return;
+    const prompt = question.prompt;
+    const id = `q-${question.questionId}`;
+    const t = window.setTimeout(() => {
+      void unlockAudio().then(() => speak(prompt, { id, lang }));
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [little, question?.questionId, lang]);
 
   async function choose(choiceId: string | "idk") {
     if (!question || grading || result) return;
@@ -160,17 +179,21 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
     <AppShell backHref="/school" world="school">
       <div className="space-y-6">
         <div>
-          <p className="text-sm font-bold text-school">{tr("practice.kicker")}</p>
+          {!little ? (
+            <p className="text-sm font-bold text-school">{tr("practice.kicker")}</p>
+          ) : null}
           <h1 className="font-display mt-1 text-3xl font-semibold">
             {question ? skillTitle(question.skillId, lang) : tr("practice.title")}
           </h1>
-          <p className="mt-2 text-ink-soft">
-            {gradeLabel ? `${gradeLabel}. ` : ""}
-            {tr("practice.idkOk")}
-            {answered > 0
-              ? ` · ${tr("practice.progress", { n: answered, max: PRACTICE_SESSION_LIMIT })}`
-              : ""}
-          </p>
+          {!little ? (
+            <p className="mt-2 text-ink-soft">
+              {gradeLabel ? `${gradeLabel}. ` : ""}
+              {tr("practice.idkOk")}
+              {answered > 0
+                ? ` · ${tr("practice.progress", { n: answered, max: PRACTICE_SESSION_LIMIT })}`
+                : ""}
+            </p>
+          ) : null}
         </div>
 
         {loading ? (
@@ -191,54 +214,103 @@ function PracticeSession({ skillId }: { skillId: SkillId }) {
         ) : (
           <div className="rounded-3xl border border-stroke bg-card p-6">
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <p className="text-lg font-semibold text-ink">{question.prompt}</p>
+              <p
+                className={`text-lg font-semibold text-ink ${hideChoiceText ? "sr-only" : ""}`}
+              >
+                {question.prompt}
+              </p>
               <SpeakButton
                 id={`q-${question.questionId}`}
                 text={question.prompt}
                 tone="brand"
                 label={tr("practice.listenQuestion")}
+                quiet={little}
               />
             </div>
             <div className="mt-5 space-y-3">
-              {question.choices.map((choice) => {
-                const selected = picked === choice.id;
-                const showRight =
-                  Boolean(result) &&
-                  !result!.correct &&
-                  result!.correctChoiceId === choice.id;
-                let tone = "border-stroke bg-bg/60";
-                if (result) {
-                  if (result.correct && selected) tone = "border-brand bg-brand/10";
-                  else if (!result.correct && selected) tone = "border-extra/50 bg-[var(--world-surface)]";
-                  if (showRight) tone = "border-brand bg-brand/15 ring-1 ring-brand/25";
-                }
-                return (
-                  <button
-                    key={choice.id}
-                    type="button"
-                    data-testid="choice"
-                    data-correct={result ? String(result.correctChoiceId === choice.id) : undefined}
-                    disabled={Boolean(result) || grading}
-                    onClick={() => void choose(choice.id)}
-                    className={`block w-full rounded-2xl border px-4 py-3 text-start font-semibold text-ink ${tone}`}
-                  >
-                    {choice.label}
-                    {showRight ? (
-                      <span className="ms-2 text-xs font-bold text-brand">
-                        {tr("practice.correctMark")}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                disabled={Boolean(result) || grading}
-                onClick={() => void choose("idk")}
-                className="block w-full rounded-2xl border border-dashed border-stroke px-4 py-3 text-start text-ink-soft"
-              >
-                {tr("practice.idk")}
-              </button>
+              {pictureChoices
+                ? question.choices.map((choice, i) => {
+                    const selected = picked === choice.id;
+                    const showRight =
+                      Boolean(result) &&
+                      !result!.correct &&
+                      result!.correctChoiceId === choice.id;
+                    let tone = "";
+                    if (result) {
+                      if (result.correct && selected) tone = "border-brand bg-brand/10";
+                      else if (!result.correct && selected)
+                        tone = "border-extra/50 bg-[var(--world-surface)]";
+                      if (showRight) tone = "border-brand bg-brand/15 ring-1 ring-brand/25";
+                    }
+                    return (
+                      <PictureChoiceButton
+                        key={choice.id}
+                        id={choice.id}
+                        label={choice.label}
+                        index={i}
+                        hideLabel={hideChoiceText}
+                        disabled={Boolean(result) || grading}
+                        selected={selected}
+                        toneClassName={tone}
+                        onChoose={() => void choose(choice.id)}
+                      />
+                    );
+                  })
+                : question.choices.map((choice) => {
+                    const selected = picked === choice.id;
+                    const showRight =
+                      Boolean(result) &&
+                      !result!.correct &&
+                      result!.correctChoiceId === choice.id;
+                    let tone = "border-stroke bg-bg/60";
+                    if (result) {
+                      if (result.correct && selected) tone = "border-brand bg-brand/10";
+                      else if (!result.correct && selected)
+                        tone = "border-extra/50 bg-[var(--world-surface)]";
+                      if (showRight) tone = "border-brand bg-brand/15 ring-1 ring-brand/25";
+                    }
+                    return (
+                      <button
+                        key={choice.id}
+                        type="button"
+                        data-testid="choice"
+                        data-correct={
+                          result ? String(result.correctChoiceId === choice.id) : undefined
+                        }
+                        disabled={Boolean(result) || grading}
+                        onClick={() => void choose(choice.id)}
+                        className={`block w-full rounded-2xl border px-4 py-3 text-start font-semibold text-ink ${tone}`}
+                      >
+                        {choice.label}
+                        {showRight ? (
+                          <span className="ms-2 text-xs font-bold text-brand">
+                            {tr("practice.correctMark")}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+              {pictureChoices ? (
+                <PictureChoiceButton
+                  id="idk"
+                  label={tr("practice.idk")}
+                  index={question.choices.length}
+                  hideLabel={hideChoiceText}
+                  dashed
+                  disabled={Boolean(result) || grading}
+                  selected={picked === "idk"}
+                  onChoose={() => void choose("idk")}
+                />
+              ) : (
+                <button
+                  type="button"
+                  disabled={Boolean(result) || grading}
+                  onClick={() => void choose("idk")}
+                  className="block w-full rounded-2xl border border-dashed border-stroke px-4 py-3 text-start text-ink-soft"
+                >
+                  {tr("practice.idk")}
+                </button>
+              )}
             </div>
 
             {result ? (

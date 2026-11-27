@@ -21,7 +21,6 @@ import {
   newChatId,
   setActiveChatId as storeActiveChatId,
   loadProfile,
-  profileAgeMode,
   recordSafetyRedirect,
   saveChat,
   type SavedChat,
@@ -33,6 +32,8 @@ import { topicSeedFor, type TopicId } from "@/lib/topic-seeds";
 import { useHydrated, useLang, useT } from "@/lib/use-client-state";
 import { Mascot } from "@/components/Mascot";
 import { WxGlyph } from "@/components/WxGlyph";
+import { isExplorer, isLittle, isTeen, littleTapFeedback } from "@/lib/age-mode";
+import { useAgeMode } from "@/lib/use-age-mode";
 import { localExtraReply } from "@/lib/extra-reply";
 import { safetyCheck } from "@/lib/safety";
 import {
@@ -49,6 +50,7 @@ import {
 import { DictationPanel } from "@/components/DictationPanel";
 import { ExtraVisual } from "@/components/ExtraVisual";
 import { SpeakButton } from "@/components/SpeakButton";
+import { SpokenText } from "@/components/SpokenText";
 import { VoiceLoadingBubble } from "@/components/VoiceLoadingBubble";
 import type { Visual } from "@/lib/visual";
 
@@ -82,31 +84,73 @@ const FOLLOW_TEEN = ["Explain simpler", "Give an example", "Test me"] as const;
 const ASK_BACK_EN = "What do you wonder next?";
 const ASK_BACK_AR = "ماذا تتساءل بعد ذلك؟";
 
+const LITTLE_FOLLOWS = [
+  { id: "why", icon: "?", key: "extra.followWhy" as const, ask: "Why?" },
+  { id: "show", icon: "👁", key: "extra.followShow" as const, ask: "Show me" },
+  { id: "surprise", icon: "🎲", key: "extra.followSurprise" as const, ask: "Surprise me" },
+] as const;
+
 function IdeaChips({
   ideas,
   onPick,
   disabled,
   big = false,
+  withIcons = false,
 }: {
   ideas: string[];
   onPick: (q: string) => void;
   disabled?: boolean;
   big?: boolean;
+  withIcons?: boolean;
 }) {
+  const icons = ["?", "👁", "✨"];
   return (
     <div className="flex flex-wrap gap-2">
-      {ideas.map((q) => (
+      {ideas.map((q, i) => (
         <button
           key={q}
           type="button"
           disabled={disabled}
           onClick={() => onPick(q)}
           dir="auto"
-          className={`rounded-full border border-[var(--world-accent)]/35 bg-[var(--world-surface)] text-start font-semibold text-[var(--world-ink)] disabled:opacity-60 ${
+          className={`inline-flex items-center gap-2 rounded-full border border-[var(--world-accent)]/35 bg-[var(--world-surface)] text-start font-semibold text-[var(--world-ink)] disabled:opacity-60 ${
             big ? "min-h-12 px-4 py-2.5 text-sm" : "min-h-11 px-3 py-1.5 text-xs"
           }`}
         >
+          {withIcons ? <span aria-hidden>{icons[i % icons.length]}</span> : null}
           {q}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function LittleFollowUps({
+  onPick,
+  disabled,
+  speakLabel,
+}: {
+  onPick: (q: string) => void;
+  disabled?: boolean;
+  speakLabel: (label: string, ask: string) => void;
+}) {
+  const tr = useT();
+  return (
+    <div className="flex justify-center gap-4 pt-1">
+      {LITTLE_FOLLOWS.map((f) => (
+        <button
+          key={f.id}
+          type="button"
+          disabled={disabled}
+          aria-label={tr(f.key)}
+          onClick={() => {
+            littleTapFeedback();
+            speakLabel(tr(f.key), f.ask);
+          }}
+          className="wx-tap flex size-16 flex-col items-center justify-center rounded-2xl border-2 border-stroke bg-[var(--world-surface)] text-2xl shadow-[var(--shadow-card)] disabled:opacity-60"
+        >
+          <span aria-hidden>{f.icon}</span>
+          <span className="mt-0.5 text-[0.65rem] font-bold text-[var(--world-ink)]">{tr(f.key)}</span>
         </button>
       ))}
     </div>
@@ -124,10 +168,15 @@ function nowMs(): number {
   return Date.now();
 }
 
-function followUpsFor(msg: Msg | undefined, explorer: boolean, lang: "en" | "ar"): string[] {
+function followUpsFor(
+  msg: Msg | undefined,
+  mode: "little" | "explorer" | "teen",
+  lang: "en" | "ar",
+): string[] {
   if (msg?.suggestions?.length) return msg.suggestions.slice(0, 3);
+  if (mode === "little") return [FOLLOW_EXPLORER[0], FOLLOW_EXPLORER[1], "Surprise me"];
   const askBack = lang === "ar" ? ASK_BACK_AR : ASK_BACK_EN;
-  if (explorer) return [FOLLOW_EXPLORER[0], FOLLOW_EXPLORER[1], askBack];
+  if (mode === "explorer") return [FOLLOW_EXPLORER[0], FOLLOW_EXPLORER[1], askBack];
   return [FOLLOW_TEEN[0], FOLLOW_TEEN[1], askBack];
 }
 
@@ -146,8 +195,16 @@ function ExtraInner() {
   const [visit] = useState(() => nextExtraVisit());
   const [profile] = useState(() => loadProfile());
   const [ageBand] = useState(() => profile.ageBand);
-  const explorer = profileAgeMode(profile) === "explorer";
-  const teen = !explorer;
+  // Live chrome mode (data-age) — avoids SSR/client mismatch from localStorage profile.
+  const ageMode = useAgeMode();
+  const little = isLittle(ageMode);
+  const explorer = isExplorer(ageMode);
+  const teen = isTeen(ageMode);
+  const chunky = little || explorer;
+  const [showTypeBox, setShowTypeBox] = useState(false);
+  const [sendFailed, setSendFailed] = useState(false);
+  const [lastFailedAsk, setLastFailedAsk] = useState("");
+  const quietVoice = little || explorer;
   const [topicTap, setTopicTap] = useState(0);
   const starters = startersForVisit(ageBand, lang, visit, 4);
   const opening = tr("extra.opening", { q: starters[0] });
@@ -320,6 +377,7 @@ function ExtraInner() {
     if (!trimmed || busy) return;
     stopSpeaking();
     setBusy(true);
+    setSendFailed(false);
     setInput("");
     stickToBottom.current = true;
 
@@ -369,8 +427,23 @@ function ExtraInner() {
           if (data.draw) drawFor = data.answer || data.text;
         }
         if (data.topic) topicLabel = data.topic;
+      } else if (little && res.status >= 500) {
+        setSendFailed(true);
+        setLastFailedAsk(trimmed);
+        setBusy(false);
+        setMessages((m) => m.filter((x) => x.id !== childMsg.id));
+        say(tr("extra.errorLittle"), "little-error");
+        return;
       }
     } catch {
+      if (little && typeof navigator !== "undefined" && !navigator.onLine) {
+        setSendFailed(true);
+        setLastFailedAsk(trimmed);
+        setBusy(false);
+        setMessages((m) => m.filter((x) => x.id !== childMsg.id));
+        say(tr("extra.errorLittle"), "little-error");
+        return;
+      }
       // keep local reply
     }
 
@@ -607,49 +680,119 @@ function ExtraInner() {
           />
         </div>
       ) : null}
-      <form className="flex items-end gap-2" onSubmit={onSubmit}>
-        <textarea
-          id="extra-question"
-          name="question"
-          rows={1}
-          aria-label={tr("extra.inputLabel")}
-          autoComplete="off"
-          value={input}
-          onChange={(e) => {
-            setInput(e.target.value);
-            const el = e.target;
-            el.style.height = "auto";
-            el.style.height = `${Math.min(el.scrollHeight, explorer ? 112 : 96)}px`;
-          }}
-          placeholder={lang === "ar" ? tr("extra.placeholderAr") : tr("extra.placeholder")}
-          dir="auto"
-          disabled={busy}
-          className={`min-h-11 min-w-0 flex-1 resize-none rounded-[1.25rem] border border-stroke bg-[var(--world-surface)] px-4 py-2.5 text-[var(--world-ink)] outline-none focus:border-[var(--world-accent)]/50 disabled:opacity-60 ${
-            explorer ? "text-base" : "text-sm"
-          }`}
-        />
-        <button
-          type="button"
-          onClick={startMic}
-          aria-pressed={listening}
-          disabled={busy || listening}
-          className={`inline-flex shrink-0 items-center justify-center rounded-2xl disabled:opacity-60 ${
-            explorer ? "size-14" : "size-11"
-          } ${listening ? "ring-2 ring-[var(--world-accent)] ring-offset-2" : ""}`}
-          title={tr("extra.micTitle")}
-          aria-label={tr("extra.micLabel")}
-        >
-          <WxGlyph name="mic" size={explorer ? 52 : 40} />
-        </button>
-        <button
-          type="submit"
-          disabled={busy || !input.trim()}
-          aria-label={tr("extra.send")}
-          className="inline-flex size-11 shrink-0 items-center justify-center rounded-2xl disabled:opacity-60"
-        >
-          <WxGlyph name="send" size={40} />
-        </button>
-      </form>
+      {little ? (
+        <div className="flex flex-col items-center gap-3">
+          {showTypeBox ? (
+            <form className="flex w-full items-end gap-2" onSubmit={onSubmit}>
+              <textarea
+                id="extra-question"
+                name="question"
+                rows={1}
+                aria-label={tr("extra.inputLabel")}
+                autoComplete="off"
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  const el = e.target;
+                  el.style.height = "auto";
+                  el.style.height = `${Math.min(el.scrollHeight, 112)}px`;
+                }}
+                placeholder={lang === "ar" ? tr("extra.placeholderAr") : tr("extra.placeholder")}
+                dir="auto"
+                disabled={busy}
+                className="min-h-14 min-w-0 flex-1 resize-none rounded-[1.25rem] border border-stroke bg-[var(--world-surface)] px-4 py-3 text-base text-[var(--world-ink)] outline-none"
+              />
+              <button
+                type="submit"
+                disabled={busy || !input.trim()}
+                aria-label={tr("extra.send")}
+                className="inline-flex size-14 shrink-0 items-center justify-center rounded-2xl disabled:opacity-60"
+              >
+                <WxGlyph name="send" size={48} />
+              </button>
+            </form>
+          ) : null}
+          <div className="relative flex items-center justify-center">
+            {listening ? (
+              <span
+                className="pointer-events-none absolute size-28 animate-pulse rounded-full bg-[color-mix(in_srgb,var(--world-accent)_25%,transparent)]"
+                aria-hidden
+              />
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                littleTapFeedback();
+                startMic();
+              }}
+              aria-pressed={listening}
+              disabled={busy || listening}
+              className={`relative z-10 inline-flex size-24 items-center justify-center rounded-full disabled:opacity-60 ${
+                listening ? "ring-4 ring-[var(--world-accent)] ring-offset-2" : ""
+              }`}
+              title={tr("extra.micTitle")}
+              aria-label={tr("extra.micLabel")}
+            >
+              <WxGlyph name="mic" size={72} />
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              littleTapFeedback();
+              setShowTypeBox((v) => !v);
+            }}
+            className="inline-flex size-12 items-center justify-center rounded-2xl border border-stroke bg-[var(--world-surface)] text-xl"
+            aria-label={showTypeBox ? tr("extra.hideKeyboard") : tr("extra.keyboard")}
+          >
+            ⌨
+          </button>
+        </div>
+      ) : (
+        <form className="flex items-end gap-2" onSubmit={onSubmit}>
+          <textarea
+            id="extra-question"
+            name="question"
+            rows={1}
+            aria-label={tr("extra.inputLabel")}
+            autoComplete="off"
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              const el = e.target;
+              el.style.height = "auto";
+              el.style.height = `${Math.min(el.scrollHeight, chunky ? 112 : 96)}px`;
+            }}
+            placeholder={lang === "ar" ? tr("extra.placeholderAr") : tr("extra.placeholder")}
+            dir="auto"
+            disabled={busy}
+            className={`min-h-11 min-w-0 flex-1 resize-none rounded-[1.25rem] border border-stroke bg-[var(--world-surface)] px-4 py-2.5 text-[var(--world-ink)] outline-none focus:border-[var(--world-accent)]/50 disabled:opacity-60 ${
+              chunky ? "text-base" : "text-sm"
+            }`}
+          />
+          <button
+            type="button"
+            onClick={startMic}
+            aria-pressed={listening}
+            disabled={busy || listening}
+            className={`inline-flex shrink-0 items-center justify-center rounded-2xl disabled:opacity-60 ${
+              chunky ? "size-14" : "size-11"
+            } ${listening ? "ring-2 ring-[var(--world-accent)] ring-offset-2" : ""}`}
+            title={tr("extra.micTitle")}
+            aria-label={tr("extra.micLabel")}
+          >
+            <WxGlyph name="mic" size={chunky ? 52 : 40} />
+          </button>
+          <button
+            type="submit"
+            disabled={busy || !input.trim()}
+            aria-label={tr("extra.send")}
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-2xl disabled:opacity-60"
+          >
+            <WxGlyph name="send" size={40} />
+          </button>
+        </form>
+      )}
     </div>
   );
 
@@ -735,56 +878,136 @@ function ExtraInner() {
         className="min-h-0 flex-1 overflow-y-auto px-1 py-3 sm:px-3"
         data-wx-messages
       >
-        {empty ? (
+        {sendFailed && little ? (
+          <div className="mx-auto flex max-w-lg flex-col items-center gap-4 py-6 text-center">
+            <Mascot size="lg" busy={false} listening={false} happy={false} speechId="little-error" />
+            <p className="text-xl font-semibold text-[var(--world-ink)]">{tr("extra.errorLittle")}</p>
+            <button
+              type="button"
+              className="wx-tap min-h-16 rounded-[1.5rem] bg-[var(--world-accent)] px-8 text-lg font-bold text-white"
+              onClick={() => {
+                littleTapFeedback();
+                setSendFailed(false);
+                if (lastFailedAsk) void send(lastFailedAsk);
+              }}
+            >
+              {tr("extra.retry")}
+            </button>
+          </div>
+        ) : empty ? (
           <div className="mx-auto flex max-w-lg flex-col gap-3">
             <div className="flex items-end gap-2">
-              <Mascot
-                size={explorer ? "lg" : "md"}
-                busy={busy}
-                listening={listening}
-                happy
-                speechId="opening"
-              />
-              <div className="min-w-0 flex-1 space-y-2 rounded-[var(--radius-m)] bg-[var(--world-accent-soft)] px-4 py-3 text-[var(--world-ink)]">
-                <p className={`leading-relaxed ${explorer ? "text-lg" : "text-base"}`} dir="auto">
-                  {opening}
-                </p>
-                <SpeakButton id="opening" text={opening} tone="extra" label={tr("extra.listenStarter")} />
-              </div>
+              <button
+                type="button"
+                className="shrink-0"
+                aria-label={opening}
+                onClick={() => {
+                  if (little) littleTapFeedback();
+                  void unlockAudio().then(() => speak(opening, { id: "opening", lang }));
+                }}
+              >
+                <Mascot
+                  size={chunky ? "lg" : "md"}
+                  busy={busy}
+                  listening={listening}
+                  happy
+                  speechId="opening"
+                />
+              </button>
+              {little ? (
+                <p className="sr-only">{opening}</p>
+              ) : (
+                <div className="min-w-0 flex-1 space-y-2 rounded-[var(--radius-m)] bg-[var(--world-accent-soft)] px-4 py-3 text-[var(--world-ink)]">
+                  <p className={`leading-relaxed ${chunky ? "text-lg" : "text-base"}`} dir="auto">
+                    {opening}
+                  </p>
+                  <SpeakButton
+                    id="opening"
+                    text={opening}
+                    tone="extra"
+                    label={tr("extra.listenStarter")}
+                    quiet={quietVoice}
+                  />
+                  {explorer && busy ? (
+                    <p className="text-xs font-semibold text-[var(--world-ink-soft)]">{tr("extra.yawning")}</p>
+                  ) : null}
+                </div>
+              )}
             </div>
             <div>
-              <p className="mb-1.5 text-sm font-bold text-[var(--world-ink-soft)]">{tr("extra.topicIdeas")}</p>
-              <div
-                className="-mx-1 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                role="group"
-                aria-label={tr("extra.topicIdeas")}
-              >
-                {INTERESTS.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => pickSuggestion(item)}
-                    data-topic={item.tone}
-                    className={`shrink-0 snap-start overflow-hidden rounded-[var(--radius-m)] border border-stroke bg-[var(--world-surface)] text-start ${
-                      explorer ? "w-[9.5rem]" : "w-28"
-                    }`}
-                  >
-                    <div className={`relative w-full bg-[var(--world-bg)] ${explorer ? "h-24" : "h-12"}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.art} alt="" className="h-full w-full object-cover" />
-                    </div>
-                    <p
-                      className={`truncate font-bold text-[var(--world-ink)] ${
-                        explorer ? "px-3 py-2 text-sm" : "px-2 py-1.5 text-xs"
+              {little ? null : (
+                <p className="mb-1.5 text-sm font-bold text-[var(--world-ink-soft)]">{tr("extra.topicIdeas")}</p>
+              )}
+              {little ? (
+                <div
+                  className="grid grid-cols-2 gap-3"
+                  role="group"
+                  aria-label={tr("extra.topicIdeas")}
+                >
+                  {INTERESTS.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        littleTapFeedback();
+                        const label = tr(item.label);
+                        void unlockAudio().then(() => speak(label, { id: `topic-${item.id}`, lang }));
+                        pickSuggestion(item);
+                      }}
+                      data-topic={item.tone}
+                      className="wx-tap flex min-h-[7.5rem] flex-col overflow-hidden rounded-[1.5rem] border-2 border-stroke bg-[var(--world-surface)] text-center shadow-[var(--shadow-card)]"
+                    >
+                      <div className="relative h-24 w-full bg-[var(--world-bg)]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={item.art} alt="" className="h-full w-full object-cover" />
+                      </div>
+                      <p className="truncate px-2 py-2 text-sm font-bold text-[var(--world-ink)]">
+                        {tr(item.label)}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div
+                  className="-mx-1 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  role="group"
+                  aria-label={tr("extra.topicIdeas")}
+                >
+                  {INTERESTS.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => pickSuggestion(item)}
+                      data-topic={item.tone}
+                      className={`shrink-0 snap-start overflow-hidden rounded-[var(--radius-m)] border border-stroke bg-[var(--world-surface)] text-start ${
+                        explorer ? "w-[9.5rem]" : "w-28"
                       }`}
                     >
-                      {tr(item.label)}
-                    </p>
-                  </button>
-                ))}
-              </div>
+                      <div className={`relative w-full bg-[var(--world-bg)] ${explorer ? "h-24" : "h-12"}`}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={item.art} alt="" className="h-full w-full object-cover" />
+                      </div>
+                      <p
+                        className={`truncate font-bold text-[var(--world-ink)] ${
+                          explorer ? "px-3 py-2 text-sm" : "px-2 py-1.5 text-xs"
+                        }`}
+                      >
+                        {tr(item.label)}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <IdeaChips ideas={starters.slice(1, 3)} onPick={(q) => void send(q)} disabled={busy} big={explorer} />
+            {little ? null : (
+              <IdeaChips
+                ideas={starters.slice(1, 3)}
+                onPick={(q) => void send(q)}
+                disabled={busy}
+                big={explorer}
+                withIcons={explorer}
+              />
+            )}
           </div>
         ) : (
           <div className="mx-auto flex max-w-lg flex-col gap-3">
@@ -811,28 +1034,55 @@ function ExtraInner() {
                       isAgent
                         ? "bg-[var(--world-accent-soft)] text-[var(--world-ink)]"
                         : "bg-[var(--world-accent)] text-white"
-                    } ${explorer ? "text-lg" : "text-base"}`}
+                    } ${chunky ? "text-lg" : "text-base"}`}
                   >
-                    <p dir="auto">{msg.text}</p>
                     {isAgent && msg.visual ? (
                       <ExtraVisual
                         visual={msg.visual}
                         autoPlay={voiceOn && speakOk && msg.id === autoVisualId}
                       />
                     ) : null}
-                    {isAgent && msg.drawing ? (
-                      <p className="flex items-center gap-2 text-xs font-semibold text-[var(--world-accent)]" role="status">
-                        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--world-accent)]" aria-hidden />
-                        {tr("extra.drawing")}
-                      </p>
-                    ) : null}
-                    {isAgent ? <SpeakButton id={`msg-${msg.id}`} text={msg.text} /> : null}
-                    {isLatestAgent ? (
-                      <IdeaChips
-                        ideas={followUpsFor(msg, explorer, lang)}
-                        onPick={(q) => void send(q)}
-                        disabled={busy}
+                    {isAgent ? (
+                      <SpokenText
+                        id={`msg-${msg.id}`}
+                        text={msg.text}
+                        className={little ? "text-xl font-semibold leading-snug" : undefined}
                       />
+                    ) : (
+                      <p dir="auto">{msg.text}</p>
+                    )}
+                    {isAgent && msg.drawing ? (
+                      little ? null : (
+                        <p className="flex items-center gap-2 text-xs font-semibold text-[var(--world-accent)]" role="status">
+                          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--world-accent)]" aria-hidden />
+                          {tr("extra.drawing")}
+                        </p>
+                      )
+                    ) : null}
+                    {isAgent ? (
+                      <SpeakButton id={`msg-${msg.id}`} text={msg.text} quiet={quietVoice} />
+                    ) : null}
+                    {isLatestAgent ? (
+                      little ? (
+                        <LittleFollowUps
+                          disabled={busy}
+                          onPick={(q) => void send(q)}
+                          speakLabel={(label, ask) => {
+                            void unlockAudio().then(() => {
+                              speak(label, { id: "follow-label", lang });
+                              window.setTimeout(() => void send(ask), 500);
+                            });
+                          }}
+                        />
+                      ) : (
+                        <IdeaChips
+                          ideas={followUpsFor(msg, ageMode, lang)}
+                          onPick={(q) => void send(q)}
+                          disabled={busy}
+                          withIcons={explorer}
+                          big={explorer}
+                        />
+                      )
                     ) : null}
                   </div>
                 </div>
@@ -841,7 +1091,11 @@ function ExtraInner() {
             {busy ? (
               <div className="flex items-center gap-2" role="status">
                 <Mascot size="md" busy listening={false} followSpeech={false} />
-                <p className="text-sm text-[var(--world-ink-soft)]">{tr("extra.thinking")}</p>
+                {little ? null : (
+                  <p className="text-sm text-[var(--world-ink-soft)]">
+                    {explorer ? tr("extra.yawning") : tr("extra.thinking")}
+                  </p>
+                )}
               </div>
             ) : null}
           </div>
@@ -860,7 +1114,7 @@ function ExtraInner() {
       dense={teen}
       headerExtra={headerExtra}
     >
-      <VoiceLoadingBubble enabled={voiceOn && lang === "en"} />
+      <VoiceLoadingBubble enabled={!little && !explorer && voiceOn && lang === "en"} />
       {menuOpen ? (
         <button
           type="button"

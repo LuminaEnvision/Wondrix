@@ -18,7 +18,9 @@ export function hasAgePicked(): boolean {
 export function loadDeviceAgeMode(): AgeMode {
   if (typeof window === "undefined") return "explorer";
   try {
-    return localStorage.getItem(MODE_KEY) === "teen" ? "teen" : "explorer";
+    const raw = localStorage.getItem(MODE_KEY);
+    if (raw === "little" || raw === "explorer" || raw === "teen") return raw;
+    return "explorer";
   } catch {
     return "explorer";
   }
@@ -73,7 +75,13 @@ export function resolveAgeMode(): AgeMode {
   const h = loadHousehold();
   if (h.children.length > 0) {
     const active = h.children.find((c) => c.id === h.activeChildId) ?? h.children[0];
-    if (active?.ageMode === "teen" || active?.ageMode === "explorer") return active.ageMode;
+    if (
+      active?.ageMode === "little" ||
+      active?.ageMode === "teen" ||
+      active?.ageMode === "explorer"
+    ) {
+      return active.ageMode;
+    }
   }
   return loadDeviceAgeMode();
 }

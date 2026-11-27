@@ -34,19 +34,22 @@ function Spinner() {
 
 /**
  * Per-message voice control: Listen → Preparing voice… → Speaking (bars) with Stop.
- * Makes it obvious when audio is loading or playing, even on slow devices.
+ * `quiet` hides technical copy (Little / Explorer) — mascot shows the waiting state.
  */
 export function SpeakButton({
   id,
   text,
   tone = "brand",
   label,
+  quiet = false,
 }: {
   id: string;
   text: string;
   tone?: "brand" | "extra";
   /** Accessible name of the play button. */
   label?: string;
+  /** No "Preparing voice…" / progress copy — silent device fallback is fine. */
+  quiet?: boolean;
 }) {
   const tr = useT();
   const lang = useLang();
@@ -55,12 +58,13 @@ export function SpeakButton({
   const color = tone === "extra" ? "text-extra border-extra/30" : "text-brand border-brand/30";
   const unavailableHint = lang === "ar" ? tr("speak.noArabicVoice") : tr("speak.noSound");
 
-  if (mine && (s.state === "preparing" || s.state === "speaking")) {
+  if (mine && s.state === "preparing") {
+    if (quiet) return null;
     return (
       <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
         <span className={`inline-flex items-center gap-1.5 text-xs font-bold ${color.split(" ")[0]}`}>
-          {s.state === "preparing" ? <Spinner /> : <Bars />}
-          {s.state === "preparing" ? tr("speak.preparing") : tr("speak.speaking")}
+          <Spinner />
+          {tr("speak.preparing")}
         </span>
         <button
           type="button"
@@ -73,6 +77,34 @@ export function SpeakButton({
         </button>
       </span>
     );
+  }
+
+  if (mine && s.state === "speaking") {
+    return (
+      <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
+        {!quiet ? (
+          <span className={`inline-flex items-center gap-1.5 text-xs font-bold ${color.split(" ")[0]}`}>
+            <Bars />
+            {tr("speak.speaking")}
+          </span>
+        ) : (
+          <Bars />
+        )}
+        <button
+          type="button"
+          onClick={stopSpeaking}
+          className={`inline-flex items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-xs font-bold ${color}`}
+          aria-label={tr("speak.stopLabel")}
+        >
+          <span className="inline-block h-2 w-2 rounded-[2px] bg-current" aria-hidden />
+          {quiet ? null : tr("speak.stop")}
+        </button>
+      </span>
+    );
+  }
+
+  if (quiet) {
+    return null;
   }
 
   return (

@@ -24,7 +24,7 @@ export type VoiceStatus =
   | { engine: Engine; state: "idle" | "ready" | "failed" }
   | { engine: "kokoro"; state: "loading"; progress: number };
 
-type SpeakOpts = {
+export type SpeakOpts = {
   rate?: number;
   pitch?: number;
   /** Which message is being read (lets the UI show a per-message play state). */
@@ -33,6 +33,16 @@ type SpeakOpts = {
   lang?: "en" | "ar";
   /** Called once when this text finished playing, or could not play (not when stopped or replaced). */
   onEnd?: () => void;
+  /**
+   * 0..1 playback progress while audio is playing (server TTS / HTMLAudio).
+   * Used by School Reading karaoke so highlight follows real sound, not a guess.
+   */
+  onProgress?: (ratio: number) => void;
+  /**
+   * Character index into the spoken text (browser Web Speech boundary events).
+   * Prefer this over onProgress when the engine provides it.
+   */
+  onBoundary?: (charIndex: number) => void;
 };
 
 function looksArabic(text: string): boolean {
@@ -47,6 +57,42 @@ function speakLang(text: string, opts?: SpeakOpts): "en" | "ar" {
 
 /** onEnd of the text playing now (cleared when something else starts or it is stopped). */
 let pendingOnEnd: { token: number; fn: () => void } | null = null;
+/** Progress/boundary callbacks for the current utterance. */
+let pendingProgress: {
+  token: number;
+  onProgress?: (ratio: number) => void;
+  onBoundary?: (charIndex: number) => void;
+} | null = null;
+let progressRaf = 0;
+
+function clearProgressWatch() {
+  if (progressRaf) {
+    cancelAnimationFrame(progressRaf);
+    progressRaf = 0;
+  }
+}
+
+function watchAudioProgress(el: HTMLAudioElement, token: number) {
+  clearProgressWatch();
+  const tick = () => {
+    if (token !== playToken || !pendingProgress || pendingProgress.token !== token) return;
+    const d = el.duration;
+    if (Number.isFinite(d) && d > 0 && pendingProgress.onProgress) {
+      pendingProgress.onProgress(Math.min(1, Math.max(0, el.currentTime / d)));
+    }
+    if (!el.paused && !el.ended) {
+      progressRaf = requestAnimationFrame(tick);
+    }
+  };
+  progressRaf = requestAnimationFrame(tick);
+  el.ontimeupdate = () => {
+    if (token !== playToken || !pendingProgress?.onProgress) return;
+    const d = el.duration;
+    if (Number.isFinite(d) && d > 0) {
+      pendingProgress.onProgress(Math.min(1, Math.max(0, el.currentTime / d)));
+    }
+  };
+}
 
 /** What the voice is doing right now (for play buttons and "speaking" indicators). */
 export type SpeechState =
@@ -202,6 +248,11 @@ export function speak(text: string, opts?: SpeakOpts) {
   const token = playToken;
   const id = opts?.id;
   pendingOnEnd = opts?.onEnd ? { token, fn: opts.onEnd } : null;
+  pendingProgress =
+    opts?.onProgress || opts?.onBoundary
+      ? { token, onProgress: opts.onProgress, onBoundary: opts.onBoundary }
+      : null;
+  clearProgressWatch();
   setSpeech({ state: "preparing", id });
   const started = Date.now();
   const preparingWatch = setTimeout(() => {
@@ -547,11 +598,15 @@ async function speakAzure(text: string, opts: SpeakOpts, token: number): Promise
   audioEl.setAttribute("playsinline", "true");
   // Apply Reading speed to server-generated audio as well as local engines.
   audioEl.playbackRate = opts.rate ?? 1;
-  audioEl.onended = () => markDone(token);
+  audioEl.onended = () => {
+    pendingProgress?.onProgress?.(1);
+    markDone(token);
+  };
   try {
     await audioEl.play();
     emit({ engine: "azure", state: "ready" });
     markSpeaking(token, "azure", opts.id, text.length);
+    if (opts.onProgress) watchAudioProgress(audioEl, token);
     return true;
   } catch (err) {
     console.warn("[voice] /api/tts play blocked (needs a tap on iOS)", err);
@@ -658,7 +713,22 @@ async function speakBrowser(text: string, opts: SpeakOpts, token: number): Promi
         markSpeaking(token, "browser", opts.id, text.length);
         resolve(true);
       };
-      if (i === sentences.length - 1) u.onend = () => markDone(token);
+      // Word boundaries keep Reading karaoke aligned with the spoken word.
+      u.onboundary = (e) => {
+        if (token !== playToken) return;
+        if (e.name && e.name !== "word") return;
+        const base =
+          i === 0
+            ? 0
+            : sentences.slice(0, i).reduce((n, s) => n + s.length + 1, 0);
+        pendingProgress?.onBoundary?.(base + (e.charIndex ?? 0));
+      };
+      if (i === sentences.length - 1) {
+        u.onend = () => {
+          pendingProgress?.onProgress?.(1);
+          markDone(token);
+        };
+      }
       u.onerror = (e) => {
         if (!started && e.error !== "interrupted" && e.error !== "canceled") {
           clearTimeout(timer);

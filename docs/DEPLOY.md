@@ -51,7 +51,7 @@ Please send a screenshot and one sentence for anything odd. Most useful for us:
 1. **Did your child know where to tap?** First screen, School, Wonder, Me.
 2. **Speed:** anything that made your child wait more than a few seconds (and what it was doing).
 3. **Voice:** did Wondrix speak? Did it sound OK in your language? Did the mic hear your child?
-4. **Wonder answers:** anything wrong, too long, too hard, or not suitable for a child.
+4. **Wonder answers:** anything wrong, too long, too hard, or not suitable for a child. If they ask about a game, video or meme (Minecraft, Roblox, a cartoon), Wondrix should play along once, then gently bridge to a real science idea — not lecture or get lost.
 5. **School:** questions too easy or too hard for the grade; did the session end nicely?
 6. **Arabic families:** sentences that sound translated or unnatural (please quote them).
 7. **Phone details:** phone model and browser (for example iPhone 13, Safari).

@@ -1,7 +1,16 @@
 export type AgeBand = "young" | "middle" | "teen";
 
-/** UI chrome mode (separate from AI ageBand). Explorer = ages ~7–10; Teen = ~11–17. */
-export type AgeMode = "explorer" | "teen";
+/**
+ * UI chrome mode (separate from AI ageBand and from Reading level).
+ * Little ≈ 5–7; Explorer ≈ 8–10; Teen ≈ 11–17 — tap size, nav, picture-first shell.
+ */
+export type AgeMode = "little" | "explorer" | "teen";
+
+/**
+ * How much text the child can handle (Reading difficulty + on-screen copy).
+ * Independent of ageMode: a 9-year-old Explorer can still be "not-yet" or "with-help".
+ */
+export type ReadingLevel = "not-yet" | "with-help" | "alone";
 
 /** Shell world for theming: home doors, school, wonder (extra), parent. */
 export type WorldId = "home" | "school" | "wonder" | "parent";
@@ -63,10 +72,15 @@ export type ParentProfile = {
   curriculum?: import("./curriculum").Curriculum;
   ageBand: AgeBand;
   /**
-   * UI age mode (tap size, nav, owl role). Missing → derived from grade.
+   * UI age mode (tap size, nav, owl role). Missing → derived from grade/age.
    * AI prompts still use ageBand.
    */
   ageMode?: AgeMode;
+  /**
+   * Reading difficulty / how much text to show. Missing → derived from age.
+   * Does not change ageMode chrome by itself.
+   */
+  readingLevel?: ReadingLevel;
   /**
    * Dark surfaces for any age mode (Explorer or Teen).
    * Legacy profiles may still store this as `teenDark`.

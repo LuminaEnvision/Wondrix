@@ -5,6 +5,18 @@ Plan source: [docs/PROJECT_CANVAS.md](./docs/PROJECT_CANVAS.md) (exported from C
 
 ## [Unreleased]
 
+### Added (Little mode — ages 5–7)
+- Age pick includes **Little** (picture + voice first), separate from reading level (`not-yet` / `with-help` / `alone`).
+- Home, Wonder, School, treasure hunt and practice: larger taps, 2-tab nav, hold-to-open Parent, picture answers with Listen on each choice.
+- Little age-pick art: cozy treehouse (`public/art/bg-little.jpg`). Acceptance notes: [docs/LITTLE_MODE_ACCEPTANCE.md](./docs/LITTLE_MODE_ACCEPTANCE.md).
+
+### Added (Wonder — silly questions → science, PR #19)
+- New Extra intent **`playful`**: questions about videos, games, cartoons, YouTubers, toys or memes get one short fun sentence (no lecture, no pretending it is already a science quiz), then a bridge to a real science idea with 2–3 tap-able paths. Safety unchanged.
+- Shipped with PR #19 (`a3229ec`) alongside the iPhone mic fix. Live check on GLM-5.3 Flash: 39/39 social checks (e.g. Minecraft creeper → expanding gases, Skibidi → sound pushes things). Details: [docs/DEV_CHANGELOG.md](./docs/DEV_CHANGELOG.md).
+
+### Fixed (iPhone mic, PR #19)
+- Dictation no longer sticks on "Listening…" when WebKit ends recognition without `onend`; "Send now" still delivers words.
+
 ### Added (phone testers)
 - Installable on phones with the owl icon (full screen). Phones use the device voice (no 80 MB download). 40 AI calls per minute per device on the public link. Deploy guide and tester checklist: [docs/DEPLOY.md](./docs/DEPLOY.md).
 

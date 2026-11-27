@@ -20,7 +20,7 @@ export function applyAgeChrome(mode: AgeMode, darkMode: boolean) {
 
 /**
  * Syncs UI chrome to the document:
- * - data-age = explorer | teen (tap size, radius, type scale)
+ * - data-age = little | explorer | teen (tap size, radius, type scale)
  * - data-theme = dark when darkMode is on (any age)
  * Keeps legacy data-skin for any leftover meadow/journal/studio rules.
  */
@@ -38,6 +38,8 @@ export function AgeSkin() {
       applyAgeChrome(mode, dark);
     }
     apply();
+    // Preload TTS quietly so Little never shows a progress bar.
+    void import("@/lib/voice").then((v) => v.warmUpVoice()).catch(() => {});
     window.addEventListener(PROFILE_CHANGED_EVENT, apply);
     window.addEventListener("storage", apply);
     return () => {
