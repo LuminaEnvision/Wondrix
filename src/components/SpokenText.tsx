@@ -18,20 +18,24 @@ export function SpokenText({
   const speech = useSyncExternalStore(subscribeSpeech, getSpeech, getServerSpeech);
   const mine = "id" in speech && speech.id === id && speech.state === "speaking";
   const words = text.trim().split(/\s+/).filter(Boolean);
+  const runKey = mine && words.length > 0 ? `${id}:${text}` : "";
   const [idx, setIdx] = useState(-1);
+  const [activeRun, setActiveRun] = useState("");
+
+  // Reset highlight when this utterance starts or stops (render-time adjust).
+  if (runKey !== activeRun) {
+    setActiveRun(runKey);
+    setIdx(runKey ? 0 : -1);
+  }
 
   useEffect(() => {
-    if (!mine || words.length === 0) {
-      setIdx(-1);
-      return;
-    }
-    setIdx(0);
-    const step = Math.max(280, Math.min(900, 4500 / words.length));
+    if (!runKey) return;
+    const step = Math.max(280, Math.min(900, 4500 / Math.max(1, words.length)));
     const timer = window.setInterval(() => {
       setIdx((i) => (i + 1 >= words.length ? words.length - 1 : i + 1));
     }, step);
     return () => window.clearInterval(timer);
-  }, [mine, text, words.length]);
+  }, [runKey, words.length]);
 
   return (
     <p dir="auto" className={className}>

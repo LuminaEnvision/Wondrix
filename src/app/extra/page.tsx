@@ -126,11 +126,9 @@ function IdeaChips({
 }
 
 function LittleFollowUps({
-  onPick,
   disabled,
   speakLabel,
 }: {
-  onPick: (q: string) => void;
   disabled?: boolean;
   speakLabel: (label: string, ask: string) => void;
 }) {
@@ -1066,7 +1064,6 @@ function ExtraInner() {
                       little ? (
                         <LittleFollowUps
                           disabled={busy}
-                          onPick={(q) => void send(q)}
                           speakLabel={(label, ask) => {
                             void unlockAudio().then(() => {
                               speak(label, { id: "follow-label", lang });
